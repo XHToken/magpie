@@ -16,7 +16,7 @@ func browserManagementRequest(method, address, path string) *http.Request {
 	r.RemoteAddr = "127.0.0.1:2345"
 	r.Header.Set("Origin", "http://"+address)
 	r.Header.Set("Sec-Fetch-Site", "same-origin")
-	r.Header.Set("X-API-Router-UI", "1")
+	r.Header.Set("X-Wefto-UI", "1")
 	return r
 }
 
@@ -36,7 +36,7 @@ func TestManagementSessionSameOriginBootstrap(t *testing.T) {
 	const token = "process-management-token"
 	for _, address := range []string{"127.0.0.1:13145", "[::1]:13145"} {
 		t.Run(address, func(t *testing.T) {
-			h := handler(Info{Service: "api-router", Address: address}, token)
+			h := handler(Info{Service: "wefto", Address: address}, token)
 			r := browserManagementRequest(http.MethodPost, address, "/api/management/session")
 			w := httptest.NewRecorder()
 			h.ServeHTTP(w, r)
@@ -102,8 +102,8 @@ func TestManagementSessionRejectsUnauthorizedBrowserContexts(t *testing.T) {
 		{"navigation fetch metadata", func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "none") }},
 		{"same site fetch metadata", func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "same-site") }},
 		{"foreign fetch metadata", func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "cross-site") }},
-		{"missing UI header", func(r *http.Request) { r.Header.Del("X-API-Router-UI") }},
-		{"different UI header", func(r *http.Request) { r.Header.Set("X-API-Router-UI", "true") }},
+		{"missing UI header", func(r *http.Request) { r.Header.Del("X-Wefto-UI") }},
+		{"different UI header", func(r *http.Request) { r.Header.Set("X-Wefto-UI", "true") }},
 		{"foreign host", func(r *http.Request) { r.Host = "attacker.example:13145" }},
 		{"different loopback host", func(r *http.Request) { r.Host = "127.0.0.2:13145" }},
 		{"nonlocal peer", func(r *http.Request) { r.RemoteAddr = "192.0.2.10:2345" }},
@@ -178,7 +178,7 @@ func TestManagementSessionRefreshesAfterServiceRestart(t *testing.T) {
 		}
 		r.Header.Set("Origin", "http://"+address)
 		r.Header.Set("Sec-Fetch-Site", "same-origin")
-		r.Header.Set("X-API-Router-UI", "1")
+		r.Header.Set("X-Wefto-UI", "1")
 		resp, err := client.Do(r)
 		if err != nil {
 			t.Fatal(err)

@@ -3,10 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
-	"github.com/yetone/magpie/internal/testenv"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/yetone/magpie/internal/testenv"
 )
 
 func TestDeliveryAndServiceHelpAndInvalidArgumentsNeverWrite(t *testing.T) {

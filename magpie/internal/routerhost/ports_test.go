@@ -86,7 +86,7 @@ func TestPortSynchronizationUpdatesBothHostsAndPreservesFirstBackup(t *testing.T
 	}
 	put(t, wbPath, wb)
 	loomyPath := filepath.Join(targets[1].ConfigRoot, "opencode.json")
-	loomy, err := edit.PatchJSON(get(t, loomyPath), []edit.KV{{Path: "later", Value: "keep"}, {Path: "provider.api_router.options.timeout", Value: 1200000}}, nil)
+	loomy, err := edit.PatchJSON(get(t, loomyPath), []edit.KV{{Path: "later", Value: "keep"}, {Path: "provider.wefto.options.timeout", Value: 1200000}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestPortSynchronizationRollsBackBothHostsAndJournals(t *testing.T) {
 func TestPortSynchronizationPreflightsConflictsAndLeavesUnrelatedProviders(t *testing.T) {
 	e, targets, _ := connectedPortFixtures(t)
 	path := filepath.Join(targets[1].ConfigRoot, "opencode.json")
-	bad, err := edit.PatchJSON(get(t, path), []edit.KV{{Path: "provider.api_router.options.useSessionAuth", Value: true}}, nil)
+	bad, err := edit.PatchJSON(get(t, path), []edit.KV{{Path: "provider.wefto.options.useSessionAuth", Value: true}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

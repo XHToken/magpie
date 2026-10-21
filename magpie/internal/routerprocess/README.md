@@ -46,7 +46,7 @@ these loader keys fails validation. Other environment entries remain available.
 This preparation changes only the child command and calls no process-global
 `SetDllDirectory` or `AddDllDirectory` API. The parent environment and working
 directory retain their values. App-local deployment, acquisition and repair are
-described in the [runtime reference](../../docs/subsystems/api-router-runtime.md).
+described in the [runtime reference](../../docs/subsystems/wefto-runtime.md).
 
 `RuntimeVersion(ctx, spec)` is the narrow internal version probe. It executes
 only `--version` with the same dependency checks, child environment, working

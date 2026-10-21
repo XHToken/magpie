@@ -1,14 +1,14 @@
-# API-router fixed Windows delivery
+# Wefto fixed Windows delivery
 
 [`routerdelivery`](../../internal/routerdelivery/delivery.go) owns a local,
 explicitly chosen Windows amd64 package manifest and receipt-managed program
 files. It does not initialize config, persist model intent, run a service,
 touch host settings or download anything. CLI service/host coordination remains
-with the [service owner](api-router-service.md); application data follows the
-[independent storage layout](api-router-storage.md).
+with the [service owner](wefto-service.md); application data follows the
+[independent storage layout](wefto-storage.md).
 
 [`package-windows.ps1`](../../scripts/package-windows.ps1) builds only
-`cmd/api-router` with CGO disabled, `-trimpath`, disabled VCS stamping and a fixed
+`cmd/wefto` with CGO disabled, `-trimpath`, disabled VCS stamping and a fixed
 version/build ID. The ZIP has a fixed order/date and exactly four flat files:
 the EXE, user guide and install/uninstall scripts. The external schema-1
 manifest pins product/version/windows/amd64, the ZIP's size/SHA256 and every
@@ -28,7 +28,9 @@ fails without overwriting it. A per-install sibling lock rejects concurrent
 install/uninstall. Staging is removed on return; a process crash may leave a
 stage or lock requiring explicit inspection, never automatic stale takeover.
 
-The recommended program root is `%LOCALAPPDATA%/Programs/API-router`, separate
+The manifest product is `wefto`, the managed executable is `wefto.exe`, and the receipt is `.wefto-install.json`. Legacy packages remain owned by their original installer and executable; the new installer does not reinterpret an old package as Wefto. See the [upgrade guide](../wefto-upgrade.md).
+
+The recommended program root is `%LOCALAPPDATA%/Programs/Wefto`, separate
 from config/data/models/runtime. The CLI passes protected storage roots to
 `Install` so ancestor and descendant overlap is refused. Absolute paths are
 required; UNC/device namespaces, dot/parent components and Windows path aliases
@@ -41,7 +43,7 @@ local inputs from damage and unsafe layouts; they are not an OS access-control
 boundary against another process running as the same user and racing filesystem
 changes. Packages are published in the personal fork's
 [GitHub Releases](https://github.com/xyzane54/magpie/releases) with an
-`api-router-v` tag prefix; no publisher code signature is included. The installer
+`wefto-v` tag prefix; no publisher code signature is included. The installer
 does not contact GitHub or trust a moving latest-release URL.
 
 [`PreviewUninstall` / `Uninstall`](../../internal/routerdelivery/uninstall.go)

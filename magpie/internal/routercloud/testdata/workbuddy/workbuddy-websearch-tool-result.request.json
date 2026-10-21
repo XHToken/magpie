@@ -32,7 +32,7 @@
       "messageId": "fixture-text-9",
       "model": "deepseek-flash",
       "requestModelId": "custom-local:deepseek-flash",
-      "requestModelName": "API Router",
+      "requestModelName": "Wefto",
       "traceId": "fixture-text-10",
       "conversationRequestId": "fixture-text-11",
       "rawUsage": {
@@ -74,7 +74,7 @@
       "messageId": "fixture-text-9",
       "model": "deepseek-flash",
       "requestModelId": "custom-local:deepseek-flash",
-      "requestModelName": "API Router",
+      "requestModelName": "Wefto",
       "traceId": "fixture-text-10",
       "conversationRequestId": "fixture-text-11",
       "agent": "cli",

@@ -41,7 +41,7 @@ func workBuddyCLIFixture(t *testing.T, failure string, calls *atomic.Int32) *htt
 		}
 		switch r.URL.Path {
 		case "/healthz":
-			io.WriteString(w, `{"service":"api-router","status":"ok"}`)
+			io.WriteString(w, `{"service":"wefto","status":"ok"}`)
 		case "/api/apps":
 			if r.Method != http.MethodGet || r.Header.Get("Authorization") != "Bearer "+workBuddyCLIManagement {
 				t.Error("wrong management check")
@@ -204,7 +204,7 @@ func TestWorkBuddyHostCLIProductionApplyRepeatAndStoppedRestore(t *testing.T) {
 			if err := run(append(workBuddyCLIArgs("restore", root, state, ""), "--plan-digest", restoreDigest), &output); err != nil {
 				t.Fatal(err)
 			}
-			if !strings.Contains(output.String(), "bypasses API-router") {
+			if !strings.Contains(output.String(), "bypasses Wefto") {
 				t.Fatal("recovery omitted its bypass notice")
 			}
 			settings, err = os.ReadFile(filepath.Join(root, "settings.json"))

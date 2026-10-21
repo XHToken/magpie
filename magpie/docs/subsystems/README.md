@@ -4,21 +4,21 @@ These pages describe current responsibilities, runtime paths, state, and contrac
 
 | Subsystem | Reference |
 | --- | --- |
-| API-router independent directories, schema and config persistence | [API-router storage](api-router-storage.md) |
-| API-router read-only device providers, model recommendation and separate device checks | [Device detection and recommendation](api-router-device.md) |
-| API-router pinned artifacts, resumable installer, single model process, queue and explicit lifecycle | [Local model runtime](api-router-runtime.md) |
-| API-router private redaction preparation, history cache, deterministic mapping and JSON/SSE restoration | [Redaction engineering](api-router-redaction.md) |
-| API-router startup, local access, embedded page and disabled background jobs | [API-router service shell](api-router-service.md) |
-| API-router fixed Windows package, local installer and retained recovery tool | [Windows delivery](api-router-delivery.md) |
-| API-router API-key provider editor, private credentials and explicit model lists | [API-router providers](api-router-providers.md) |
-| API-router application registry, independent Profiles, credentials and request context | [API-router applications](api-router-apps.md) |
-| API-router pure shared wire codecs and legacy compatibility aliases | [Shared cloud codecs](api-router-codec.md) |
-| API-router three-protocol codec seam and bounded single-target cloud execution | [API-router cloud execution](api-router-cloud.md) |
-| API-router bounded persistent request records, safe queries and retention | [Request ledger](api-router-request-ledger.md) |
-| API-router management request APIs and five-language observation pages | [Request management](api-router-requests.md) |
-| API-router safe execution events, completion and actual per-field usage | [Execution observation](api-router-observe.md) |
-| API-router explicit Codex/Claude configuration, private backups and offline recovery | [Host configuration and recovery](api-router-host-config.md) |
-| API-router Loomy local OpenCode Provider and explicit offline recovery | [Loomy integration](api-router-loomy.md) |
+| Wefto independent directories, schema and config persistence | [Wefto storage](wefto-storage.md) |
+| Wefto read-only device providers, model recommendation and separate device checks | [Device detection and recommendation](wefto-device.md) |
+| Wefto pinned artifacts, resumable installer, single model process, queue and explicit lifecycle | [Local model runtime](wefto-runtime.md) |
+| Wefto private redaction preparation, history cache, deterministic mapping and JSON/SSE restoration | [Redaction engineering](wefto-redaction.md) |
+| Wefto startup, local access, embedded page and disabled background jobs | [Wefto service shell](wefto-service.md) |
+| Wefto fixed Windows package, local installer and retained recovery tool | [Windows delivery](wefto-delivery.md) |
+| Wefto API-key provider editor, private credentials and explicit model lists | [Wefto providers](wefto-providers.md) |
+| Wefto application registry, independent Profiles, credentials and request context | [Wefto applications](wefto-apps.md) |
+| Wefto pure shared wire codecs and legacy compatibility aliases | [Shared cloud codecs](wefto-codec.md) |
+| Wefto three-protocol codec seam and bounded single-target cloud execution | [Wefto cloud execution](wefto-cloud.md) |
+| Wefto bounded persistent request records, safe queries and retention | [Request ledger](wefto-request-ledger.md) |
+| Wefto management request APIs and five-language observation pages | [Request management](wefto-requests.md) |
+| Wefto safe execution events, completion and actual per-field usage | [Execution observation](wefto-observe.md) |
+| Wefto explicit Codex/Claude configuration, private backups and offline recovery | [Host configuration and recovery](wefto-host-config.md) |
+| Wefto Loomy local OpenCode Provider and explicit offline recovery | [Loomy integration](wefto-loomy.md) |
 | Built-in subscriptions moving to plugins | [Provider and plugin ownership](provider-plugins.md) |
 | Built-in plugins: registry, lifecycle, plugins.yml, presets, settings schemas, the window's kernel (slots, error boundary, kit) | [Plugin runtime](plugin-runtime.md) |
 | Plugins that run on the gateway's requests and replies | [Gateway middleware](gateway-middleware.md) |

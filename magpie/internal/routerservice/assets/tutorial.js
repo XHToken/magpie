@@ -7,7 +7,7 @@
     ['You can skip now and return from Usage guide.', '可以暂时跳过，稍后从“使用指南”继续。', '可以暫時略過，稍後從「使用指南」繼續。', '今はスキップし、後で「使用ガイド」から再開できます。', 'Jetzt überspringen und später über die Anleitung fortsetzen.'],
     ['Usage guide', '使用指南', '使用指南', '使用ガイド', 'Anleitung'],
     ['Tutorial chapters', '教学章节', '教學章節', 'ガイドの章', 'Kapitel der Anleitung'],
-    ['Meet API-router', '认识 API-router', '認識 API-router', 'API-routerを知る', 'API-router kennenlernen'],
+    ['Meet Wefto', '认识 Wefto', '認識 Wefto', 'Weftoを知る', 'Wefto kennenlernen'],
     ['Connect a provider', '连接供应商', '連接供應商', 'プロバイダーに接続', 'Anbieter verbinden'],
     ['Set up your app', '配置应用', '設定應用程式', 'アプリを設定', 'App einrichten'],
     ['Choose your local route', '选择本地路线', '選擇本機路線', 'ローカル利用を選ぶ', 'Lokale Nutzung wählen'],
@@ -30,7 +30,7 @@
     ['Connect a cloud provider, bind it to your app, then add a local model if you need one. You can close this guide and continue at any time.', '先连接云端供应商，再为应用绑定模型；需要时再添加本地模型。你可以随时收起指南，稍后继续。', '先連接雲端供應商，再為應用程式綁定模型；需要時再加入本機模型。你可以隨時收起指南，稍後繼續。', 'クラウドプロバイダーに接続し、アプリにモデルを設定します。必要ならローカルモデルを追加します。ガイドはいつでも閉じて再開できます。', 'Cloud-Anbieter verbinden, der App ein Modell zuweisen und bei Bedarf ein lokales Modell ergänzen. Die Anleitung lässt sich jederzeit schließen und fortsetzen.'],
     ['Your app', '你的应用', '你的應用程式', '利用するアプリ', 'Deine App'],
     ['Cloud or local model', '云端或本机模型', '雲端或本機模型', 'クラウドまたはローカルモデル', 'Cloud- oder lokales Modell'],
-    ['Request path: your app, API-router, cloud or local model', '请求路径：你的应用、API-router、云端或本机模型', '請求路徑：你的應用程式、API-router、雲端或本機模型', 'リクエスト経路：アプリ、API-router、クラウドまたはローカルモデル', 'Anfrageweg: App, API-router, Cloud- oder lokales Modell'],
+    ['Request path: your app, Wefto, cloud or local model', '请求路径：你的应用、Wefto、云端或本机模型', '請求路徑：你的應用程式、Wefto、雲端或本機模型', 'リクエスト経路：アプリ、Wefto、クラウドまたはローカルモデル', 'Anfrageweg: App, Wefto, Cloud- oder lokales Modell'],
     ['Connect cloud first', '先接通云端', '先接通雲端', 'まずクラウドに接続', 'Zuerst Cloud verbinden'],
     ['Have your provider API key ready, then choose the cloud model for WorkBuddy or Loomy.', '准备好供应商 API 密钥，再选择 WorkBuddy 或 Loomy 使用的云端模型。', '準備好供應商 API 金鑰，再選擇 WorkBuddy 或 Loomy 使用的雲端模型。', 'プロバイダーのAPIキーを準備し、WorkBuddyまたはLoomyで使うクラウドモデルを選びます。', 'API-Schlüssel des Anbieters bereithalten und ein Cloud-Modell für WorkBuddy oder Loomy wählen.'],
     ['Local models are optional', '本地模型按需添加', '本機模型依需求加入', 'ローカルモデルは任意', 'Lokale Modelle sind optional'],
@@ -58,8 +58,8 @@
     ['Use stored credentials first', '先使用已存储凭证', '先使用已儲存憑證', 'まず保存済み認証情報を使う', 'Zunächst gespeicherte Zugangsdaten nutzen'],
     ['Loomy defaults to stored mode: Router uses the provider key you saved. “Verify and save” checks cloud text, saves the Profile and attempts to connect a uniquely detected local Loomy directory.', 'Loomy 默认使用 stored 模式，由 Router 使用已保存的供应商密钥。“验证并保存”会检查云端文本、保存 Profile，并尝试接入唯一可确定的本机 Loomy 目录。', 'Loomy 預設使用 stored 模式，由 Router 使用已儲存的供應商金鑰。「驗證並儲存」會檢查雲端文字、儲存 Profile，並嘗試接入唯一可確定的本機 Loomy 目錄。', 'Loomyの既定値はstoredモードで、Routerが保存したプロバイダーキーを使います。「検証して保存」はクラウドテキストを確認し、Profileを保存して一意に検出できたローカルディレクトリへの接続を試みます。', 'Loomy nutzt standardmäßig stored: Router verwendet den gespeicherten Anbieterschlüssel. „Prüfen und speichern“ prüft Cloud-Text, speichert das Profil und versucht das eindeutig erkannte lokale Loomy-Verzeichnis zu verbinden.'],
     ['Restart the app and start a new session', '重启应用并新建会话', '重新啟動應用程式並建立新會話', 'アプリを再起動し新しいセッションを開始', 'App neu starten und neue Sitzung öffnen'],
-    ['Finish existing tasks, restart WorkBuddy and choose the API Router model. Send your first request in a new session.', '先结束已有任务，再重启 WorkBuddy 并选择 API Router 对应模型，在新会话中发送第一条请求。', '先結束現有任務，再重新啟動 WorkBuddy 並選擇 API Router 對應模型，在新會話中傳送第一筆請求。', '実行中の作業を終えてWorkBuddyを再起動し、API Routerのモデルを選びます。新しいセッションから最初のリクエストを送ってください。', 'Laufende Aufgaben beenden, WorkBuddy neu starten und das API-Router-Modell wählen. Die erste Anfrage in einer neuen Sitzung senden.'],
-    ['Restart Loomy, choose API Router and start a new session. Existing sessions and project-level .opencode settings may keep a different model or provider.', '重启 Loomy，选择 API Router 并新建会话。已有会话及项目级 .opencode 设置可能继续使用其他模型或供应商。', '重新啟動 Loomy，選擇 API Router 並建立新會話。現有會話及專案層級 .opencode 設定可能繼續使用其他模型或供應商。', 'Loomyを再起動し、API Routerを選んで新しいセッションを開始します。既存セッションやプロジェクトの.opencode設定は別のモデルを使う場合があります。', 'Loomy neu starten, API Router wählen und eine neue Sitzung öffnen. Bestehende Sitzungen und .opencode-Projekteinstellungen können andere Modelle oder Anbieter verwenden.'],
+    ['Finish existing tasks, restart WorkBuddy and choose the Wefto model. Send your first request in a new session.', '先结束已有任务，再重启 WorkBuddy 并选择 Wefto 对应模型，在新会话中发送第一条请求。', '先結束現有任務，再重新啟動 WorkBuddy 並選擇 Wefto 對應模型，在新會話中傳送第一筆請求。', '実行中の作業を終えてWorkBuddyを再起動し、Weftoのモデルを選びます。新しいセッションから最初のリクエストを送ってください。', 'Laufende Aufgaben beenden, WorkBuddy neu starten und das Wefto-Modell wählen. Die erste Anfrage in einer neuen Sitzung senden.'],
+    ['Restart Loomy, choose Wefto and start a new session. Existing sessions and project-level .opencode settings may keep a different model or provider.', '重启 Loomy，选择 Wefto 并新建会话。已有会话及项目级 .opencode 设置可能继续使用其他模型或供应商。', '重新啟動 Loomy，選擇 Wefto 並建立新會話。現有會話及專案層級 .opencode 設定可能繼續使用其他模型或供應商。', 'Loomyを再起動し、Weftoを選んで新しいセッションを開始します。既存セッションやプロジェクトの.opencode設定は別のモデルを使う場合があります。', 'Loomy neu starten, Wefto wählen und eine neue Sitzung öffnen. Bestehende Sitzungen und .opencode-Projekteinstellungen können andere Modelle oder Anbieter verwenden.'],
     ['If automatic connection fails, the saved Profile remains. Close the app and use its setup guide to specify a directory or retry; saving alone is not proof of a host request.', '自动接入失败时 Profile 会保留。请关闭应用后重试，或在接入说明中指定目录；保存成功不等于已验证真实宿主请求。', '自動接入失敗時 Profile 會保留。請關閉應用程式後重試，或在接入說明中指定目錄；儲存成功不等於已驗證真實宿主請求。', '自動接続に失敗してもProfileは保持されます。アプリを終了して再試行するか、接続ガイドでディレクトリを指定します。保存成功だけでは実際のホストリクエストを確認できません。', 'Bei fehlgeschlagener automatischer Verbindung bleibt das Profil erhalten. App schließen und erneut versuchen oder im Einrichtungsleitfaden ein Verzeichnis angeben. Speichern allein bestätigt keine echte Host-Anfrage.'],
     ['Advanced: explicit Loomy forwarding', '进阶：Loomy 显式转发凭证', '進階：Loomy 明確轉送憑證', '詳細：Loomyの明示的な認証転送', 'Erweitert: explizite Loomy-Weiterleitung'],
     ['Only choose forward mode intentionally. It forwards business Authorization supplied by Loomy; stored-key verification and automatic host connection do not apply. Verify from the connected host. The management token must never be used for inference.', '只有明确需要时才选择 forward 模式；它转发 Loomy 提供的业务 Authorization，不适用 stored 密钥验证和自动宿主接入，需从已接入宿主验证。管理令牌不能用于模型推理。', '只有明確需要時才選擇 forward 模式；它轉送 Loomy 提供的業務 Authorization，不適用 stored 金鑰驗證和自動宿主接入，需從已接入宿主驗證。管理權杖不能用於模型推論。', 'forwardモードは意図して選択してください。Loomyの業務Authorizationを転送し、storedキーの検証と自動ホスト接続は適用されません。接続済みホストから検証します。管理トークンは推論に使いません。', 'forward nur bewusst wählen. Dieser Modus leitet Loomys Geschäfts-Authorization weiter; Prüfung gespeicherter Schlüssel und automatische Host-Verbindung gelten nicht. Über den verbundenen Host prüfen. Das Verwaltungstoken darf nicht für Inferenz verwendet werden.'],
@@ -95,14 +95,14 @@
     ['Closing the page does not stop Router. A service restart does not automatically load the model or rerun capability checks. Saved intent is separate from current effective readiness; check the page again before relying on local use.', '关闭页面不会停止 Router。服务重启不会自动加载模型或重跑能力检查；已保存意图与当前有效状态分开，请再次查看页面确认能否本地使用。', '關閉頁面不會停止 Router。服務重新啟動不會自動載入模型或重跑能力檢查；已儲存意圖與目前有效狀態分開，請再次查看頁面確認能否本機使用。', 'ページを閉じてもRouterは停止しません。サービスの再起動はモデルの自動ロードや検査の再実行を行いません。保存した意図と現在の利用可否は別なので、再度ページで確認してください。', 'Das Schließen der Seite stoppt Router nicht. Ein Dienstneustart lädt das Modell nicht automatisch und wiederholt keine Fähigkeitsprüfung. Gespeicherter Wunsch und aktuelle Bereitschaft sind getrennt; vor lokaler Nutzung erneut prüfen.'],
     ['Skip installation for now', '暂时跳过安装', '暫時略過安裝', '今は導入をスキップ', 'Installation vorerst überspringen'],
     ['Send a request and see where it went', '发一条请求，看看它去了哪里', '傳送一筆請求，看看它去了哪裡', 'リクエストを送り、実行先を確認', 'Anfrage senden und Ziel prüfen'],
-    ['After configuration, restart the connected app, choose API Router and open a new session. Send a simple request there, then return here to inspect actual results.', '完成配置后，重启已接入的应用，选择 API Router 并新建会话。先在应用中发送一条简单请求，再回来查看实际结果。', '完成設定後，重新啟動已接入的應用程式，選擇 API Router 並建立新會話。先在應用程式中傳送一筆簡單請求，再回來查看實際結果。', '設定後、接続したアプリを再起動してAPI Routerを選び、新しいセッションを開きます。簡単なリクエストを送り、ここで実際の結果を確認してください。', 'Nach der Einrichtung die verbundene App neu starten, API Router wählen und eine neue Sitzung öffnen. Eine einfache Anfrage senden und hier das tatsächliche Ergebnis prüfen.'],
+    ['After configuration, restart the connected app, choose Wefto and open a new session. Send a simple request there, then return here to inspect actual results.', '完成配置后，重启已接入的应用，选择 Wefto 并新建会话。先在应用中发送一条简单请求，再回来查看实际结果。', '完成設定後，重新啟動已接入的應用程式，選擇 Wefto 並建立新會話。先在應用程式中傳送一筆簡單請求，再回來查看實際結果。', '設定後、接続したアプリを再起動してWeftoを選び、新しいセッションを開きます。簡単なリクエストを送り、ここで実際の結果を確認してください。', 'Nach der Einrichtung die verbundene App neu starten, Wefto wählen und eine neue Sitzung öffnen. Eine einfache Anfrage senden und hier das tatsächliche Ergebnis prüfen.'],
     ['Try: briefly explain what you can help me with.', '可以试试：请用一句话介绍你能帮我做什么。', '可以試試：請用一句話介紹你能幫我做什麼。', '例：何を手伝えるか、一文で教えてください。', 'Beispiel: Erkläre in einem Satz, wobei du mir helfen kannst.'],
     ['Usage → Requests', '用量 → 请求', '用量 → 請求', '使用量 → リクエスト', 'Nutzung → Anfragen'],
     ['Open the request detail for status, actual tokens, latency and internal calls. An error is a result to investigate, not a successful local answer.', '打开请求详情，查看状态、实际 Token、耗时与内部调用。错误需要排查，不能计作成功的本地回答。', '開啟請求詳情，查看狀態、實際 Token、耗時與內部呼叫。錯誤需要排查，不能計作成功的本機回答。', '詳細で状態、実際のトークン、所要時間、内部呼び出しを確認します。エラーは調査対象であり、ローカル回答の成功ではありません。', 'Anfragedetails für Status, tatsächliche Tokens, Dauer und interne Aufrufe öffnen. Ein Fehler muss untersucht werden und ist keine erfolgreiche lokale Antwort.'],
     ['Routing', '路由', '路由', 'ルーティング', 'Routing'],
     ['Confirm the actual cloud or local destination and failure stage. Selecting a route or reading a recommendation does not prove local execution.', '核对实际云端或本地去向以及失败阶段。选择路线或看到推荐结果，都不代表已在本地执行。', '核對實際雲端或本機去向以及失敗階段。選擇路線或看到建議結果，都不代表已在本機執行。', '実際のクラウド・ローカル実行先と失敗段階を確認します。ルートの選択や推奨結果だけではローカル実行の証拠になりません。', 'Tatsächliches Cloud- oder lokales Ziel und Fehlerphase prüfen. Routenwahl oder Empfehlung beweist keine lokale Ausführung.'],
     ['Usage → Overview', '用量 → 概览', '用量 → 概覽', '使用量 → 概要', 'Nutzung → Übersicht'],
-    ['Review aggregates within the retained window. Only requests through API-router are counted. Unreported tokens remain unknown; reference prices and savings are estimates, not bills.', '查看保留窗口内汇总。只统计经过 API-router 的请求；未报告 Token 为未知，参考价格与节省金额属于估算，不是账单。', '查看保留視窗內彙總。只統計經過 API-router 的請求；未回報 Token 為未知，參考價格與節省金額屬於估算，不是帳單。', '保持期間内の集計を確認します。API-routerを通ったリクエストだけが対象です。未報告のトークンは不明のままで、参考価格や節約額は請求額ではなく推定です。', 'Summen im Aufbewahrungszeitraum ansehen. Gezählt werden nur Anfragen über API-router. Nicht gemeldete Tokens bleiben unbekannt; Referenzpreise und Ersparnis sind Schätzungen, keine Rechnungen.'],
+    ['Review aggregates within the retained window. Only requests through Wefto are counted. Unreported tokens remain unknown; reference prices and savings are estimates, not bills.', '查看保留窗口内汇总。只统计经过 Wefto 的请求；未报告 Token 为未知，参考价格与节省金额属于估算，不是账单。', '查看保留視窗內彙總。只統計經過 Wefto 的請求；未回報 Token 為未知，參考價格與節省金額屬於估算，不是帳單。', '保持期間内の集計を確認します。Weftoを通ったリクエストだけが対象です。未報告のトークンは不明のままで、参考価格や節約額は請求額ではなく推定です。', 'Summen im Aufbewahrungszeitraum ansehen. Gezählt werden nur Anfragen über Wefto. Nicht gemeldete Tokens bleiben unbekannt; Referenzpreise und Ersparnis sind Schätzungen, keine Rechnungen.'],
     ['Finishing marks this guide as read only. Provider setup, host connection and local trial readiness must be checked in their own pages and real requests.', '完成阅读只标记指南已读。供应商配置、宿主接入与本地试用是否可用，仍需在对应页面及真实请求中验证。', '完成閱讀只標記指南已讀。供應商設定、宿主接入與本機試用是否可用，仍需在對應頁面及真實請求中驗證。', '読み終える操作はガイドの既読だけを記録します。プロバイダー設定、ホスト接続、ローカル試用の可否は各ページと実際のリクエストで確認します。', 'Abschließen markiert nur die Anleitung als gelesen. Anbieterkonfiguration, Host-Verbindung und lokale Testbereitschaft müssen auf ihren Seiten und mit echten Anfragen geprüft werden.'],
     ['Go to Agents', '前往 Agent', '前往 Agent', 'Agentを開く', 'Agents öffnen'],
     ['Go to Providers', '前往供应商', '前往供應商', 'プロバイダーを開く', 'Anbieter öffnen'],
@@ -111,12 +111,12 @@
   ]) for (const [language, value] of [['zh', zh], ['zh-TW', tw], ['ja', ja], ['de', de]]) (I18N[language] ||= {})[key] = value;
   translateStatic();
 
-  const key = 'api-router.tutorial.v1';
+  const key = 'wefto.tutorial.v1';
   const fields = ['version', 'step', 'route', 'app', 'dismissed', 'completed'];
   const defaults = () => ({ version: 1, step: 0, route: 'local', app: 'workbuddy', dismissed: false, completed: false });
   let state = defaults();
   try {
-    const saved = JSON.parse(localStorage.getItem(key));
+    const saved = JSON.parse(localStorage.getItem(key) ?? localStorage.getItem('api-router.tutorial.v1'));
     if (saved && !Array.isArray(saved) && typeof saved === 'object' &&
         Object.keys(saved).length === fields.length && fields.every((field) => Object.hasOwn(saved, field)) &&
         saved.version === 1 && Number.isInteger(saved.step) && saved.step >= 0 && saved.step <= 5 &&
@@ -132,7 +132,7 @@
   const dialog = modal.querySelector('.tutorial-dialog');
   const content = $('#tutorialContent');
   const reading = modal.querySelector('.tutorial-reading');
-  const names = ['Meet API-router', 'Connect a provider', 'Set up your app', 'Choose your local route', 'Install and try', 'Your first request'];
+  const names = ['Meet Wefto', 'Connect a provider', 'Set up your app', 'Choose your local route', 'Install and try', 'Your first request'];
   let opened = false;
   let returnFocus = null;
   let isolated = [];
@@ -185,8 +185,8 @@
       fragment.append(paragraph('Connect a cloud provider, bind it to your app, then add a local model if you need one. You can close this guide and continue at any time.'));
       const flow = el('div', 'tutorial-flow');
       flow.setAttribute('role', 'img');
-      flow.setAttribute('aria-label', t('Request path: your app, API-router, cloud or local model'));
-      for (const [index, name] of ['Your app', 'API-router', 'Cloud or local model'].entries()) {
+      flow.setAttribute('aria-label', t('Request path: your app, Wefto, cloud or local model'));
+      for (const [index, name] of ['Your app', 'Wefto', 'Cloud or local model'].entries()) {
         if (index) { const arrow = el('span', 'tutorial-arrow', '→'); arrow.setAttribute('aria-hidden', 'true'); flow.append(arrow); }
         flow.append(el('div', 'tutorial-node' + (index === 1 ? ' tutorial-node-router' : ''), t(name)));
       }
@@ -223,8 +223,8 @@
           ? ['Use stored credentials first', 'Loomy defaults to stored mode: Router uses the provider key you saved. “Verify and save” checks cloud text, saves the Profile and attempts to connect a uniquely detected local Loomy directory.']
           : ['Verify, save and connect', '“Verify and save” sends a small cloud text request and may incur charges. After success, Router saves the Profile and attempts to connect the detected WorkBuddy configuration.'],
         ['Restart the app and start a new session', state.app === 'loomy'
-          ? 'Restart Loomy, choose API Router and start a new session. Existing sessions and project-level .opencode settings may keep a different model or provider.'
-          : 'Finish existing tasks, restart WorkBuddy and choose the API Router model. Send your first request in a new session.'],
+          ? 'Restart Loomy, choose Wefto and start a new session. Existing sessions and project-level .opencode settings may keep a different model or provider.'
+          : 'Finish existing tasks, restart WorkBuddy and choose the Wefto model. Send your first request in a new session.'],
       ]), note('If automatic connection fails, the saved Profile remains. Close the app and use its setup guide to specify a directory or retry; saving alone is not proof of a host request.'));
       if (state.app === 'loomy') fragment.append(note('Verification sends a small text request and may incur charges.'), details('Advanced: explicit Loomy forwarding', 'Only choose forward mode intentionally. It forwards business Authorization supplied by Loomy; stored-key verification and automatic host connection do not apply. Verify from the connected host. The management token must never be used for inference.'));
     } else if (state.step === 3) {
@@ -245,12 +245,12 @@
         ['Explicitly enable experimental routing and execution', 'Only after the required checks pass, click the trial button yourself. You can disable it at any time; neither reading this guide nor installing the model enables it.'],
       ]), details('After closing the page or restarting', 'Closing the page does not stop Router. A service restart does not automatically load the model or rerun capability checks. Saved intent is separate from current effective readiness; check the page again before relying on local use.'), button('Skip installation for now', 'text tutorial-skip', 'skip-install', () => { state.route = 'cloud'; setStep(5); }));
     } else {
-      fragment.append(paragraph('After configuration, restart the connected app, choose API Router and open a new session. Send a simple request there, then return here to inspect actual results.'), el('blockquote', 'tutorial-quote', t('Try: briefly explain what you can help me with.')));
+      fragment.append(paragraph('After configuration, restart the connected app, choose Wefto and open a new session. Send a simple request there, then return here to inspect actual results.'), el('blockquote', 'tutorial-quote', t('Try: briefly explain what you can help me with.')));
       const rows = el('div', 'tutorial-resultrows');
       for (const [title, copy] of [
         ['Usage → Requests', 'Open the request detail for status, actual tokens, latency and internal calls. An error is a result to investigate, not a successful local answer.'],
         ['Routing', 'Confirm the actual cloud or local destination and failure stage. Selecting a route or reading a recommendation does not prove local execution.'],
-        ['Usage → Overview', 'Review aggregates within the retained window. Only requests through API-router are counted. Unreported tokens remain unknown; reference prices and savings are estimates, not bills.'],
+        ['Usage → Overview', 'Review aggregates within the retained window. Only requests through Wefto are counted. Unreported tokens remain unknown; reference prices and savings are estimates, not bills.'],
       ]) {
         const row = el('div', 'tutorial-resultrow');
         row.append(el('strong', '', t(title)), paragraph(copy, 'tutorial-inlinehint'));

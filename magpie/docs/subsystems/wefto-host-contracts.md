@@ -1,4 +1,4 @@
-# API-router host configuration contracts
+# Wefto host configuration contracts
 
 WorkBuddy 5.3.8 is pinned to the installed Desktop/Agent artifacts, separately
 from Magpie's retired subscription provider. Its [`WorkBuddyAdapter`](../../internal/routerhost/workbuddy.go)
@@ -9,7 +9,7 @@ and `settings.model`. Selection is `custom-local:<raw ID>`; the wire model is
 the raw ID. The installed builder appends `chat/completions` to
 `/app/workbuddy/v1`. Source hashes, precedence and minimal sanitized samples are
 in the installation investigation (historical development record; not distributed).
-See [host configuration](api-router-host-config.md#workbuddy-538) for transaction
+See [host configuration](wefto-host-config.md#workbuddy-538) for transaction
 and offline restoration, and the delivery record (historical development record; not distributed)
 for separate automated and real-cloud results.
 
@@ -37,10 +37,10 @@ writes and offline restore CLI belong to the owning host transaction subsystem.
 | Explicit test root | `Options.ConfigRoot` is the selected Codex directory itself | `Options.ConfigRoot` is the selected Claude directory itself |
 | Files changed | Only `config.toml`; `auth.json` is not touched | Only `settings.json`; `.claude.json` and keychain are not touched |
 | Model | Root `model` | `env.ANTHROPIC_MODEL` |
-| Router URL written | `model_providers.api_router.base_url = "http://127.0.0.1:8317/app/codex/v1"` | `env.ANTHROPIC_BASE_URL = "http://127.0.0.1:8317/app/claude-code"` |
+| Router URL written | `model_providers.wefto.base_url = "http://127.0.0.1:8317/app/codex/v1"` | `env.ANTHROPIC_BASE_URL = "http://127.0.0.1:8317/app/claude-code"` |
 | Final messages endpoint | Appended `responses`: `/app/codex/v1/responses` | SDK appends `/v1/messages`: `/app/claude-code/v1/messages` |
-| Public placeholder | `model_providers.api_router.experimental_bearer_token = "api-router-local-placeholder"` | `env.ANTHROPIC_AUTH_TOKEN = "api-router-local-placeholder"` |
-| Protocol selection | Root `model_provider = "api_router"`; provider `name = "API Router"`, `wire_api = "responses"`, `requires_openai_auth = false`, `supports_websockets = false` | Anthropic Messages, selected by Claude Code's normal SDK |
+| Public placeholder | `model_providers.wefto.experimental_bearer_token = "wefto-local-placeholder"` | `env.ANTHROPIC_AUTH_TOKEN = "wefto-local-placeholder"` |
+| Protocol selection | Root `model_provider = "wefto"`; provider `name = "Wefto"`, `wire_api = "responses"`, `requires_openai_auth = false`, `supports_websockets = false` | Anthropic Messages, selected by Claude Code's normal SDK |
 
 These versions are format baselines, not a claim that either executable has
 passed real tool tasks. The adapter accepts an origin or exactly this host's
@@ -49,7 +49,7 @@ query strings, fragments and embedded URL credentials. The CLI transaction layer
 further restricts the Router origin to the supported local service address.
 The Claude base intentionally omits `/v1`: writing it would duplicate the SDK
 path. Ordinary applications require no Router credential. The generator writes
-the public value `api-router-local-placeholder` into fields that the host format
+the public value `wefto-local-placeholder` into fields that the host format
 expects; users do not manage a secret token or environment variable. Router does
 not validate or forward this value. Management tokens are used only to read
 `/api/apps`, never in host settings or model probes. Cloud credentials remain in
@@ -59,7 +59,7 @@ has no provider-selection logic and never copies host cloud keys into Router.
 Codex direct bearer configuration is supported but discouraged by the official
 reference in favor of `env_key`. This single-file integration uses a public
 placeholder. Backups and the host file must remain private because original
-settings may contain secrets. No shell/environment credential file is needed. Authentication conflicts in an existing `api_router`
+settings may contain secrets. No shell/environment credential file is needed. Authentication conflicts in an existing `wefto`
 provider (`env_key`, `auth`, headers or query parameters) fail closed; rename that
 provider or resolve its overrides explicitly before applying. Other provider
 fields and all other providers remain untouched.
@@ -205,7 +205,7 @@ acceptance. Claude beta-header limitations remain unchanged.
 The historical format baselines above remain distinct from executed evidence.
 This round ran Codex **0.161.0** at `$HOME/.local/bin/codex` and Claude Code
 **2.1.81**, directly through Node 22.23.2 from the existing official package at
-`/tmp/api-router-c-format-reference/package/cli.js`. The latter is not installed
+`/tmp/wefto-c-format-reference/package/cli.js`. The latter is not installed
 on PATH. Both ran on WSL2 Linux x86_64, not native Windows or macOS. Exact source
 commits, executable hashes, commands and per-host results are in the
 acceptance delivery (historical development record; not distributed).

@@ -34,7 +34,7 @@ func newRoutingGroupTestHandler(t *testing.T, local *LocalRuntime) (http.Handler
 	if _, err := store.Initialize(); err != nil {
 		t.Fatal(err)
 	}
-	info := Info{Service: "api-router", Address: "127.0.0.1:13145", PID: 42}
+	info := Info{Service: "wefto", Address: "127.0.0.1:13145", PID: 42}
 	token := "test-mgmt-token"
 	h := handlerWithModelOptions(info, token, store, ModelOptions{LocalRuntime: local})
 	return h, store, token

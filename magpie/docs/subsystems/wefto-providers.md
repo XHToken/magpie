@@ -1,4 +1,4 @@
-# API-Router Cloud Provider Catalogue and Key Store
+# Wefto Cloud Provider Catalogue and Key Store
 
 ## Purpose
 

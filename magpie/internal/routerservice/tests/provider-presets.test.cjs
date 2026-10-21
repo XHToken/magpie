@@ -1,5 +1,5 @@
 const { skipTutorial } = require('./returning-user.cjs');
-// Build with make api-router, then run with node --test this file.
+// Build with make wefto, then run with node --test this file.
 // Requires Playwright and installed engines. Override BROWSER or the Chromium
 // executable for a machine that already has a compatible browser installation.
 const { test } = require('node:test');
@@ -13,11 +13,11 @@ const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { chromium, webkit } = require('playwright');
 
-const binary = process.env.API_ROUTER_BINARY || path.resolve(__dirname, '../../..', 'dist/api-router');
+const binary = process.env.WEFTO_BINARY || path.resolve(__dirname, '../../..', 'dist/wefto');
 for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 'webkit'])) {
   test(`provider platform identity (${engine})`, { timeout: 180000 }, async (t) => {
     assert.ok(['chromium', 'webkit'].includes(engine));
-    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'api-router-ui-'));
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'wefto-ui-'));
     let service, exited, browser;
     t.after(async () => {
       if (browser) await browser.close();

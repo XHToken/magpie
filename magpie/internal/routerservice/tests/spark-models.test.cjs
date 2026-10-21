@@ -12,7 +12,7 @@ const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { chromium, webkit } = require('playwright');
 
-const binary = process.env.API_ROUTER_BINARY || path.resolve(__dirname, '../../..', 'dist/api-router');
+const binary = process.env.WEFTO_BINARY || path.resolve(__dirname, '../../..', 'dist/wefto');
 const officialModels = ['4.0Ultra', 'generalv3.5', 'max-32k', 'generalv3', 'pro-128k', 'lite'];
 const docsURL = 'https://www.xfyun.cn/doc/spark/HTTP调用文档.html';
 const maasDocsURL = 'https://www.xfyun.cn/doc/spark/产品使用说明.html';
@@ -22,7 +22,7 @@ const maasModels = ['spark-x2.5', 'spark-x2.5-4b', 'spark-x2.5-1.7b'];
 for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 'webkit'])) {
   test(`Spark model candidates remain explicit and unverified (${engine})`, { timeout: 120000 }, async t => {
     assert.ok(['chromium', 'webkit'].includes(engine));
-    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'api-router-spark-models-'));
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'wefto-spark-models-'));
     let service, exited, browser;
     const upstreamCalls = [], generationCalls = [];
     // If selection ever starts generation accidentally, it reaches this local

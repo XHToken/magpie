@@ -15,6 +15,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/jsonc"
 	"github.com/yetone/magpie/internal/edit"
+	"github.com/yetone/magpie/internal/product"
 )
 
 type HTTPChecker struct {
@@ -73,8 +74,8 @@ func (c HTTPChecker) Check(ctx context.Context, o Options) (result error) {
 	var h struct{ Service, Status string }
 	if health, err := request(http.MethodGet, "/healthz", nil, ""); err != nil {
 		return fmt.Errorf("Router health: %w", err)
-	} else if json.Unmarshal(health, &h) != nil || h.Service != "api-router" || h.Status != "ok" {
-		return fmt.Errorf("Router health: endpoint is not a healthy API-router service")
+	} else if json.Unmarshal(health, &h) != nil || !product.IsService(h.Service) || h.Status != "ok" {
+		return fmt.Errorf("Router health: endpoint is not a healthy Wefto service")
 	}
 	if c.skipModelProbe {
 		return nil
@@ -188,7 +189,11 @@ func (e Engine) replace(root string, f snapshot) error {
 	return e.writePrivate(hostPath(root, f.Name), f.After, 0o600)
 }
 
-func loomyCleanEmptyContainers(out []byte, before map[string]any, models []string) ([]byte, error) {
+func loomyCleanEmptyContainers(out []byte, before map[string]any, models []string, providers ...string) ([]byte, error) {
+	loomyProvider := loomyProvider
+	if len(providers) > 0 {
+		loomyProvider = providers[0]
+	}
 	var cleanPaths [][]string
 	for _, m := range models {
 		cleanPaths = append(cleanPaths, []string{"provider", loomyProvider, "models", m})

@@ -55,6 +55,10 @@ func loomyProviderPaths(models ...string) [][]string {
 }
 
 func loomyManagedPaths(models ...string) [][]string {
+	return loomyManagedPathsFor(loomyProvider, models...)
+}
+
+func loomyManagedPathsFor(loomyProvider string, models ...string) [][]string {
 	paths := [][]string{{"model"}, {"small_model"}}
 	for _, path := range loomyProviderPaths(models...) {
 		paths = append(paths, append([]string{"provider", loomyProvider}, path...))
@@ -108,6 +112,7 @@ func catalogModels(host string, raw []byte) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	loomyProvider := providerID(doc, "provider")
 	value, exists := lookup(doc, []string{"provider", loomyProvider, "models"})
 	if !exists {
 		return map[string]any{}, nil
@@ -159,6 +164,11 @@ func removeRetiredModels(host string, raw []byte, ids []string) ([]byte, error) 
 		}
 		return raw, nil
 	}
+	doc, err := readJSON(raw)
+	if err != nil {
+		return nil, err
+	}
+	loomyProvider := providerID(doc, "provider")
 	ordered := append([]string(nil), ids...)
 	sort.Strings(ordered)
 	for _, id := range ordered {
@@ -195,6 +205,11 @@ func restoreConnectionContent(a Adapter, j *journal, f FilePlan, current []byte)
 	}
 	now, err := catalogModels(j.Host, current)
 	if err != nil {
+		return nil, err
+	}
+	afterDoc, err := readJSON(f.After)
+	loomyProvider := providerID(afterDoc, "provider")
+	if j.Host == "loomy" && err != nil {
 		return nil, err
 	}
 	for _, id := range j.RetiredModels {

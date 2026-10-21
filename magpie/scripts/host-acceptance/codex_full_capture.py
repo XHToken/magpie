@@ -117,7 +117,7 @@ def main():
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=False, mode=0o700)
     # Preserve runtime PATH, but no user's credentials, proxy or CLI settings.
-    with tempfile.TemporaryDirectory(prefix="api-router-codex-0161-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="wefto-codex-0161-") as tmp:
         root = Path(tmp)
         root.chmod(0o700)
         for name in ("home", "codex", "project"):
@@ -163,7 +163,7 @@ def main():
                     body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                     auth = self.headers.get("Authorization", "")
                     expected = "Bearer " + ("synthetic-upstream-key" if args.router_binary and not args.source_config else
-                                             "api-router-local-placeholder")
+                                             "wefto-local-placeholder")
                     if auth != expected:
                         raise AssertionError("unexpected upstream authorization source")
                     record = {"method": "POST", "path": self.path,
@@ -177,7 +177,7 @@ def main():
                     if args.source_config:
                         if index > 12: raise RuntimeError("real cloud request budget exceeded")
                         req = urllib.request.Request(product_origin + self.path, json.dumps(body).encode(),
-                            {"Content-Type": "application/json", "Authorization": "Bearer api-router-local-placeholder"})
+                            {"Content-Type": "application/json", "Authorization": "Bearer wefto-local-placeholder"})
                         try:
                             upstream = urllib.request.urlopen(req, timeout=args.timeout)
                         except urllib.error.HTTPError as error:
@@ -371,16 +371,16 @@ def main():
                 if args.source_config:
                     product_origin = origin
                     base = f"http://127.0.0.1:{server.server_port}/app/codex/v1"
-            config_text = f'''model_provider = "api_router"
+            config_text = f'''model_provider = "wefto"
 model = {json.dumps(args.model)}
 web_search = {json.dumps(args.web_search)}
-[model_providers.api_router]
-name = "API Router"
+[model_providers.wefto]
+name = "Wefto"
 base_url = {json.dumps(base)}
 wire_api = "responses"
 requires_openai_auth = false
 supports_websockets = false
-experimental_bearer_token = "api-router-local-placeholder"
+experimental_bearer_token = "wefto-local-placeholder"
 request_max_retries = 0
 stream_max_retries = 0
 '''

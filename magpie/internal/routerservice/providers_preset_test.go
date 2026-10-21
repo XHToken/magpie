@@ -3,14 +3,15 @@ package routerservice
 import (
 	"context"
 	"encoding/json"
-	"github.com/yetone/magpie/internal/routerconfig"
-	"github.com/yetone/magpie/internal/routermanifest"
-	"github.com/yetone/magpie/internal/routerruntime"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+
+	"github.com/yetone/magpie/internal/routerconfig"
+	"github.com/yetone/magpie/internal/routermanifest"
+	"github.com/yetone/magpie/internal/routerruntime"
 )
 
 func TestProviderModelDiscoveryFailureGracefulPresetFallback(t *testing.T) {
@@ -142,7 +143,7 @@ func TestProviderCandidateModelsAggregateLocalModels(t *testing.T) {
 	if err := manager.EnableSelected(context.Background(), "spark-x2.5-4B"); err != nil {
 		t.Fatalf("EnableSelected: %v", err)
 	}
-	hWithRuntime := handlerWithModelOptions(Info{Service: "api-router", Address: "127.0.0.1:13145"}, token, store2, ModelOptions{
+	hWithRuntime := handlerWithModelOptions(Info{Service: "wefto", Address: "127.0.0.1:13145"}, token, store2, ModelOptions{
 		LocalRuntime: &LocalModels{Manager: manager, Layout: layout2, Catalog: catalog},
 	})
 	list2 := providerRequest(t, hWithRuntime, "GET", "/api/cloud-providers", token, nil)

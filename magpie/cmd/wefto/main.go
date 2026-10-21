@@ -1,4 +1,4 @@
-// API-router starts independently of Magpie's migrations and background jobs.
+// Wefto starts independently of Magpie's migrations and background jobs.
 package main
 
 import (
@@ -25,7 +25,7 @@ func main() {
 		defer stop()
 	}
 	if err := runContext(ctx, os.Args[1:], os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, "api-router:", err)
+		fmt.Fprintln(os.Stderr, "wefto:", err)
 		os.Exit(1)
 	}
 }
@@ -36,7 +36,7 @@ func run(args []string, out io.Writer) error {
 
 func runContext(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || args[0] == "--help")) {
-		_, err := fmt.Fprintln(out, "Usage: api-router <install|uninstall|service|serve [--experimental-redaction]|healthcheck|version|dirs|config init|config check|host|diagnose-local>\nUse api-router install --help for fixed Windows package installation and safe uninstall.\nUse api-router service --help for hidden start, stop, restart, status and explicit login autostart.\nserve starts the foreground local service and embedded management page. Stop with Ctrl+C or SIGTERM.\n--experimental-redaction permits an explicitly labeled 1.7B/4B redaction trial with a 30-second total budget; recognition quality is not formally accepted. Invalid results still block cloud requests.\nUse api-router host --help for host configuration preview, apply and offline restore.\nUse api-router diagnose-local --help for the fixed local diagnostic suite.")
+		_, err := fmt.Fprintln(out, "Usage: wefto <install|uninstall|service|serve [--experimental-redaction]|healthcheck|version|dirs|config init|config check|host|diagnose-local>\nUse wefto install --help for fixed Windows package installation and safe uninstall.\nUse wefto service --help for hidden start, stop, restart, status and explicit login autostart.\nserve starts the foreground local service and embedded management page. Stop with Ctrl+C or SIGTERM.\n--experimental-redaction permits an explicitly labeled 1.7B/4B redaction trial with a 30-second total budget; recognition quality is not formally accepted. Invalid results still block cloud requests.\nUse wefto host --help for host configuration preview, apply and offline restore.\nUse wefto diagnose-local --help for the fixed local diagnostic suite.")
 		return err
 	}
 	if len(args) == 1 && args[0] == "version" {
@@ -64,7 +64,7 @@ func runContext(ctx context.Context, args []string, out io.Writer) error {
 	} else if len(args) == 2 && args[0] == "config" && (args[1] == "init" || args[1] == "check") {
 		command = args[1]
 	} else {
-		return fmt.Errorf("command disabled in api-router; use api-router --help")
+		return fmt.Errorf("command disabled in wefto; use wefto --help")
 	}
 	layout, err := dirs.Resolve()
 	if err != nil {
@@ -77,7 +77,7 @@ func runContext(ctx context.Context, args []string, out io.Writer) error {
 	}
 	if command == "serve" {
 		return routerservice.RunWithModelOptions(ctx, layout, version, func(info routerservice.Info) error {
-			_, err := fmt.Fprintf(out, "API-router %s\nManagement: http://%s/\nManagement token file: %s\n", version, info.Address, routerservice.TokenFile(layout))
+			_, err := fmt.Fprintf(out, "Wefto %s\nManagement: http://%s/\nManagement token file: %s\n", version, info.Address, routerservice.TokenFile(layout))
 			if err == nil && experimentalRedaction {
 				_, err = fmt.Fprintln(out, "Experimental redaction trial: enabled; 30-second total budget; recognition quality not formally accepted. Invalid results block cloud requests.")
 			}
@@ -88,7 +88,7 @@ func runContext(ctx context.Context, args []string, out io.Writer) error {
 		if err := routerservice.Healthcheck(ctx, layout); err != nil {
 			return err
 		}
-		_, err := fmt.Fprintln(out, "api-router: ok")
+		_, err := fmt.Fprintln(out, "wefto: ok")
 		return err
 	}
 	store := routerconfig.New(layout)

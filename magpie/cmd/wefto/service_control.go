@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/yetone/magpie/internal/dirs"
-	"github.com/yetone/magpie/internal/routercontrol"
 	"io"
 	"os"
 	"time"
+
+	"github.com/yetone/magpie/internal/dirs"
+	"github.com/yetone/magpie/internal/routercontrol"
 )
 
-const serviceHelp = `Usage: api-router service <start|stop|restart|status|autostart enable|autostart disable|autostart status>
+const serviceHelp = `Usage: wefto service <start|stop|restart|status|autostart enable|autostart disable|autostart status>
 start [--experimental-redaction|--no-experimental-redaction] starts a hidden per-user process.
 Without a flag, start/restart/login autostart retain the last explicit trial choice.
 Login autostart is off by default. Enable and disable are explicit Windows per-user choices.

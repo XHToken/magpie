@@ -97,7 +97,7 @@ were moved with their pure parser to preserve legacy behavior; the cloud
 executor still returns its own safe errors and never exposes upstream bodies.
 
 This boundary alone does not prove product startup behavior. The product
-integration must also check the built `cmd/api-router` dependency graph and run
+integration must also check the built `cmd/wefto` dependency graph and run
 an isolated process with temporary config and ports while observing network and
 subprocess activity. No local model, judgment, redaction or host compatibility
 claim follows from this extraction.

@@ -3,7 +3,7 @@
 For an ordinary "start the project" request on Windows, run
 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-project.ps1 -NoBrowser`
 from the repository root. Use `-CheckOnly -NoBrowser` for a read-only check.
-The entry uses `magpie/dist/api-router.exe` and the Windows user's ordinary
+The entry uses `magpie/dist/wefto.exe` and the Windows user's ordinary
 configuration/data directories, checks the authenticated service identity and
 the configured WorkBuddy endpoint, and reports the actual management URL.
 The native service automatically binds another loopback port if the saved port

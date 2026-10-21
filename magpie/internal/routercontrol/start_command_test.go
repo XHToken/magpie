@@ -24,7 +24,7 @@ func TestCopiedStartCommandKeepsLayoutAndRestoresCallerEnvironment(t *testing.T)
 	if err := os.MkdirAll(root, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	l := dirs.Layout{Config: filepath.Join(root, "roaming", "api-router"), Data: filepath.Join(root, "local", "api-router")}
+	l := dirs.Layout{Config: filepath.Join(root, "roaming", "wefto"), Data: filepath.Join(root, "local", "wefto")}
 	// This stand-in observes what the actual CLI would inherit, without
 	// reading user configuration or starting a real service.
 	exe := filepath.Join(root, "observe.ps1")

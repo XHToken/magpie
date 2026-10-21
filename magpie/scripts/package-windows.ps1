@@ -10,7 +10,7 @@ if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?(?:\+[A-Za-z0
 if (-not [IO.Path]::IsPathRooted($OutputDir)) { throw 'OutputDir must be absolute.' }
 $OutputDir = [IO.Path]::GetFullPath($OutputDir)
 [IO.Directory]::CreateDirectory($OutputDir) | Out-Null
-$base = "api-router-$Version-windows-amd64"
+$base = "wefto-$Version-windows-amd64"
 $zipPath = Join-Path $OutputDir "$base.zip"
 $manifestPath = Join-Path $OutputDir "$base.manifest.json"
 foreach ($target in @($zipPath, $manifestPath, (Join-Path $OutputDir 'SHA256SUMS'))) {
@@ -22,12 +22,12 @@ $savedGOOS = $env:GOOS; $savedGOARCH = $env:GOARCH; $savedCGO = $env:CGO_ENABLED
 try {
     $env:GOOS = 'windows'; $env:GOARCH = 'amd64'; $env:CGO_ENABLED = '0'
     $module = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-    & $GoExe -C $module build -trimpath -buildvcs=false -ldflags "-X main.version=$Version -buildid=" -o (Join-Path $stage 'api-router.exe') ./cmd/api-router
+    & $GoExe -C $module build -trimpath -buildvcs=false -ldflags "-X main.version=$Version -buildid=" -o (Join-Path $stage 'wefto.exe') ./cmd/wefto
     if ($LASTEXITCODE -ne 0) { throw 'Windows product build failed.' }
     Copy-Item -LiteralPath (Join-Path $module 'docs/windows-delivery.md') -Destination (Join-Path $stage 'README-windows.md')
     foreach ($script in @('install-windows.ps1', 'uninstall-windows.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $script) -Destination (Join-Path $stage $script) }
     Add-Type -AssemblyName System.IO.Compression
-    $fileList = @('api-router.exe', 'README-windows.md', 'install-windows.ps1', 'uninstall-windows.ps1')
+    $fileList = @('wefto.exe', 'README-windows.md', 'install-windows.ps1', 'uninstall-windows.ps1')
     $pins = @()
     $stream = [IO.File]::Open($zipPath, [IO.FileMode]::CreateNew)
     $archive = New-Object IO.Compression.ZipArchive($stream, [IO.Compression.ZipArchiveMode]::Create, $false)
@@ -42,7 +42,7 @@ try {
         }
     } finally { $archive.Dispose(); $stream.Dispose() }
     $manifest = [ordered]@{
-        schemaVersion = 1; product = 'api-router'; version = $Version; os = 'windows'; architecture = 'amd64'
+        schemaVersion = 1; product = 'wefto'; version = $Version; os = 'windows'; architecture = 'amd64'
         package = [ordered]@{ name = "$base.zip"; size = (Get-Item -LiteralPath $zipPath).Length; sha256 = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant() }
         files = $pins
     }

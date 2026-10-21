@@ -75,7 +75,7 @@ func TestAddressRejectsSharedAndInvalidListeners(t *testing.T) {
 func TestHTTPAllowListAndLocalBoundary(t *testing.T) {
 	const address = "127.0.0.1:13145"
 	const token = "test-management-token"
-	h := handler(Info{Service: "api-router", Version: "i0-test", Address: address}, token)
+	h := handler(Info{Service: "wefto", Version: "i0-test", Address: address}, token)
 	request := func(method, path, host, remote, origin, site, auth string) *httptest.ResponseRecorder {
 		t.Helper()
 		r := httptest.NewRequest(method, "http://"+address+path, nil)
@@ -265,7 +265,7 @@ func TestStartupFailuresPreserveConfigAndReleaseLock(t *testing.T) {
 
 func TestHealthcheckRejectsOtherServersAndRedirects(t *testing.T) {
 	l, _ := fixture(t)
-	for _, body := range []string{`{"status":"ok"}`, `{"service":"api-router","status":"bad"}`, `{"service":"api-router","status":"ok"}`} {
+	for _, body := range []string{`{"status":"ok"}`, `{"service":"wefto","status":"bad"}`, `{"service":"wefto","status":"ok"}`} {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, body) }))
 		if err := routerconfig.New(l).Update(func(d routerconfig.Document) error {
 			b, _ := json.Marshal(map[string]string{"address": strings.TrimPrefix(server.URL, "http://")})
@@ -276,7 +276,7 @@ func TestHealthcheckRejectsOtherServersAndRedirects(t *testing.T) {
 		}
 		err := Healthcheck(context.Background(), l)
 		server.Close()
-		if (err == nil) != (body == `{"service":"api-router","status":"ok"}`) {
+		if (err == nil) != (body == `{"service":"wefto","status":"ok"}`) {
 			t.Fatalf("body %s: %v", body, err)
 		}
 	}

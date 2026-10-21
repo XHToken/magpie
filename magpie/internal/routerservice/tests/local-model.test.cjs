@@ -8,10 +8,10 @@ const net = require('node:net');
 const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { chromium, webkit } = require('playwright');
-const binary = process.env.API_ROUTER_BINARY || path.resolve(__dirname, '../../..', 'dist/api-router');
+const binary = process.env.WEFTO_BINARY || path.resolve(__dirname, '../../..', 'dist/wefto');
 
 test(`local model consent and management (${process.env.BROWSER || 'chromium'})`, { timeout: 180000 }, async t => {
-  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'api-router-local-model-ui-'));
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'wefto-local-model-ui-'));
   let service, exited, browser;
   t.after(async () => {
     if (browser) await browser.close();

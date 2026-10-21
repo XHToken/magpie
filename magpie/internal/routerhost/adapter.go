@@ -74,7 +74,8 @@ func checkJournalContract(j *journal, c AdapterContract) error {
 		legacy := legacyV1Contract(j.Host)
 		stored = &legacy
 	}
-	if !sameContract(*stored, c) {
+	compatibleLegacy := stored.ID == "loomy" && sameContract(*stored, legacyLoomyContract()) && sameContract(c, (LoomyAdapter{}).Contract()) || stored.ID == "codex" && sameContract(*stored, legacyV1Contract("codex")) && sameContract(c, (builtinAdapter{"codex"}).Contract())
+	if !sameContract(*stored, c) && !compatibleLegacy {
 		return fmt.Errorf("recovery adapter version or contract conflict; use the matching adapter to restore")
 	}
 	if len(j.Files) != len(c.Files) {
@@ -121,7 +122,11 @@ func sameContract(a, b AdapterContract) bool { return reflect.DeepEqual(a, b) }
 type builtinAdapter struct{ host string }
 
 func (a builtinAdapter) Contract() AdapterContract {
-	return legacyV1Contract(a.host)
+	legacy := legacyV1Contract(a.host)
+	if a.host == "codex" {
+		return expandedContract(legacy)
+	}
+	return legacy
 }
 
 // Frozen metadata for backups made before Adapter existed. A future built-in

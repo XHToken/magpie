@@ -1,4 +1,4 @@
-// Package routerservice owns API-router's local HTTP lifetime. It deliberately
+// Package routerservice owns Wefto's local HTTP lifetime. It deliberately
 // does not start Magpie's CLI, gateway lifecycle, plugins or background jobs.
 package routerservice
 
@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/yetone/magpie/internal/dirs"
+	"github.com/yetone/magpie/internal/product"
 	"github.com/yetone/magpie/internal/routerconfig"
 	"github.com/yetone/magpie/internal/routercontrol"
 	"github.com/yetone/magpie/internal/routerhost"
@@ -212,7 +213,7 @@ func RunWithModelOptions(ctx context.Context, l dirs.Layout, version string, rea
 			options.LedgerErrorCode = "ledger_schema_incompatible"
 		}
 	}
-	info := Info{Service: "api-router", Version: version, InstanceID: instanceID, Address: address, StartedAt: time.Now().UTC(), ModelAPI: true}
+	info := Info{Service: product.ID, Version: version, InstanceID: instanceID, Address: address, StartedAt: time.Now().UTC(), ModelAPI: true}
 	info.PreviousAddress = record.PreviousAddress
 	info.PID, info.Executable, info.ProcessStamp = record.PID, record.Executable, record.ProcessStamp
 	info.StartedAt = record.StartedAt
@@ -286,8 +287,8 @@ func Healthcheck(ctx context.Context, l dirs.Layout) error {
 	}
 	defer resp.Body.Close()
 	var health struct{ Service, Status string }
-	if resp.StatusCode != http.StatusOK || json.NewDecoder(http.MaxBytesReader(nil, resp.Body, 4096)).Decode(&health) != nil || health.Service != "api-router" || health.Status != "ok" {
-		return errors.New("healthcheck: endpoint is not a healthy api-router service")
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(http.MaxBytesReader(nil, resp.Body, 4096)).Decode(&health) != nil || !product.IsService(health.Service) || health.Status != "ok" {
+		return errors.New("healthcheck: endpoint is not a healthy wefto service")
 	}
 	return nil
 }

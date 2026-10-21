@@ -14,7 +14,7 @@ func TestLoomyReconnectAfterRestoringHostTimeoutDefaults(t *testing.T) {
 	path := filepath.Join(o.ConfigRoot, "opencode.json")
 	put(t, path, []byte(`{"model":"original/model","keep":"original"}`))
 	mustApply(t, e, o)
-	current, err := edit.PatchJSON(get(t, path), []edit.KV{{Path: "provider.api_router.options.timeout", Value: 1200000}, {Path: "provider.api_router.options.chunkTimeout", Value: 1200000}}, nil)
+	current, err := edit.PatchJSON(get(t, path), []edit.KV{{Path: "provider.wefto.options.timeout", Value: 1200000}, {Path: "provider.wefto.options.chunkTimeout", Value: 1200000}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestLoomyDefaultsOnlyProviderDoesNotAdoptUnknownValues(t *testing.T) {
 		`{"options":{"timeout":1200000},"models":{}}`,
 	} {
 		e, o := loomySetup(t)
-		put(t, filepath.Join(o.ConfigRoot, "opencode.json"), []byte(`{"provider":{"api_router":`+provider+`}}`))
+		put(t, filepath.Join(o.ConfigRoot, "opencode.json"), []byte(`{"provider":{"wefto":`+provider+`}}`))
 		if _, err := e.Preview(o); err == nil {
 			t.Fatal("adopted unverified provider", provider)
 		}
@@ -113,16 +113,16 @@ func TestLoomyRuntimeSmallModelRewriteCompatibility(t *testing.T) {
 func TestLoomyRuntimeMetadataDisplayLabelsAndModelSwitching(t *testing.T) {
 	e, o := loomySetup(t)
 	path := filepath.Join(o.ConfigRoot, "opencode.json")
-	put(t, path, []byte(`{"model":"imodel/default","small_model":"imodel/qwen3.8-flash","provider":{"api_router":{"options":{"timeout":1200000,"chunkTimeout":1200000},"models":{"spark-x2.5":{"limit":{"context":262144,"output":32768}}},"localNote":"local opencode.json may retain model/provider references from local runtime state"}}}`))
+	put(t, path, []byte(`{"model":"imodel/default","small_model":"imodel/qwen3.8-flash","provider":{"wefto":{"options":{"timeout":1200000,"chunkTimeout":1200000},"models":{"spark-x2.5":{"limit":{"context":262144,"output":32768}}},"localNote":"local opencode.json may retain model/provider references from local runtime state"}}}`))
 	o.Model = ""
 	o.Models = []string{"group/111", "spark-x2.5"}
 	if _, err := e.Connect(context.Background(), o); err != nil {
 		t.Fatalf("Connect on Loomy runtime stub failed: %v", err)
 	}
 	updated, err := edit.PatchJSON(get(t, path), []edit.KV{
-		{Path: "model", Value: "api_router/spark-x2.5"},
-		{Path: "provider.api_router.models.group/111.name", Value: "111 · 路由组"},
-		{Path: "provider.api_router.models.spark-x2\\.5.name", Value: "spark-x2.5 · 讯飞星辰 MaaS"},
+		{Path: "model", Value: "wefto/spark-x2.5"},
+		{Path: "provider.wefto.models.group/111.name", Value: "111 · 路由组"},
+		{Path: "provider.wefto.models.spark-x2\\.5.name", Value: "spark-x2.5 · 讯飞星辰 MaaS"},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)

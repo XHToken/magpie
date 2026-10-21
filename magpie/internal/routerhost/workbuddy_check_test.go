@@ -43,7 +43,7 @@ func TestWorkBuddyCheckerUsesInstalledChatPathAndOnlyManagementAuth(t *testing.T
 			if r.Method != http.MethodGet {
 				t.Error("health is not read-only")
 			}
-			io.WriteString(w, `{"service":"api-router","status":"ok"}`)
+			io.WriteString(w, `{"service":"wefto","status":"ok"}`)
 		case "/api/apps":
 			if r.Method != http.MethodGet || r.Header.Get("Authorization") != "Bearer "+management {
 				t.Error("incorrect management request")
@@ -127,8 +127,8 @@ func TestWorkBuddyCheckerRejectsIdentityBindingAndBusinessFailures(t *testing.T)
 		wantModelCalls               int32
 	}{
 		{name: "wrong-service", health: `{"service":"magpie","status":"ok"}`},
-		{name: "unhealthy-router", health: `{"service":"api-router","status":"error"}`},
-		{name: "duplicate-health", health: `{"service":"other","service":"api-router","status":"ok"}`},
+		{name: "unhealthy-router", health: `{"service":"wefto","status":"error"}`},
+		{name: "duplicate-health", health: `{"service":"other","service":"wefto","status":"ok"}`},
 		{name: "wrong-app-schema", mutate: func(p map[string]any) { p["schemaVersion"] = 2 }},
 		{name: "app-api-not-supported", appStatus: http.StatusNotFound},
 		{name: "management-rejected", appStatus: http.StatusUnauthorized},
@@ -151,7 +151,7 @@ func TestWorkBuddyCheckerRejectsIdentityBindingAndBusinessFailures(t *testing.T)
 		{name: "model-unauthorized", modelStatus: http.StatusUnauthorized, wantModelCalls: 1},
 		{name: "model-incompatible-agent", modelStatus: http.StatusBadRequest, response: `{"error":{"code":"capability_message_agent","message":"` + secret + `"}}`, wantModelCalls: 1},
 		{name: "model-unwired", modelStatus: http.StatusNotImplemented, wantModelCalls: 1},
-		{name: "health-only-not-business", response: `{"service":"api-router","status":"ok"}`, wantModelCalls: 1},
+		{name: "health-only-not-business", response: `{"service":"wefto","status":"ok"}`, wantModelCalls: 1},
 		{name: "empty-200", response: " ", wantModelCalls: 1},
 		{name: "malformed-200", response: `{private`, wantModelCalls: 1},
 		{name: "wrong-business-model", response: workBuddyCheckReply("other-model"), wantModelCalls: 1},
@@ -174,7 +174,7 @@ func TestWorkBuddyCheckerRejectsIdentityBindingAndBusinessFailures(t *testing.T)
 				case "/healthz":
 					health := tc.health
 					if health == "" {
-						health = `{"service":"api-router","status":"ok"}`
+						health = `{"service":"wefto","status":"ok"}`
 					}
 					io.WriteString(w, health)
 				case "/api/apps":
@@ -234,7 +234,7 @@ func TestWorkBuddyCheckerNeverFollowsRedirects(t *testing.T) {
 					return
 				}
 				if r.URL.Path == "/healthz" {
-					io.WriteString(w, `{"service":"api-router","status":"ok"}`)
+					io.WriteString(w, `{"service":"wefto","status":"ok"}`)
 				} else if r.URL.Path == "/api/apps" {
 					json.NewEncoder(w).Encode(appProjection("workbuddy", "fixture-model"))
 				} else {
@@ -258,7 +258,7 @@ func TestWorkBuddyCheckerCancelsBusinessBodyRead(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/healthz":
-			io.WriteString(w, `{"service":"api-router","status":"ok"}`)
+			io.WriteString(w, `{"service":"wefto","status":"ok"}`)
 		case "/api/apps":
 			json.NewEncoder(w).Encode(appProjection("workbuddy", "fixture-model"))
 		default:

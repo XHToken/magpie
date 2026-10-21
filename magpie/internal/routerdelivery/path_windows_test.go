@@ -12,7 +12,7 @@ func TestWindowsHardLinkedManagedFileIsRejected(t *testing.T) {
 	if _, err := Install(context.Background(), opts); err != nil {
 		t.Fatal(err)
 	}
-	exe := filepath.Join(opts.InstallDir, "api-router.exe")
+	exe := filepath.Join(opts.InstallDir, "wefto.exe")
 	other := filepath.Join(filepath.Dir(opts.InstallDir), "linked-executable")
 	if err := os.Link(exe, other); err != nil {
 		t.Fatal(err)
@@ -29,7 +29,7 @@ func TestWindowsHardLinkedManagedFileIsRejected(t *testing.T) {
 }
 
 func TestWindowsAliasesAndNamespacesAreRejected(t *testing.T) {
-	for _, bad := range []string{`C:\programs\API-router.`, `C:\programs\API-router `, `C:\programs\.. \API-router`, `C:\programs\CON\API-router`, `C:\programs\file:stream\API-router`, `\\?\C:\programs\API-router`, `\\server\share\API-router`} {
+	for _, bad := range []string{`C:\programs\Wefto.`, `C:\programs\Wefto `, `C:\programs\.. \Wefto`, `C:\programs\CON\Wefto`, `C:\programs\file:stream\Wefto`, `\\?\C:\programs\Wefto`, `\\server\share\Wefto`} {
 		if _, err := installRoot(bad); err == nil {
 			t.Fatalf("accepted unsafe Windows installation path: %s", bad)
 		}

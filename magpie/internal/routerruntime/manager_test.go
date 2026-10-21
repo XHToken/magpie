@@ -20,7 +20,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	if os.Getenv("API_ROUTER_RUNTIME_TEST_HELPER") == "1" {
+	if os.Getenv("WEFTO_RUNTIME_TEST_HELPER") == "1" {
 		fakeserver.Main()
 		return
 	}
@@ -1104,4 +1104,3 @@ func TestInstallStageMetadataAndErrorClassificationPreservesReadyDependencies(t 
 		t.Fatalf("expected runtime timeout error code and progress reason, got error=%q progress=%+v", failed.Error, failed.Progress)
 	}
 }
-

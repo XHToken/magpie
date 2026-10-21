@@ -42,7 +42,7 @@ func TestProductionCheckerChecksAppsThenInferenceWithoutApplicationCredential(t 
 					if r.Header.Get("Authorization") != "" {
 						t.Error("health received token")
 					}
-					io.WriteString(w, `{"service":"api-router","status":"ok"}`)
+					io.WriteString(w, `{"service":"wefto","status":"ok"}`)
 				case "/api/apps":
 					if r.Method != "GET" || r.Header.Get("Authorization") != "Bearer "+management {
 						t.Error("wrong management check")
@@ -119,7 +119,7 @@ func TestProductionCheckerRejectsApplicationAndBusinessFailures(t *testing.T) {
 			calls := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/healthz" {
-					io.WriteString(w, `{"service":"api-router","status":"ok"}`)
+					io.WriteString(w, `{"service":"wefto","status":"ok"}`)
 					return
 				}
 				if r.URL.Path == "/api/apps" {
@@ -178,7 +178,7 @@ func TestProductionCheckerLeavesRoomForReasoningBeforeVisibleText(t *testing.T) 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/healthz":
-					io.WriteString(w, `{"service":"api-router","status":"ok"}`)
+					io.WriteString(w, `{"service":"wefto","status":"ok"}`)
 				case "/api/apps":
 					json.NewEncoder(w).Encode(appProjection(host, o.Model))
 				default:
