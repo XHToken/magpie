@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,9 +57,22 @@ func TestSetupNeverImportsMagpie(t *testing.T) {
 	if err := run([]string{"config", "check"}, &out); err != nil {
 		t.Fatal(err)
 	}
-	files, err := os.ReadDir(l.Config)
-	if err != nil || len(files) != 1 || files[0].Name() != "config.json" {
-		t.Fatalf("imported legacy files: %v %v", files, err)
+	// macOS shares the config and data root, so its initialized models,
+	// runtime and state directories are legitimate children of this root.
+	ownedDirectories := map[string]bool{}
+	for _, directory := range []string{l.Config, l.Data, l.Models, l.Runtime, l.Cache, l.State, l.Logs} {
+		ownedDirectories[directory] = true
+	}
+	if err := filepath.WalkDir(l.Config, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() && ownedDirectories[path] || path == l.ConfigFile() && entry.Type().IsRegular() {
+			return nil
+		}
+		return fmt.Errorf("unexpected initialized path: %s", path)
+	}); err != nil {
+		t.Fatalf("imported legacy files: %v", err)
 	}
 	for p, want := range legacy {
 		b, err := os.ReadFile(p)
