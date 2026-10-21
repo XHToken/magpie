@@ -23,7 +23,7 @@ func TestSetupNeverImportsMagpie(t *testing.T) {
 		t.Setenv(key, filepath.Join(home, key))
 	}
 	legacy := map[string]string{}
-	for _, base := range []string{filepath.Join(home, ".config"), os.Getenv("XDG_CONFIG_HOME"), os.Getenv("APPDATA")} {
+	for _, base := range []string{filepath.Join(home, ".config"), filepath.Join(home, "Library", "Application Support"), os.Getenv("XDG_CONFIG_HOME"), os.Getenv("APPDATA")} {
 		for _, app := range []string{"magpie", "dial"} {
 			for _, file := range []string{"settings.json", "providers.json", "logins.json", "plugin-auth.json", "plugins.yml"} {
 				p := filepath.Join(base, app, file)
