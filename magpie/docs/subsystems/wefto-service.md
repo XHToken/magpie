@@ -8,6 +8,8 @@
 
 [`routercontrol`](../../internal/routercontrol/control.go) implements background start, status, stop, restart and explicit Windows per-user autostart. `state/router.lock/instance.json` records exact executable, PID, process stamp, instance identity and address. Control validates those against the authenticated instance; another executable owning the layout is not adopted. Only recognized exited/reused-process locks may be archived.
 
+Executable comparisons resolve both existing absolute paths before comparing them. This recognizes Windows 8.3 aliases and macOS symlinked temporary roots returned by OS process queries. A missing or unreadable path does not establish identity; a distinct hard-link path remains another installation. PID creation stamps and authenticated instance checks still apply.
+
 The ordinary Windows development entry is [`scripts/start-project.ps1`](../../../scripts/start-project.ps1), also called by `start.cmd`. It uses `magpie/dist/wefto.exe` and ordinary Windows roots, and reports the actual management URL. `-CheckOnly -NoBrowser` is read-only. Its check accepts a whole fresh or legacy layout, never a mixture. Upgrades stop the original executable before switching builds; see the [upgrade guide](../wefto-upgrade.md).
 
 ## Management and model requests
