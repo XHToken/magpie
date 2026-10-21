@@ -32,10 +32,6 @@ The installer verifies the package and every file, then installs into `%LOCALAPP
 
 For an existing installation, stop the service, retain the previous package, and back up the configuration and data directories reported by `wefto.exe dirs` before replacing the program directory. The installer refuses to overwrite another version. See the [Windows guide](magpie/docs/windows-delivery.md) for replacement, backup, and recovery details.
 
-## Upgrading from API-router
-
-Read the [rename and upgrade guide](magpie/docs/wefto-upgrade.md) before switching builds. Wefto reuses an existing legacy layout as one unit, preserving credentials, downloaded models, request records, and host recovery backups. Fresh installations use `wefto` directories. Conflicting old and new layouts stop startup for manual reconciliation. Stop the old service with its original executable; disable any old login autostart before explicitly enabling it with Wefto.
-
 ## First run
 
 1. Open the web console. Add a cloud provider, API key, endpoint, and model, then run its connection check.
