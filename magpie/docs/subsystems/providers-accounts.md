@@ -228,7 +228,7 @@ go test -tags nogui ./internal/provider ./internal/davsync ./internal/gui -run '
 node --test internal/gui/tests/extra-body.test.cjs
 ```
 
-The [website worker tests (upstream Magpie only)](https://github.com/yetone/magpie/blob/707fbb249df755423d3b2b77c6f001dd376d75c4/site/worker.test.mjs) are not distributed in this API-router source snapshot and are outside the product regression gate.
+The [website worker tests (upstream Magpie only)](https://github.com/yetone/magpie/blob/707fbb249df755423d3b2b77c6f001dd376d75c4/site/worker.test.mjs) are not distributed in this Wefto source snapshot and are outside the product regression gate.
 
 The package's tests use a home of their own (`testenv`). Never point them at
 real `~/.codex`, `~/.claude`, `~/.config/gcloud` or `~/.config/magpie` files.

@@ -70,7 +70,7 @@ Privacy specifications also bind the effective context and current model
 fingerprint. A context change retires the previous pipeline cache epoch while
 existing prepared response snapshots retain their own lifetime. A stale privacy
 binding fails closed. This updates runtime identity only; the
-[privacy input/output limits](api-router-redaction.md), experimental 30-second
+[privacy input/output limits](wefto-redaction.md), experimental 30-second
 policy and independent quality gates remain in force.
 
 With explicit settings,
@@ -256,7 +256,7 @@ Changing selection resets conclusions; restart resets them to unknown. `state`
 is the sample result; `ready` is effective enable/installation/runtime gating.
 An untested model never inherits results from a different revision.
 
-The API-router 1.7B and 4B routing and execution checks use the same experimental
+The Wefto 1.7B and 4B routing and execution checks use the same experimental
 trial checks. They retain `state:"unknown"` and a separate `trialEvidence`;
 they become usable only after an authenticated user calls
 `/api/local-model/trial/enable` following a current `/check`. The resulting
@@ -405,7 +405,7 @@ Windows final2 EXE passed the 30-item native lifecycle/dependency diagnostic
 for both fixed Spark tiers. This proves runtime/install behavior only; the
 diagnostic deliberately leaves all three business capabilities unknown.
 
-The local Manager also publishes the safe, nonblocking [`LocalCallObservation`](api-router-runtime-observation.md)
+The local Manager also publishes the safe, nonblocking [`LocalCallObservation`](wefto-runtime-observation.md)
 completion contract for Router business calls and explicit checks. It preserves actual nullable usage and measured
 queue/load timing without recording prompts, responses, tools, entities, URLs or credentials; ledger persistence remains
 owned by the statistics subsystem.

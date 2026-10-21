@@ -10,6 +10,7 @@ import (
 
 	"github.com/tidwall/gjson"
 	"github.com/yetone/magpie/internal/edit"
+	"github.com/yetone/magpie/internal/product"
 )
 
 type WorkBuddyAdapter struct{}
@@ -52,7 +53,7 @@ func (WorkBuddyAdapter) Build(o Options, files []FilePlan) ([]FilePlan, error) {
 		}
 		entry, index := workBuddyModel(doc, m)
 		if entry == nil {
-			entry = map[string]any{"id": m, "name": "API Router"}
+			entry = map[string]any{"id": m, "name": "Wefto"}
 			for k, v := range values {
 				entry[k] = v
 			}
@@ -163,7 +164,7 @@ func (WorkBuddyAdapter) Restore(f FilePlan, current []byte) ([]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			if equalValue(remaining["name"], remaining["name"] != nil, a["name"], a["name"] != nil) {
+			if equalValue(remaining["name"], remaining["name"] != nil, a["name"], a["name"] != nil) || product.IsProviderName(remaining["name"]) && product.IsProviderName(a["name"]) {
 				if patched, err = deleteJSONField(patched, "name"); err != nil {
 					return nil, err
 				}
@@ -193,7 +194,7 @@ func workBuddyRestoreFields(raw []byte, before, after, now map[string]any, field
 		if equalValue(b, bok, a, aok) || equalValue(b, bok, c, cok) {
 			continue
 		}
-		if !equalValue(a, aok, c, cok) {
+		if !equalValue(a, aok, c, cok) && !(key == "apiKey" && aok && cok && product.IsPlaceholder(a) && product.IsPlaceholder(c)) {
 			if cs, ok := c.(string); key != "model" || !ok || !strings.HasPrefix(cs, "custom-local:") || strings.TrimSpace(strings.TrimPrefix(cs, "custom-local:")) == "" {
 				return nil, fmt.Errorf("WorkBuddy managed field conflict: %s", key)
 			}

@@ -1,4 +1,4 @@
-// Package routerobserve projects cloud execution into the API-router ledger.
+// Package routerobserve projects cloud execution into the Wefto ledger.
 // It accepts safe metadata, never a request body, credential or execution Target.
 package routerobserve
 

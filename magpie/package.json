@@ -1,5 +1,5 @@
 {
-  "name": "api-router-product-regression",
+  "name": "wefto-product-regression",
   "private": true,
   "engines": { "node": "22.x || 24.x" },
   "scripts": {

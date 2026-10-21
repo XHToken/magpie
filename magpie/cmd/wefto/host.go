@@ -26,12 +26,12 @@ var workBuddyHostChecker = func(managementToken string) routerhost.Checker {
 	return routerhost.ProductionWorkBuddyChecker(managementToken)
 }
 
-const hostHelp = `Usage: api-router host <preview|apply|restore-preview|restore> [options]
+const hostHelp = `Usage: wefto host <preview|apply|restore-preview|restore> [options]
 
 All commands require:
   --host codex|claude-code|loomy|workbuddy  Host to configure
   --config-root ABSOLUTE_DIR    Explicit host configuration directory
-  --state-dir ABSOLUTE_DIR      Private backup directory (default: API-router state/host-config)
+  --state-dir ABSOLUTE_DIR      Private backup directory (default: Wefto state/host-config)
 
 preview and apply also require:
   --router-url ORIGIN           Router origin, for example http://127.0.0.1:13145
@@ -74,7 +74,7 @@ func runHost(ctx context.Context, args []string, out io.Writer) error {
 	action := args[0]
 	recovering := action == "restore-preview" || action == "restore"
 	if action != "preview" && action != "apply" && !recovering {
-		return fmt.Errorf("unknown host command; use api-router host --help")
+		return fmt.Errorf("unknown host command; use wefto host --help")
 	}
 	flags := flag.NewFlagSet("host "+action, flag.ContinueOnError)
 	// Parse errors may contain input. Report only the supported usage below.
@@ -96,7 +96,7 @@ func runHost(ctx context.Context, args []string, out io.Writer) error {
 		flags.StringVar(&digest, "plan-digest", "", "preview digest")
 	}
 	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 {
-		return fmt.Errorf("invalid host options; use api-router host %s --help", action)
+		return fmt.Errorf("invalid host options; use wefto host %s --help", action)
 	}
 	if options.Host != "codex" && options.Host != "claude-code" && options.Host != "loomy" && options.Host != "workbuddy" {
 		return fmt.Errorf("--host must be codex, claude-code, loomy or workbuddy")
@@ -115,7 +115,7 @@ func runHost(ctx context.Context, args []string, out io.Writer) error {
 	}
 	if !recovering {
 		if strings.TrimSpace(options.RouterURL) == "" || strings.TrimSpace(options.Model) == "" || strings.HasPrefix(options.Model, "-") {
-			return fmt.Errorf("--router-url and --model are required; use api-router host %s --help", action)
+			return fmt.Errorf("--router-url and --model are required; use wefto host %s --help", action)
 		}
 		legacyTokenOption := false
 		flags.Visit(func(f *flag.Flag) {
@@ -184,7 +184,7 @@ func runHost(ctx context.Context, args []string, out io.Writer) error {
 				Action string `json:"action"`
 				Stage  string `json:"stage"`
 				Notice string `json:"notice"`
-			}{action, "before-write", "Restoring bypasses API-router and returns model access to the previous host settings."}); err != nil {
+			}{action, "before-write", "Restoring bypasses Wefto and returns model access to the previous host settings."}); err != nil {
 				return fmt.Errorf("cannot print recovery notice; no host configuration was changed: %w", err)
 			}
 			err = engine.Restore(plan)
@@ -197,7 +197,7 @@ func runHost(ctx context.Context, args []string, out io.Writer) error {
 	if action == "apply" {
 		notice = "Host configuration applied after connection checks."
 	} else if recovering {
-		notice = "Restoring bypasses API-router and returns model access to the previous host settings."
+		notice = "Restoring bypasses Wefto and returns model access to the previous host settings."
 		if action == "restore-preview" {
 			notice += " Preview only; no host configuration was changed."
 		}

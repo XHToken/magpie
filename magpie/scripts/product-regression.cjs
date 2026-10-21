@@ -9,7 +9,7 @@ const { spawn, execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
 const packages = [
-  './cmd/api-router', './internal/routerservice', './internal/routerconfig',
+  './cmd/wefto', './internal/product', './internal/routerservice', './internal/routerconfig',
   './internal/routerrequest', './internal/routercloud', './internal/cloudcodec', './internal/routerredact',
   './internal/routerledger', './internal/routerobserve', './internal/routerhost', './internal/routerdevice',
   './internal/routermanifest', './internal/routerdownload', './internal/routerprocess',
@@ -134,8 +134,8 @@ async function runRegression(options = {}, dependencies = {}) {
   if (options.output) fs.mkdirSync(output); // Refuse to overwrite old evidence.
   // SQLite locks and child-process fixtures need the runner's native temporary
   // filesystem, even when the checkout/output is on a WSL or network mount.
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'api-router-regression-'));
-  const binary = path.join(output, process.platform === 'win32' ? 'api-router.exe' : 'api-router');
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'wefto-regression-'));
+  const binary = path.join(output, process.platform === 'win32' ? 'wefto.exe' : 'wefto');
   const browserFiles = fs.readdirSync(path.join(root, 'internal/routerservice/tests')).filter(name => name.endsWith('.test.cjs')).sort().map(name => `internal/routerservice/tests/${name}`);
   const wsl = process.platform === 'linux' && /microsoft/i.test(os.release());
   const summary = { schemaVersion: 1, started: new Date().toISOString(), platform: process.platform,
@@ -155,7 +155,7 @@ async function runRegression(options = {}, dependencies = {}) {
     summary.caches = { GOPATH: go.GOPATH, GOMODCACHE: go.GOMODCACHE, GOCACHE: go.GOCACHE,
       PLAYWRIGHT_BROWSERS_PATH: path.resolve(source.PLAYWRIGHT_BROWSERS_PATH || path.join(root, 'dist/cache/playwright')) };
     const env = isolatedEnv(source, temporary, summary.caches);
-    env.API_ROUTER_BINARY = binary;
+    env.WEFTO_BINARY = binary;
     for (const step of summary.steps) {
       if (!requested.has(step.name)) continue;
       if (options.lockControl?.interrupted()) throw new Error('Regression interrupted');
@@ -165,7 +165,7 @@ async function runRegression(options = {}, dependencies = {}) {
       const started = Date.now();
       try {
         if (step.name === 'build') {
-          await run('go', ['build', '-trimpath', '-ldflags=-s -w -X main.version=0.1.0-dev+regression', '-o', binary, './cmd/api-router'], { ...env, CGO_ENABLED: '0' }, step.log);
+          await run('go', ['build', '-trimpath', '-ldflags=-s -w -X main.version=0.1.0-dev+regression', '-o', binary, './cmd/wefto'], { ...env, CGO_ENABLED: '0' }, step.log);
           if (fs.existsSync(binary)) summary.binarySHA256 = crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex');
         } else if (step.name === 'race') {
           await run('go', ['test', '-race', '-count=1', '-p', '1', '-timeout', '45m', ...packages], { ...env, CGO_ENABLED: '1' }, step.log);

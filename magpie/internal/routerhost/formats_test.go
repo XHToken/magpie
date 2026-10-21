@@ -195,7 +195,7 @@ func TestFormatRestoreRejectsChangedOwnedFieldsWithoutLeakingSecrets(t *testing.
 
 func TestFormatPreservesProviderUnknownFieldsAndOriginalSecrets(t *testing.T) {
 	o := formatOptions(t, "codex")
-	before := []byte("model='old'\n[model_providers.api_router]\n# keep provider note\nname='old name'\nbase_url='https://previous.invalid/v1' # endpoint note\nexperimental_bearer_token='old-secret'\nrequest_max_retries=0\n")
+	before := []byte("model='old'\n[model_providers.wefto]\n# keep provider note\nname='old name'\nbase_url='https://previous.invalid/v1' # endpoint note\nexperimental_bearer_token='old-secret'\nrequest_max_retries=0\n")
 	writeFormatConfig(t, o, before)
 	f := mustBuildFormat(t, o)
 	if !bytes.Contains(f.After, []byte("# endpoint note")) || !bytes.Contains(f.After, []byte("request_max_retries=0")) {
@@ -213,9 +213,9 @@ func TestFormatPreservesProviderUnknownFieldsAndOriginalSecrets(t *testing.T) {
 
 func TestFormatRefusesDamagedAmbiguousAndUnsupportedConfig(t *testing.T) {
 	cases := []struct{ host, raw string }{
-		{"codex", "model=\"secret\"\nmodel='another'"}, {"codex", "[model_providers.api_router]\nname=99"}, {"codex", "model = [\"secret\"]"},
-		{"codex", "model_providers = {api_router={name='existing'}}"}, {"codex", "[model_providers.api_router]\nenv_key='PRIVATE_KEY'"},
-		{"codex", "[model_providers.api_router]\nauth={command='secret'}"}, {"codex", "model = \"unfinished-secret"},
+		{"codex", "model=\"secret\"\nmodel='another'"}, {"codex", "[model_providers.wefto]\nname=99"}, {"codex", "model = [\"secret\"]"},
+		{"codex", "model_providers = {wefto={name='existing'}}"}, {"codex", "[model_providers.wefto]\nenv_key='PRIVATE_KEY'"},
+		{"codex", "[model_providers.wefto]\nauth={command='secret'}"}, {"codex", "model = \"unfinished-secret"},
 		{"claude-code", "{\"env\":\"secret\"}"}, {"claude-code", "{\"env\":{\"ANTHROPIC_MODEL\":99}}"},
 		{"claude-code", "{\"env\":{\"ANTHROPIC_MODEL\":\"a\",\"ANTHROPIC_MODEL\":\"secret\"}}"},
 		{"claude-code", "{\"env\":{},\"env\":{\"OTHER\":\"secret\"}}"}, {"claude-code", "{\"private\":\"unfinished-secret"}, {"claude-code", "[]"},
@@ -294,7 +294,7 @@ func TestFormatRejectsSymlinksRelativeRootsAndBadURLs(t *testing.T) {
 }
 
 func TestFormatNoFinalNewlineAndCommentOnly(t *testing.T) {
-	for _, raw := range []string{"model='old'", "# retain comment", "unknown = true", "model='old'\n[model_providers.api_router]\nname='old'"} {
+	for _, raw := range []string{"model='old'", "# retain comment", "unknown = true", "model='old'\n[model_providers.wefto]\nname='old'"} {
 		t.Run(raw, func(t *testing.T) {
 			o := formatOptions(t, "codex")
 			writeFormatConfig(t, o, []byte(raw))
@@ -331,7 +331,7 @@ func TestFormatClaudeRestorationKeepsCommentsBesideRemovedFields(t *testing.T) {
 					writeFormatConfig(t, o, []byte(`{"unrelated":true}`))
 				}
 				f := mustBuildFormat(t, o)
-				current := []byte("{\n\"env\": {\n" + tail + ",\n\"ANTHROPIC_BASE_URL\": \"http://127.0.0.1:8317/app/claude-code\",\n\"ANTHROPIC_AUTH_TOKEN\": \"api-router-local-placeholder\"\n},\n\"unrelated\":true\n}")
+				current := []byte("{\n\"env\": {\n" + tail + ",\n\"ANTHROPIC_BASE_URL\": \"http://127.0.0.1:8317/app/claude-code\",\n\"ANTHROPIC_AUTH_TOKEN\": \"wefto-local-placeholder\"\n},\n\"unrelated\":true\n}")
 				current = bytes.ReplaceAll(current, []byte("\n"), []byte("\r\n"))
 				got, err := RestoreContent(o.Host, f, current)
 				if err != nil {

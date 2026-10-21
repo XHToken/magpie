@@ -13,7 +13,7 @@ const assets = path.resolve(__dirname, '../assets');
 const gui = path.resolve(__dirname, '../../gui/assets');
 const token = 'a'.repeat(64);
 const restartedToken = 'c'.repeat(64);
-const executable = 'C:\\Users\\测试 用户\\AppData\\Local\\API-router\\api-router.exe';
+const executable = 'C:\\Users\\测试 用户\\AppData\\Local\\Wefto\\wefto.exe';
 const startCommand = `& '${executable}' service start`;
 
 for (const engine of process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 'webkit']) {
@@ -21,7 +21,7 @@ for (const engine of process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 
     const controls = [], unexpected = [];
     let state, currentToken, denyAutostart = false, newProcess = false, polls = 0;
     function reset() {
-      state = { service: 'api-router', status: 'ok', running: true, pid: 10001, instanceId: 'before-restart', processStamp: 'synthetic-process-stamp', startedAt: '2026-10-18T00:00:00Z', version: '0.1.0-ui-fixture', address: '127.0.0.1', modelAPIReady: true, runtimeReady: false, executable, experimentalRedaction: true, autostart: { supported: true, enabled: false }, startCommand };
+      state = { service: 'wefto', status: 'ok', running: true, pid: 10001, instanceId: 'before-restart', processStamp: 'synthetic-process-stamp', startedAt: '2026-10-18T00:00:00Z', version: '0.1.0-ui-fixture', address: '127.0.0.1', modelAPIReady: true, runtimeReady: false, executable, experimentalRedaction: true, autostart: { supported: true, enabled: false }, startCommand };
       currentToken = token;
       controls.length = 0; denyAutostart = false; newProcess = false; polls = 0;
     }
@@ -37,11 +37,11 @@ for (const engine of process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 
             state.pid = 10002; state.instanceId = 'after-restart'; state.processStamp = 'synthetic-restarted-process-stamp';
             currentToken = restartedToken;
           }
-          return json({ service: 'api-router', status: 'ok', pid: newProcess && polls > 1 ? 10002 : 10001 });
+          return json({ service: 'wefto', status: 'ok', pid: newProcess && polls > 1 ? 10002 : 10001 });
         }
         if (pathname === '/api/management/session') {
           assert.equal(req.method, 'POST');
-          assert.equal(req.headers['x-api-router-ui'], '1');
+          assert.equal(req.headers['x-wefto-ui'], '1');
           assert.equal(req.headers.origin, 'http://' + req.headers.host);
           assert.equal(req.headers['sec-fetch-site'], 'same-origin');
           return json({ schemaVersion: 1, token: currentToken });
@@ -56,7 +56,7 @@ for (const engine of process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 
             return json({ error: { code: 'unauthorized' } }, 401);
           }
           if (req.method === 'GET' && pathname === '/api/service') return json(state);
-          assert.equal(req.headers['x-api-router-instance'], state.processStamp);
+          assert.equal(req.headers['x-wefto-instance'], state.processStamp);
           let body = ''; for await (const chunk of req) body += chunk;
           const data = JSON.parse(body || '{}');
           controls.push({ path: pathname, method: req.method, body: data, authorization: req.headers.authorization });

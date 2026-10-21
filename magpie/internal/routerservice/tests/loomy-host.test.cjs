@@ -12,7 +12,7 @@ const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { chromium, webkit } = require('playwright');
 
-const binary = process.env.API_ROUTER_BINARY || path.resolve(__dirname, '../../..', 'dist/api-router');
+const binary = process.env.WEFTO_BINARY || path.resolve(__dirname, '../../..', 'dist/wefto');
 const model = 'loomy-fixture-model';
 const fixtureKey = 'loomy-browser-upstream-fixture-key';
 const originalSecret = 'loomy-browser-original-fixture-secret';
@@ -30,7 +30,7 @@ async function jsonFiles(directory) {
 for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 'webkit'])) {
   test(`Loomy explicit connection and independent recovery (${engine})`, { timeout: 180000 }, async t => {
     assert.ok(['chromium', 'webkit'].includes(engine));
-    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'api-router-loomy-ui-'));
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'wefto-loomy-ui-'));
     let service, exited, browser;
     const calls = [], upstreamErrors = [];
     const upstream = http.createServer(async (req, res) => {
@@ -149,9 +149,9 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         const beforeApplyCalls = calls.length; const applied = await action('apply');
         assert.equal(calls.length, beforeApplyCalls + 1, 'apply must check the saved target with a real model probe');
         const configured = JSON.parse(await fs.readFile(hostFile, 'utf8'));
-        assert.equal(configured.model, 'api_router/' + model); assert.equal(configured.small_model, 'api_router/' + model);
-        assert.equal(configured.provider.api_router.options.baseURL, origin + '/app/loomy/v1');
-        assert.equal(configured.provider.api_router.options.apiKey, 'api-router-local-placeholder'); assert.equal(configured.provider.api_router.options.useSessionAuth, false);
+        assert.equal(configured.model, 'wefto/' + model); assert.equal(configured.small_model, 'wefto/' + model);
+        assert.equal(configured.provider.wefto.options.baseURL, origin + '/app/loomy/v1');
+        assert.equal(configured.provider.wefto.options.apiKey, 'wefto-local-placeholder'); assert.equal(configured.provider.wefto.options.useSessionAuth, false);
         assert.deepEqual(configured.provider.original, original.provider.original);
         const records = await jsonFiles(applied.stateDir); assert.equal(records.length, beforeRecords.length + 1);
         const recordFile = path.join(applied.stateDir, records.find(name => !beforeRecords.includes(name))), firstBackup = await fs.readFile(recordFile);
@@ -160,11 +160,11 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         configured.theme = 'later-user-theme'; configured.model = 'user/changed'; const conflict = JSON.stringify(configured);
         await fs.writeFile(hostFile, conflict); await action('restore-preview', 409);
         assert.equal(await fs.readFile(hostFile, 'utf8'), conflict); assert.deepEqual(await fs.readFile(recordFile), firstBackup);
-        configured.model = 'api_router/' + model; await fs.writeFile(hostFile, JSON.stringify(configured));
+        configured.model = 'wefto/' + model; await fs.writeFile(hostFile, JSON.stringify(configured));
         await action('restore-preview');
         await action('restore'); const restored = JSON.parse(await fs.readFile(hostFile, 'utf8'));
         assert.equal(restored.model, original.model); assert.equal(restored.small_model, original.small_model); assert.equal(restored.theme, 'later-user-theme');
-        assert.deepEqual(restored.provider.original, original.provider.original); assert.equal(restored.provider.api_router, undefined);
+        assert.deepEqual(restored.provider.original, original.provider.original); assert.equal(restored.provider.wefto, undefined);
       }
       assert.equal(await page.evaluate(() => window.fixtureExecuted), undefined); assert.deepEqual(errors, []);
       await fit(); await details.click(); assert.equal(await page.locator('#agents [data-app=loomy] .ag-exp').count(), 0); await page.close();
@@ -179,7 +179,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     const recovery = JSON.parse(execFileSync(binary, ['host', 'restore-preview', ...args], { env, encoding: 'utf8' })); safe(recovery);
     execFileSync(binary, ['host', 'restore', ...args, '--plan-digest', recovery.digest], { env, encoding: 'utf8' });
     const restored = JSON.parse(await fs.readFile(offlineFile, 'utf8'));
-    assert.equal(restored.model, original.model); assert.equal(restored.offlineNote, 'preserved'); assert.equal(restored.provider.api_router, undefined);
+    assert.equal(restored.model, original.model); assert.equal(restored.offlineNote, 'preserved'); assert.equal(restored.provider.wefto, undefined);
     assert.deepEqual(upstreamErrors, []);
   });
 }

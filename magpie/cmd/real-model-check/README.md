@@ -20,14 +20,14 @@ Build once, then invoke the executable sequentially for 1.7B and 4B. Give each
 model a dedicated data directory and a separate output directory. For example:
 
 ```powershell
-go build -o D:/temp/api-router-real-model-check.exe ./cmd/real-model-check
-D:/temp/api-router-real-model-check.exe `
+go build -o D:/temp/wefto-real-model-check.exe ./cmd/real-model-check
+D:/temp/wefto-real-model-check.exe `
   --model spark-x2.5-1.7B `
-  --model-file D:/temp/api-router-real-model-cache/1.7B/Spark-X2.5-1.7B-Q4_K_M.gguf `
-  --template-file D:/temp/api-router-real-model-cache/1.7B/chat_template.jinja `
-  --runtime-archive D:/temp/api-router-w4-real/llama-b10828-bin-win-cpu-x64.zip `
-  --data-dir D:/temp/api-router-real-model-data/1.7B `
-  --output D:/temp/api-router-real-model-evidence/1.7B/result.json
+  --model-file D:/temp/wefto-real-model-cache/1.7B/Spark-X2.5-1.7B-Q4_K_M.gguf `
+  --template-file D:/temp/wefto-real-model-cache/1.7B/chat_template.jinja `
+  --runtime-archive D:/temp/wefto-w4-real/llama-b10828-bin-win-cpu-x64.zip `
+  --data-dir D:/temp/wefto-real-model-data/1.7B `
+  --output D:/temp/wefto-real-model-evidence/1.7B/result.json
 ```
 
 The default cold-load budget is 60 seconds, including the cold re-verification.

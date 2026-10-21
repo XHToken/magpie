@@ -97,7 +97,7 @@ func TestLegacyCommandsCannotBeEnabled(t *testing.T) {
 		{"panel"}, {"web"}, {"tui"}, {"app"}, {"serve", "--addr", "0.0.0.0:3425"},
 	} {
 		var out bytes.Buffer
-		if err := run(args, &out); err == nil || !strings.Contains(err.Error(), "disabled in api-router") {
+		if err := run(args, &out); err == nil || !strings.Contains(err.Error(), "disabled in wefto") {
 			t.Errorf("%v: %v", args, err)
 		}
 	}

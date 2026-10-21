@@ -43,5 +43,4 @@ later successful cloud result.
 Settings and model/runtime identity are captured together at the call boundary.
 A request whose snapshot no longer matches the Manager cannot borrow the newer
 runtime's identity; unavailable identity remains unknown. This binding is
-separate from the [privacy specification and cache binding](api-router-runtime.md#configurable-context-and-budgets).
-
+separate from the [privacy specification and cache binding](wefto-runtime.md#configurable-context-and-budgets).

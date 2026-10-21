@@ -29,7 +29,7 @@ isolated model inference estimates. Raw responses are written only under
 reservation. All capabilities remain unknown. This suite is not wired to a
 public management endpoint or the production Pipeline.
 
-`api-router.exe diagnose-local` runs the fixed synthetic suite inside the formal
+`wefto.exe diagnose-local` runs the fixed synthetic suite inside the formal
 product executable. It starts the normal `routerservice` HTTP server, which
 creates its own `LocalModels` and manager through the production constructor.
 Trusted Go callbacks observe that manager and the factory's actual processes;
@@ -38,13 +38,13 @@ the command never injects a replacement manager, installer or process factory.
 For example, run under the repository's existing shared heavy lock:
 
 ```powershell
-api-router.exe diagnose-local `
+wefto.exe diagnose-local `
   -model spark-x2.5-1.7B `
-  -model-file D:/temp/api-router-real-model-cache/1.7B/Spark-X2.5-1.7B-Q4_K_M.gguf `
-  -template-file D:/temp/api-router-real-model-cache/1.7B/chat_template.jinja `
-  -runtime-archive D:/temp/api-router-w4-real/llama-b10828-bin-win-cpu-x64.zip `
-  -data-dir D:/temp/api-router-native-product/installed/1.7B `
-  -output D:/temp/api-router-native-product/evidence/new-run/1.7B/result.json
+  -model-file D:/temp/wefto-real-model-cache/1.7B/Spark-X2.5-1.7B-Q4_K_M.gguf `
+  -template-file D:/temp/wefto-real-model-cache/1.7B/chat_template.jinja `
+  -runtime-archive D:/temp/wefto-w4-real/llama-b10828-bin-win-cpu-x64.zip `
+  -data-dir D:/temp/wefto-native-product/installed/1.7B `
+  -output D:/temp/wefto-native-product/evidence/new-run/1.7B/result.json
 ```
 
 Use a new evidence directory per invocation, and run 1.7B to completion before
@@ -99,5 +99,5 @@ model. Unexecuted assertions remain `not_run`.
 
 `cmd/real-model-check` retains the earlier standalone command shape and delegates
 its fixed suite to this package. The formal product evidence must come from
-`api-router.exe diagnose-local`, whose report has `product:true` and HTTP
+`wefto.exe diagnose-local`, whose report has `product:true` and HTTP
 operation records.

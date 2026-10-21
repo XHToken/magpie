@@ -72,7 +72,7 @@ func TestLocalRuntimeSettingsAPIValidationPersistenceAndReload(t *testing.T) {
 	if err := manager.Select(context.Background(), localModelID); err != nil {
 		t.Fatal(err)
 	}
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "settings-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Layout: l, Catalog: catalog}})
+	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "settings-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Layout: l, Catalog: catalog}})
 	request := func(method, body, auth, origin string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "http://"+address+"/api/local-model/settings", strings.NewReader(body))
 		r.RemoteAddr = "127.0.0.1:2345"
@@ -164,7 +164,7 @@ func testLocalModelManagement(t *testing.T, modelID string) {
 	device := routerdevice.New(routerdevice.ProviderFunc(func(context.Context, string) (routerdevice.Snapshot, error) {
 		return routerdevice.Snapshot{System: routerdevice.Known(routerdevice.System{OS: "windows", Version: routerdevice.Known("10.0.26200"), Architecture: routerdevice.Known("amd64")}), MemoryBytes: routerdevice.Known(uint64(32) * routerdevice.GiB), DiskFreeBytes: routerdevice.Known(uint64(1) << 40), Backends: routerdevice.Known([]routerdevice.Backend{{Kind: routerdevice.CPU, State: routerdevice.Available}})}, nil
 	}))
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "management-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
+	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "management-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
 	request := func(method, path, body, auth, origin string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "http://"+address+path, strings.NewReader(body))
 		r.RemoteAddr = "127.0.0.1:2345"
@@ -289,7 +289,7 @@ func TestLocalModelTierEnablementBoundaries(t *testing.T) {
 	device := routerdevice.New(routerdevice.ProviderFunc(func(context.Context, string) (routerdevice.Snapshot, error) {
 		return snap, nil
 	}))
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "tier-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
+	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "tier-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
 	auth := "Bearer tier-fixture"
 	request := func(path, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest("POST", "http://"+address+path, strings.NewReader(body))

@@ -9,13 +9,16 @@ import (
 	"strings"
 
 	"github.com/yetone/magpie/internal/edit"
+	"github.com/yetone/magpie/internal/product"
 )
 
-const loomyProvider = "api_router"
+const loomyProvider = "wefto"
 
 type LoomyAdapter struct{}
 
-func (LoomyAdapter) Contract() AdapterContract {
+func (LoomyAdapter) Contract() AdapterContract { return expandedContract(legacyLoomyContract()) }
+
+func legacyLoomyContract() AdapterContract {
 	return AdapterContract{ID: "loomy", Version: 1, Files: []FileSpec{{
 		Name: "opencode.json",
 		Fields: []string{"model", "small_model", "provider.api_router.npm", "provider.api_router.name",
@@ -49,8 +52,9 @@ func (LoomyAdapter) Build(o Options, input []FilePlan) ([]FilePlan, error) {
 	if err != nil {
 		return nil, errors.New("invalid Loomy opencode.json")
 	}
+	loomyProvider := providerID(doc, "provider")
 	if !loomyProviderEnabled(doc) {
-		return nil, errors.New("Loomy provider controls exclude api_router or have an invalid shape; reconcile them before applying")
+		return nil, errors.New("Loomy provider controls exclude wefto or have an invalid shape; reconcile them before applying")
 	}
 	for _, key := range []string{"model", "small_model"} {
 		if v, ok := doc[key]; ok {
@@ -75,7 +79,9 @@ func (LoomyAdapter) Build(o Options, input []FilePlan) ([]FilePlan, error) {
 			}
 			staleModels = loomyStaleDefaultModels(existing, models...)
 		} else if !loomyCompatibleProvider(existing, wanted, models...) {
-			return nil, errors.New("Loomy api_router provider conflicts; rename or reconcile it before applying")
+			return nil, errors.New("Loomy Wefto provider conflicts; rename or reconcile it before applying")
+		} else {
+			set = append(set, edit.KV{Path: "provider." + loomyProvider + ".name", Value: product.Name}, edit.KV{Path: "provider." + loomyProvider + ".options.apiKey", Value: PlaceholderAPIKey})
 		}
 	} else {
 		set = append(set, edit.KV{Path: "provider." + loomyProvider, Value: wanted})
@@ -103,18 +109,18 @@ func (LoomyAdapter) Build(o Options, input []FilePlan) ([]FilePlan, error) {
 func loomyPreservedSmallModel(doc map[string]any) bool {
 	small, ok := doc["small_model"].(string)
 	provider, model, hasSlash := strings.Cut(small, "/")
-	return ok && hasSlash && provider != "" && provider != loomyProvider && loomyModelKey(model)
+	return ok && hasSlash && provider != "" && !product.IsProvider(provider) && loomyModelKey(model)
 }
 
 func loomyKeepSmallModel(doc map[string]any) bool {
 	model, ok := doc["model"].(string)
-	return ok && strings.HasPrefix(model, loomyProvider+"/") && loomyPreservedSmallModel(doc)
+	return ok && loomyRouterSelection(model) && loomyPreservedSmallModel(doc)
 }
 
 func loomyRouterSelection(v any) bool {
 	s, ok := v.(string)
-	model := strings.TrimPrefix(s, loomyProvider+"/")
-	return ok && model != s && loomyModelKey(model)
+	id, model, slash := strings.Cut(s, "/")
+	return ok && slash && product.IsProvider(id) && loomyModelKey(model)
 }
 
 func loomyManagedModelEntry(v any) bool {
@@ -147,7 +153,7 @@ func loomyProviderValues(base string, models ...string) map[string]any {
 		catalog[m] = map[string]any{"name": m, "tool_call": true}
 	}
 	return map[string]any{
-		"npm": "@ai-sdk/openai-compatible", "name": "API Router",
+		"npm": "@ai-sdk/openai-compatible", "name": "Wefto",
 		"options": map[string]any{"baseURL": base, "apiKey": PlaceholderAPIKey, "useSessionAuth": false},
 		"models":  catalog,
 	}
@@ -224,6 +230,12 @@ func loomyCompatibleProvider(value any, wanted map[string]any, models ...string)
 				continue
 			}
 		}
+		if len(path) == 1 && path[0] == "name" && product.IsProviderName(got) && product.IsProviderName(want) {
+			continue
+		}
+		if len(path) == 2 && path[0] == "options" && path[1] == "apiKey" && product.IsPlaceholder(got) && product.IsPlaceholder(want) {
+			continue
+		}
 		if !equalValue(got, gok, want, wok) {
 			return false
 		}
@@ -262,6 +274,7 @@ func loomyCompatibleProvider(value any, wanted map[string]any, models ...string)
 }
 
 func loomyProviderEnabled(doc map[string]any) bool {
+	loomyProvider := providerID(doc, "provider")
 	for _, name := range []string{"disabled_providers", "enabled_providers"} {
 		value, exists := doc[name]
 		if !exists {
@@ -304,6 +317,7 @@ func (LoomyAdapter) Restore(f FilePlan, current []byte) ([]byte, error) {
 	if err1 != nil || err2 != nil || err3 != nil {
 		return nil, errors.New("invalid Loomy configuration")
 	}
+	loomyProvider := providerID(after, "provider")
 	selection, ok := after["model"].(string)
 	primary := strings.TrimPrefix(selection, loomyProvider+"/")
 	if !ok || primary == selection || !loomyModelKey(primary) {
@@ -338,7 +352,7 @@ func (LoomyAdapter) Restore(f FilePlan, current []byte) ([]byte, error) {
 	models = append(models, extra...)
 	out := bytes.Clone(current)
 	var err error
-	for _, path := range loomyManagedPaths(models...) {
+	for _, path := range loomyManagedPathsFor(loomyProvider, models...) {
 		for n := 1; n < len(path); n++ {
 			if parent, exists := lookup(now, path[:n]); exists {
 				if _, object := parent.(map[string]any); !object {
@@ -369,18 +383,24 @@ func (LoomyAdapter) Restore(f FilePlan, current []byte) ([]byte, error) {
 			return nil, errors.New("cannot safely restore Loomy configuration")
 		}
 	}
-	return loomyCleanEmptyContainers(out, before, models)
+	return loomyCleanEmptyContainers(out, before, models, loomyProvider)
 }
 
 func loomyExtraManagedModelPath(path []string, bok, aok, cok bool) bool {
-	return len(path) == 5 && path[0] == "provider" && path[1] == loomyProvider && path[2] == "models" && !bok && !aok && cok
+	return len(path) == 5 && path[0] == "provider" && product.IsProvider(path[1]) && path[2] == "models" && !bok && !aok && cok
 }
 
 func loomyReconnectableConflict(path []string, aok bool, current any) bool {
+	if len(path) == 3 && path[0] == "provider" && product.IsProvider(path[1]) && path[2] == "name" {
+		return aok && product.IsProviderName(current)
+	}
+	if len(path) == 4 && path[0] == "provider" && product.IsProvider(path[1]) && path[2] == "options" && path[3] == "apiKey" {
+		return aok && product.IsPlaceholder(current)
+	}
 	if len(path) == 1 && (path[0] == "model" || path[0] == "small_model") {
 		return loomyRouterSelection(current)
 	}
-	if len(path) == 5 && path[0] == "provider" && path[1] == loomyProvider && path[2] == "models" {
+	if len(path) == 5 && path[0] == "provider" && product.IsProvider(path[1]) && path[2] == "models" {
 		switch path[4] {
 		case "name":
 			s, ok := current.(string)

@@ -140,7 +140,7 @@ func TestRetirementPreservesUserDefinedAndUnrelatedModels(t *testing.T) {
 
 	e, o, _ = retiredFixture(t, "loomy")
 	path = hostPath(o.ConfigRoot, "opencode.json")
-	raw, err = edit.PatchJSON(get(t, path), []edit.KV{{Path: "provider.api_router.models.user-model", Value: map[string]any{"name": "user-model", "tool_call": true, "userNote": "keep"}}}, nil)
+	raw, err = edit.PatchJSON(get(t, path), []edit.KV{{Path: "provider.wefto.models.user-model", Value: map[string]any{"name": "user-model", "tool_call": true, "userNote": "keep"}}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestRetiredOriginalModelUserReplacementBlocksRestore(t *testing.T) {
 			if host == "workbuddy" {
 				raw, err = workBuddyAppendModel(get(t, path), map[string]any{"id": "deepseek-flash", "name": "User replacement", "url": "https://example.test/v1"})
 			} else {
-				raw, err = edit.PatchJSON(get(t, path), []edit.KV{{Path: "provider.api_router.models.deepseek-flash", Value: map[string]any{"name": "User replacement"}}}, nil)
+				raw, err = edit.PatchJSON(get(t, path), []edit.KV{{Path: "provider.wefto.models.deepseek-flash", Value: map[string]any{"name": "User replacement"}}}, nil)
 			}
 			if err != nil {
 				t.Fatal(err)

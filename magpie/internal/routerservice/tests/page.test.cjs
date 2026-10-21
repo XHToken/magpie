@@ -1,5 +1,5 @@
 const { skipTutorial } = require('./returning-user.cjs');
-// Build with make api-router, then run with node --test this file.
+// Build with make wefto, then run with node --test this file.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
@@ -11,11 +11,11 @@ const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { chromium, webkit } = require('playwright');
 
-const binary = process.env.API_ROUTER_BINARY || path.resolve(__dirname, '../../..', 'dist/api-router');
+const binary = process.env.WEFTO_BINARY || path.resolve(__dirname, '../../..', 'dist/wefto');
 for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 'webkit'])) {
   test(`embedded management page (${engine})`, { timeout: 180000 }, async (t) => {
     assert.ok(['chromium', 'webkit'].includes(engine));
-    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'api-router-ui-'));
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'wefto-ui-'));
     let service, exited, browser;
     t.after(async () => {
       if (browser) await browser.close();
@@ -95,8 +95,8 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         const sessionHeaders = await sessionRequest.allHeaders();
         assert.equal(sessionHeaders.origin, `http://${address}`);
         assert.equal(sessionHeaders['sec-fetch-site'], 'same-origin');
-        assert.equal(sessionHeaders['x-api-router-ui'], '1');
-        assert.match(await page.title(), /API-router/);
+        assert.equal(sessionHeaders['x-wefto-ui'], '1');
+        assert.match(await page.title(), /Wefto/);
         assert.deepEqual(await page.locator('#nav [data-view]').evaluateAll(nodes => nodes.map(node => node.dataset.view)), ['agents', 'providers', 'routing', 'gateway', 'local-model', 'usage']);
         assert.equal(await page.locator('#usagePane').isVisible(), true);
         assert.equal(new URL(page.url()).searchParams.get('tab'), 'usage');
@@ -112,7 +112,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         const appCSS = await page.request.get(`http://${address}/app.css`);
         assert.deepEqual(await appCSS.body(), await fs.readFile(path.resolve(__dirname, '../../gui/assets/app.css')));
         await page.waitForFunction(() => !!managementToken && !!serviceInfo);
-        assert.equal(await page.evaluate(() => serviceInfo.service), 'api-router');
+        assert.equal(await page.evaluate(() => serviceInfo.service), 'wefto');
         assert.equal(page.url().includes(token), false);
         await page.locator('#nav [data-view=gateway]').click();
         assert.equal(await page.locator('#service').evaluate(node => node.classList.contains('ok')), true);
@@ -247,11 +247,29 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     const page = await browser.newPage();
     await skipTutorial(page); await page.goto(`http://${address}/`);
     assert.equal(await page.locator('#usagePane').isVisible(), true);
-    await page.evaluate(() => localStorage.setItem('api-router.ui', JSON.stringify({ view: 'context', usageTab: 'context' })));
+    await page.evaluate(() => localStorage.setItem('wefto.ui', JSON.stringify({ view: 'context', usageTab: 'context' })));
     await page.reload();
     await page.waitForFunction(() => !!managementToken && !!serviceInfo);
     assert.equal(await page.locator('#usagePane').isVisible(), true);
-    assert.deepEqual(await page.evaluate(() => { const saved = JSON.parse(localStorage.getItem('api-router.ui')); return [saved.view, saved.usageTab]; }), ['usage', 'usage']);
+    assert.deepEqual(await page.evaluate(() => { const saved = JSON.parse(localStorage.getItem('wefto.ui')); return [saved.view, saved.usageTab]; }), ['usage', 'usage']);
+    await page.evaluate(() => {
+      localStorage.removeItem('wefto.ui');
+      localStorage.removeItem('wefto.tutorial.v1');
+      localStorage.setItem('api-router.ui', JSON.stringify({ view: 'usage', usageTab: 'usage' }));
+      localStorage.setItem('api-router.tutorial.v1', JSON.stringify({ version: 1, step: 5, route: 'cloud', app: 'loomy', dismissed: true, completed: true }));
+    });
+    await page.goto(`http://${address}/?locale=zh`);
+    await page.waitForFunction(() => !!managementToken && !!serviceInfo);
+    assert.match(await page.title(), /Wefto 织流/);
+    assert.equal(await page.locator('.brand .router-logo').textContent(), 'W');
+    assert.equal(await page.locator('.brand [data-t]').textContent(), 'Wefto 织流');
+    assert.equal(await page.locator('#tutorialModal').isVisible(), false, 'legacy completion prevents the guide from reopening');
+    assert.equal(await page.locator('#usagePane').isVisible(), true, 'legacy UI selection survives the rename');
+    await page.locator('#tutorialOpen').click();
+    await page.locator('#tutorialClose').click();
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('wefto.tutorial.v1')).completed), true);
+    await page.locator('#nav [data-view=usage]').click();
+    assert.deepEqual(await page.evaluate(() => { const saved = JSON.parse(localStorage.getItem('wefto.ui')); return [saved.view, saved.usageTab]; }), ['usage', 'usage']);
     await skipTutorial(page); await page.goto(`http://${address}/?view=routing`);
     assert.equal(await page.locator('#view-routing').isVisible(), true);
     await skipTutorial(page); await page.goto(`http://${address}/?view=plugins`);

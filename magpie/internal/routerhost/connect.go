@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/yetone/magpie/internal/edit"
+	"github.com/yetone/magpie/internal/product"
 )
 
 func (e Engine) lock(root string) (func(), error) {
@@ -37,7 +38,7 @@ func (e Engine) lock(root string) (func(), error) {
 			_ = os.Remove(held[i])
 		}
 	}
-	for _, path := range []string{filepath.Join(e.StateDir, ".operation.lock"), filepath.Join(root, ".api-router-host.lock")} {
+	for _, path := range []string{filepath.Join(e.StateDir, ".operation.lock"), filepath.Join(root, product.HostLock), filepath.Join(root, product.LegacyHostLock)} {
 		if err := os.Mkdir(path, 0o700); err != nil {
 			release()
 			return nil, fmt.Errorf("operation locked or directory not writable: %s; check for a running writer before removing a stale lock", path)
@@ -176,6 +177,7 @@ func (e Engine) prepareConnection(o Options) (*portGroup, AdapterContract, error
 	for i := range j.Files {
 		j.Files[i].After = managed[i].After
 	}
+	j.Adapter = &contract
 	j.Status = "applied"
 	keep := o.effectiveModelSet()
 	var retired []string
@@ -212,6 +214,9 @@ func checkConnectedFiles(a Adapter, o Options, input []FilePlan) error {
 	if err != nil {
 		return err
 	}
+	if o.Host == "loomy" {
+		prefix = providerID(doc, "provider") + "/"
+	}
 	selection, ok := doc["model"].(string)
 	if !ok || !strings.HasPrefix(selection, prefix) {
 		return errors.New("host is not selecting its Router connection")
@@ -233,7 +238,7 @@ func checkConnectedFiles(a Adapter, o Options, input []FilePlan) error {
 		return errors.New("host Router connection fields conflict")
 	}
 	for _, f := range got {
-		if !bytes.Equal(f.Before, f.After) {
+		if !sameConnection(o.Host, f.Before, f.After) {
 			return errors.New("host Router connection belongs to another target")
 		}
 	}
@@ -252,6 +257,7 @@ func buildConnection(a Adapter, o Options, input []FilePlan) ([]FilePlan, error)
 	if err != nil {
 		return nil, err
 	}
+	loomyProvider := providerID(doc, "provider")
 	var patches []edit.KV
 	for _, m := range o.EffectiveModels() {
 		if !loomyModelKey(m) {

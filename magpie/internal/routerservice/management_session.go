@@ -3,6 +3,8 @@ package routerservice
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/yetone/magpie/internal/product"
 )
 
 // managementSession lets only the Router's own browser page obtain the current
@@ -19,11 +21,22 @@ func managementSession(w http.ResponseWriter, r *http.Request, address, token st
 	origins := r.Header.Values("Origin")
 	if len(origins) != 1 || origins[0] != "http://"+address ||
 		r.Header.Get("Sec-Fetch-Site") != "same-origin" ||
-		r.Header.Get("X-API-Router-UI") != "1" || token == "" {
+		!validUIHeader(r) || token == "" {
 		http.Error(w, "local management page required", http.StatusForbidden)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
 	_ = json.NewEncoder(w).Encode(map[string]any{"schemaVersion": 1, "token": token})
+}
+
+func validUIHeader(r *http.Request) bool {
+	current, legacy := r.Header.Values(product.UIHeader), r.Header.Values(product.LegacyUIHeader)
+	if len(current) > 1 || len(legacy) > 1 {
+		return false
+	}
+	if len(current) == 1 && current[0] != "1" || len(legacy) == 1 && legacy[0] != "1" {
+		return false
+	}
+	return len(current)+len(legacy) > 0
 }

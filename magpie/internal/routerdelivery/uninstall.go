@@ -37,7 +37,7 @@ func PreviewUninstall(root string, keepRecovery bool) (UninstallPlan, error) {
 		if err := removable(name); err != nil {
 			return UninstallPlan{}, err
 		}
-		if keepRecovery && f.Name == "api-router.exe" {
+		if keepRecovery && f.Name == "wefto.exe" {
 			if err := verifyFile(context.Background(), name, f); err != nil {
 				return UninstallPlan{}, fmt.Errorf("offline recovery executable is damaged; restore its verified package before uninstalling: %w", err)
 			}

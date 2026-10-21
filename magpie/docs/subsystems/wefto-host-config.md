@@ -1,4 +1,4 @@
-# API-Router Host Configuration Transactions (WorkBuddy & Loomy)
+# Wefto Host Configuration Transactions (WorkBuddy & Loomy)
 
 ## Purpose
 
@@ -65,14 +65,14 @@ When connecting WorkBuddy (`connectWorkBuddy`):
 1. **Multi-Model Catalogue (`models.json`)**:
    - Iterates over all items in `Options.Models` (`resolvedModels()`).
    - For each target `m`, generates a stable WorkBuddy entry ID via
-     `workBuddyModelID(appID, m)` (`api-router-<appID>` for a single model or
-     `api-router-<appID>-<slug>` when multiple models/groups are bound) with
-     `id: entryID`, `model: m` (the wire model/group ID sent to API-Router, e.g.
+     `workBuddyModelID(appID, m)` (`wefto-<appID>` for a single model or
+     `wefto-<appID>-<slug>` when multiple models/groups are bound) with
+     `id: entryID`, `model: m` (the wire model/group ID sent to Wefto, e.g.
      `group/claude-sonnet-4` or `openai/gpt-4.1`), `vendor`, `name`, and
-     `apiKey: "api-router-local"`.
+     `apiKey: "wefto-local"`.
    - Calls `retireManagedWorkBuddyEntries` to remove any previously managed
-     API-Router entries from `models.json` that are no longer in the current
-     `Options.Models` selection, while preserving all user-owned non-API-Router
+     Wefto entries from `models.json` that are no longer in the current
+     `Options.Models` selection, while preserving all user-owned non-Wefto
      models.
 2. **Default Primary Model (`settings.json`)**:
    - Sets `codeMode.SelectedModel` and `chat.SelectedModel` in `settings.json`
@@ -83,24 +83,28 @@ When connecting WorkBuddy (`connectWorkBuddy`):
 
 When connecting Loomy (`connectLoomy`):
 
-- Writes `provider.api_router` in `opencode.json` with `options.baseURL`
-  (`<baseURL>/v1`), `options.headers["X-API-Router-App"] = appID`, and populates
-  `provider.api_router.models` with every selected entry in `Options.Models`
+- Writes `provider.wefto` in `opencode.json` with `options.baseURL`
+  (`<baseURL>/v1`), `options.headers["X-Wefto-App"] = appID`, and populates
+  `provider.wefto.models` with every selected entry in `Options.Models`
   (including `group/<id>`, `<providerId>/<model>`, and `local/<id>`).
 - Calls `retireManagedLoomyEntries` so stale model keys from previous connects
-  are removed from `provider.api_router.models`.
-- Sets top-level `model` and `small_model` to `api_router/<models[0]>`.
+  are removed from `provider.wefto.models`.
+- Sets top-level `model` and `small_model` to `wefto/<models[0]>`.
 
 ### Transactional Backups, Disconnect (`Restore`), and Port Sync
 
 - Before mutating any host file, `commitTransaction` snapshots the pre-connection
-  files into `%LOCALAPPDATA%/api-router/hosts/<host>/backups/` and records
+  files into `%LOCALAPPDATA%/wefto/hosts/<host>/backups/` and records
   `recovery.json`.
 - Calling `POST /api/hosts/auto` with `{"host": "<host>", "action": "disconnect"}`
   (or `POST /api/hosts/{host}/restore`) invokes `Manager.Restore`, which
   restores the backed-up host configuration files (or removes managed entries
   and restores previous default model fields if the file was created during
   connect).
-- When API-Router switches loopback ports at startup, `SyncConnectedHostPorts`
+- When Wefto switches loopback ports at startup, `SyncConnectedHostPorts`
   updates the endpoint port in already-connected WorkBuddy and Loomy files
   without altering their selected models or user settings.
+
+## Wefto naming and existing recovery records
+
+Product identity and aliases belong to [`internal/product`](../../internal/product/identity.go). New provider display names are `Wefto`; new Codex/Loomy provider keys are `wefto`. The known legacy `api_router` key, `API Router` label and local placeholder remain readable during an explicit upgrade. Codex and Loomy adapters publish version-2 contracts containing both field sets. Only their exact frozen version-1 contracts are accepted as legacy; arbitrary versions or fields are rejected. WorkBuddy retains its field contract and user-defined model names. Reconnect and offline recovery preserve the first original snapshot and later unrelated host edits. Host transactions lock both `.wefto-host.lock` and `.api-router-host.lock` so an older writer cannot run concurrently.

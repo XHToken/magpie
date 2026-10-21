@@ -78,7 +78,7 @@ func TestConnectSwitchesLegacyLoomyAndRestoresItsActualBaseline(t *testing.T) {
 	if _, err := e.Connect(context.Background(), o); err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(get(t, path), []byte("api_router/spark-x2.5")) {
+	if !bytes.Contains(get(t, path), []byte("wefto/spark-x2.5")) {
 		t.Fatal("legacy connection still selects the old model")
 	}
 	mustRestore(t, e, o)
@@ -99,7 +99,7 @@ func TestConnectRefusesConflictsAndFailedChecksWithoutWrites(t *testing.T) {
 			case "other-origin":
 				o.RouterURL = "http://127.0.0.1:14388"
 			case "managed-field":
-				raw, err := edit.PatchJSON(get(t, path), []edit.KV{{Path: "provider.api_router.options.useSessionAuth", Value: true}}, nil)
+				raw, err := edit.PatchJSON(get(t, path), []edit.KV{{Path: "provider.wefto.options.useSessionAuth", Value: true}}, nil)
 				if err != nil {
 					t.Fatal(err)
 				}

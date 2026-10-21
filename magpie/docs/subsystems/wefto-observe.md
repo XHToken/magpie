@@ -1,4 +1,4 @@
-# API-router execution observation adapter
+# Wefto execution observation adapter
 
 [`routerobserve`](../../internal/routerobserve/observe.go) binds a Router-generated
 request ID and an immutable safe app/profile snapshot to one external operation.

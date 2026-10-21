@@ -63,7 +63,7 @@ func previewDigest(t *testing.T, args []string) string {
 	if strings.Contains(out.String(), "test-app-secret-never-print") {
 		t.Fatalf("preview leaked entry token: %s", out.String())
 	}
-	if args[1] == "restore-preview" && !strings.Contains(summary.Notice, "bypasses API-router") {
+	if args[1] == "restore-preview" && !strings.Contains(summary.Notice, "bypasses Wefto") {
 		t.Fatalf("restore preview did not explain bypass: %s", out.String())
 	}
 	return summary.Digest
@@ -78,7 +78,7 @@ func TestHostHelpNeverWrites(t *testing.T) {
 		{"host", "apply", "--config-root", root, "--model", "--help"},
 	} {
 		var out bytes.Buffer
-		if err := run(args, &out); err != nil || !strings.Contains(out.String(), "Usage: api-router host") {
+		if err := run(args, &out); err != nil || !strings.Contains(out.String(), "Usage: wefto host") {
 			t.Errorf("%v: %q %v", args, out.String(), err)
 		}
 	}
@@ -90,15 +90,15 @@ func TestHostHelpNeverWrites(t *testing.T) {
 func TestHostRejectsInvalidOptionsWithoutWriting(t *testing.T) {
 	base := t.TempDir()
 	root, state := filepath.Join(base, "host"), filepath.Join(base, "state")
-	t.Setenv("API_ROUTER_TEST_APP_TOKEN", "test-app-secret-never-print")
-	t.Setenv("API_ROUTER_MANAGEMENT_TOKEN", "test-management-secret")
+	t.Setenv("WEFTO_TEST_APP_TOKEN", "test-app-secret-never-print")
+	t.Setenv("WEFTO_MANAGEMENT_TOKEN", "test-management-secret")
 	valid := connectionArgs(hostArgs("preview", "codex", root, state), "http://127.0.0.1:13145")
 	cases := [][]string{
 		{"host", "unknown"}, {"host", "preview", "--host", "--helpful"},
 		append(append([]string{}, valid...), "--unknown", "test-app-secret-never-print"),
 		append(append([]string{}, valid...), "extra"),
 		append(append([]string{}, valid...), "--token", "test-app-secret-never-print"),
-		append(append([]string{}, valid...), "--token-env", "API_ROUTER_MANAGEMENT_TOKEN"),
+		append(append([]string{}, valid...), "--token-env", "WEFTO_MANAGEMENT_TOKEN"),
 		append(append([]string{}, valid...), "--token-env", "MISSING_APP_TOKEN"),
 		append(append([]string{}, valid...), "--host", "unknown"),
 		append(append([]string{}, valid...), "--model", "--unknown"),
@@ -106,7 +106,7 @@ func TestHostRejectsInvalidOptionsWithoutWriting(t *testing.T) {
 		append(append([]string{}, valid...), "--state-dir", "relative"),
 		connectionArgs(hostArgs("apply", "codex", root, state), "http://127.0.0.1:13145"),
 		hostArgs("restore", "codex", root, state),
-		append(hostArgs("restore-preview", "codex", root, state), "--token-env", "API_ROUTER_TEST_APP_TOKEN"),
+		append(hostArgs("restore-preview", "codex", root, state), "--token-env", "WEFTO_TEST_APP_TOKEN"),
 	}
 	for _, args := range cases {
 		var out bytes.Buffer
@@ -131,7 +131,7 @@ func TestHostCLIPreviewApplyAndOfflineRestore(t *testing.T) {
 		t.Run(host, func(t *testing.T) {
 			base := t.TempDir()
 			root, state := filepath.Join(base, "host"), filepath.Join(base, "state")
-			t.Setenv("API_ROUTER_TEST_APP_TOKEN", "test-app-secret-never-print")
+			t.Setenv("WEFTO_TEST_APP_TOKEN", "test-app-secret-never-print")
 			checks := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Header.Get("Authorization") != "" {
@@ -176,7 +176,7 @@ func TestHostCLIPreviewApplyAndOfflineRestore(t *testing.T) {
 			}
 			// Recovery must be independent of a running Router and of token lookup.
 			server.Close()
-			t.Setenv("API_ROUTER_TEST_APP_TOKEN", "")
+			t.Setenv("WEFTO_TEST_APP_TOKEN", "")
 			hostChecker = func(string) routerhost.Checker { panic("restore constructed a connection checker") }
 			recovery := hostArgs("restore-preview", host, root, state)
 			restoreDigest := previewDigest(t, recovery)
@@ -190,7 +190,7 @@ func TestHostCLIPreviewApplyAndOfflineRestore(t *testing.T) {
 			if err := run(append(hostArgs("restore", host, root, state), "--plan-digest", restoreDigest), &out); err != nil {
 				t.Fatal(err)
 			}
-			if !strings.Contains(out.String(), "bypasses API-router") {
+			if !strings.Contains(out.String(), "bypasses Wefto") {
 				t.Fatalf("restore omitted recovery notice: %s", out.String())
 			}
 		})
@@ -203,7 +203,7 @@ func TestHostCLIRefusesStalePreviewAndFailedCheck(t *testing.T) {
 	if err := os.MkdirAll(root, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("API_ROUTER_TEST_APP_TOKEN", "test-app-secret-never-print")
+	t.Setenv("WEFTO_TEST_APP_TOKEN", "test-app-secret-never-print")
 	preview := connectionArgs(hostArgs("preview", "codex", root, state), "http://127.0.0.1:13145")
 	digest := previewDigest(t, preview)
 	configPath := filepath.Join(root, "config.toml")
@@ -249,7 +249,7 @@ func TestHostCLIProductionApplyAndOfflineRestore(t *testing.T) {
 					if r.Header.Get("Authorization") != "" {
 						t.Error("health received secret")
 					}
-					fmt.Fprint(w, `{"service":"api-router","status":"ok"}`)
+					fmt.Fprint(w, `{"service":"wefto","status":"ok"}`)
 				case "/api/apps":
 					if r.Header.Get("Authorization") != "Bearer "+management {
 						t.Error("management credential not isolated")

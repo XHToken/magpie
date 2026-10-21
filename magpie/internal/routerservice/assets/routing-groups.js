@@ -1,4 +1,4 @@
-// Routing Groups view, i18n registration, member metadata resolution, and list rendering for API-Router.
+// Routing Groups view, i18n registration, member metadata resolution, and list rendering for Wefto.
 (function () {
   var RG_I18N = {
     zh: {
@@ -260,7 +260,7 @@
   };
 
   try {
-    var savedFavs = localStorage.getItem('apiRouter.modelFavorites');
+    var savedFavs = localStorage.getItem('wefto.modelFavorites');
     if (savedFavs) state.favorites = JSON.parse(savedFavs) || {};
   } catch (_) {}
 
@@ -268,7 +268,7 @@
     if (state.favorites[ref]) delete state.favorites[ref];
     else state.favorites[ref] = true;
     try {
-      localStorage.setItem('apiRouter.modelFavorites', JSON.stringify(state.favorites));
+      localStorage.setItem('wefto.modelFavorites', JSON.stringify(state.favorites));
     } catch (_) {}
   }
 
@@ -470,7 +470,7 @@
     autoEl.innerHTML = auto.map(renderGroupCard).join('');
   }
 
-  window.__apiRouterRoutingGroups = {
+  window.__weftoRoutingGroups = {
     STRATEGIES: STRATEGIES,
     normalizeStrategy: normalizeStrategy,
     strategyMeta: strategyMeta,

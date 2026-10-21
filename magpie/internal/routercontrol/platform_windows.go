@@ -52,7 +52,7 @@ const runKey = `Software\Microsoft\Windows\CurrentVersion\Run`
 func psLiteral(s string) string         { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
 func launcherPath(l dirs.Layout) string { return filepath.Join(l.State, "login.ps1") }
 func launcher(l dirs.Layout, exe string) []byte {
-	return []byte("\xef\xbb\xbf# API-router private login launcher.\r\n$ErrorActionPreference='Stop'\r\n$env:APPDATA=" + psLiteral(filepath.Dir(l.Config)) + "\r\n$env:LOCALAPPDATA=" + psLiteral(filepath.Dir(l.Data)) + "\r\nStart-Process -FilePath " + psLiteral(exe) + " -ArgumentList @('service','start') -WindowStyle Hidden\r\n")
+	return []byte("\xef\xbb\xbf# Wefto private login launcher.\r\n$ErrorActionPreference='Stop'\r\n$env:APPDATA=" + psLiteral(filepath.Dir(l.Config)) + "\r\n$env:LOCALAPPDATA=" + psLiteral(filepath.Dir(l.Data)) + "\r\nStart-Process -FilePath " + psLiteral(exe) + " -ArgumentList @('service','start') -WindowStyle Hidden\r\n")
 }
 func autostartCommand(l dirs.Layout, exe string) string {
 	return syscall.EscapeArg(filepath.Join(os.Getenv("SystemRoot"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe")) + ` -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ` + syscall.EscapeArg(launcherPath(l))

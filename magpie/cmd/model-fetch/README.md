@@ -5,7 +5,7 @@ fixed. `--tier` only selects 1.7B or 4B from `routermanifest.Fixed`.
 
 ```powershell
 go build -o D:/temp/model-fetch.exe ./cmd/model-fetch
-D:/temp/model-fetch.exe --tier 1.7B --cache D:/temp/api-router-real-model-cache --workers 8 --attempts 3 --attempt-timeout 15m
+D:/temp/model-fetch.exe --tier 1.7B --cache D:/temp/wefto-real-model-cache --workers 8 --attempts 3 --attempt-timeout 15m
 ```
 
 `--workers 0` uses direct HTTP/1.1. `1..8` uses persistent 4 MiB ranges from the

@@ -16,7 +16,7 @@ func TestExperimentalServeIsExplicitAndCancelable(t *testing.T) {
 		t.Fatal("explicit trial serve was not admitted to canceled service startup", err)
 	}
 	for _, args := range [][]string{{"serve", "--experimental-redaction=true"}, {"serve", "--experimental-redaction", "--addr", "0.0.0.0:13145"}, {"healthcheck", "--experimental-redaction"}} {
-		if err := runContext(ctx, args, &out); err == nil || !strings.Contains(err.Error(), "disabled in api-router") {
+		if err := runContext(ctx, args, &out); err == nil || !strings.Contains(err.Error(), "disabled in wefto") {
 			t.Fatal("unrecognized trial/serve options were accepted", args, err)
 		}
 	}

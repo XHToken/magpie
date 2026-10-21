@@ -2,10 +2,11 @@
 // Product adapter for the retained Magpie client shell.
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
+const isWeftoService = value => value === 'wefto' || value === 'api-router';
 const params = new URLSearchParams(location.search);
 let preferences = {};
-try { preferences = JSON.parse(localStorage.getItem('api-router.ui') || '{}') || {}; } catch {}
-const savePreferences = () => { try { localStorage.setItem('api-router.ui', JSON.stringify(preferences)); } catch {} };
+try { preferences = JSON.parse(localStorage.getItem('wefto.ui') ?? localStorage.getItem('api-router.ui') ?? '{}') || {}; } catch {}
+const savePreferences = () => { try { localStorage.setItem('wefto.ui', JSON.stringify(preferences)); } catch {} };
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -14,12 +15,13 @@ const el = (tag, className, text) => {
 };
 
 for (const [key, zh, tw, ja, de] of [
+  ['Wefto', 'Wefto 织流', 'Wefto 織流', 'Wefto', 'Wefto'],
   ['Routing trace is not connected yet', '路由记录尚未接入', '路由紀錄尚未接入', 'ルーティング記録は未接続です', 'Routing-Verlauf noch nicht angebunden'],
   ['Per-request decisions, local or cloud destinations, timing and failure stages will appear here.', '这里将展示逐请求判断、本地或云端的实际去向、耗时和失败阶段。', '這裡將顯示逐請求判斷、本機或雲端的實際去向、耗時和失敗階段。', 'ここに各リクエストの判断、ローカルまたはクラウドの実行先、所要時間、失敗した段階が表示されます。', 'Hier erscheinen Entscheidungen je Anfrage, lokale oder Cloud-Ziele, Dauer und Fehlerphasen.'],
   ['Routing records will appear when the request trace is connected.', '请求追踪接入后，这里将显示路由记录。', '請求追蹤接入後，這裡將顯示路由紀錄。', 'リクエスト追跡の接続後、ルーティング記録を表示します。', 'Routing-Verlauf erscheint, sobald die Anfrageverfolgung angebunden ist.'],
   ['Connect management', '连接管理', '連線管理', '管理に接続', 'Verwaltung verbinden'],
   ['Select routing groups or models for Loomy and WorkBuddy, then toggle the switch to write host configuration files directly.', '为 Loomy 与 WorkBuddy 选择路由组或模型，开启右侧开关即可一键写入宿主配置文件。', '為 Loomy 與 WorkBuddy 選擇路由組或模型，開啟右側開關即可一鍵寫入宿主設定檔。', 'LoomyとWorkBuddyのルーティンググループまたはモデルを選択し、スイッチでホスト設定を直接書き込みます。', 'Routing-Gruppen oder Modelle für Loomy und WorkBuddy auswählen und per Schalter direkt in die Host-Konfiguration schreiben.'],
-  ["Once the switch is turned on, models configured in api-router will appear as the api-router provider in the agent's model list.", '开关打开后，api-router中配置的模型会作为api-router供应商出现在agent的模型列表里', '開關打開後，api-router中配置的模型會作為api-router供應商出現在agent的模型列表裡', 'スイッチをオンにすると、api-routerで設定されたモデルがagentのモデル一覧にapi-routerプロバイダーとして表示されます。', 'Wenn der Schalter aktiviert ist, erscheinen die in api-router konfigurierten Modelle als api-router-Anbieter in der Modellliste des Agenten.'],
+  ["Once the switch is turned on, models configured in wefto will appear as the wefto provider in the agent's model list.", '开关打开后，wefto中配置的模型会作为wefto供应商出现在agent的模型列表里', '開關打開後，wefto中配置的模型會作為wefto供應商出現在agent的模型列表裡', 'スイッチをオンにすると、weftoで設定されたモデルがagentのモデル一覧にweftoプロバイダーとして表示されます。', 'Wenn der Schalter aktiviert ist, erscheinen die in wefto konfigurierten Modelle als wefto-Anbieter in der Modellliste des Agenten.'],
   ['Details', '详情', '詳情', '詳細', 'Details'],
   ['Collapse', '收起', '收起', '折りたたむ', 'Einklappen'],
   ['Model list', '模型列表', '模型列表', 'モデル一覧', 'Modellliste'],
@@ -35,14 +37,14 @@ for (const [key, zh, tw, ja, de] of [
   ['Local model', '本地模型', '本機模型', 'ローカルモデル', 'Lokales Modell'],
   ['Cloud requests are connected. Explicit 1.7B or 4B local routing and execution become available after enable, install and capability checks; redaction is separate.', '云端请求已接通。明确启用、安装并完成能力检查后，1.7B 或 4B 本地路由与执行可用；脱敏单独管理。', '雲端請求已接通。明確啟用、安裝並完成能力檢查後，1.7B 或 4B 本機路由與執行可用；去識別化獨立管理。', 'クラウドリクエストは利用できます。1.7Bまたは4Bを有効化・インストールし、機能確認を完了するとローカルルーティングと実行を使えます。匿名化は別管理です。'],
   ['Manual refresh', '手动刷新', '手動重新整理', '手動更新', 'Manuell aktualisieren'],
-  ['Only requests passing through API-router are counted. Host session files are not scanned.', '仅统计经过 API-router 的请求，不扫描宿主会话文件。', '僅統計經過 API-router 的請求，不掃描宿主工作階段檔案。', 'API-routerを通るリクエストのみを集計します。ホストのセッションファイルはスキャンしません。', 'Es werden nur Anfragen über API-router gezählt. Sitzungsdateien anderer Anwendungen werden nicht durchsucht.'],
+  ['Only requests passing through Wefto are counted. Host session files are not scanned.', '仅统计经过 Wefto 的请求，不扫描宿主会话文件。', '僅統計經過 Wefto 的請求，不掃描宿主工作階段檔案。', 'Weftoを通るリクエストのみを集計します。ホストのセッションファイルはスキャンしません。', 'Es werden nur Anfragen über Wefto gezählt. Sitzungsdateien anderer Anwendungen werden nicht durchsucht.'],
   ['Estimated cost', '估算成本', '估算成本', '推定コスト', 'Geschätzte Kosten'],
   ['Latency', '延迟', '延遲', '遅延', 'Latenz'],
   ['Statistics are not connected yet', '用量统计尚未接入', '用量統計尚未接入', '使用統計は未接続です', 'Nutzungsstatistik noch nicht angebunden'],
   ['Usage will appear when the statistics ledger is connected.', '统计账本接入后，这里将显示用量。', '統計帳本接入後，這裡將顯示用量。', '使用統計の接続後、使用量を表示します。', 'Nutzung erscheint, sobald das Statistikbuch angebunden ist.'],
   ['Request history is not connected yet', '请求记录尚未接入', '請求紀錄尚未接入', 'リクエスト履歴は未接続です', 'Anfrageverlauf noch nicht angebunden'],
   ['Request counts, tokens, cost and latency will appear here.', '这里将记录请求数、Token、成本和延迟。', '這裡將記錄請求數、Token、成本和延遲。', 'ここにリクエスト数、トークン、コスト、遅延が記録されます。', 'Hier werden Anfragezahlen, Tokens, Kosten und Latenz erfasst.'],
-  ['Through API-router', '经过 API-router 的', '經過 API-router 的', 'API-router経由', 'Über API-router'],
+  ['Through Wefto', '经过 Wefto 的', '經過 Wefto 的', 'Wefto経由', 'Über Wefto'],
   ['Management access', '管理访问', '管理存取', '管理アクセス', 'Verwaltungszugriff'],
   ['Separate from cloud API keys', '与云端 API Key 分开使用', '與雲端 API Key 分開使用', 'クラウドAPIキーとは別に使用します', 'Getrennt von Cloud-API-Schlüsseln'],
   ['Local model router', '本机模型路由服务', '本機模型路由服務', 'ローカルモデルルーター', 'Lokaler Modellrouter'],
@@ -176,7 +178,7 @@ function renderNavigation() {
   if (tab) parts.push(tab.textContent);
   $('#crumb').replaceChildren(...parts.flatMap((name, i) => [...(i ? [el('i', '', '/')] : []), el(i === parts.length - 1 ? 'b' : 'span', '', name)]));
   $('#pageTitle').textContent = parts.at(-1);
-  document.title = parts.at(-1) + ' · API-router';
+  document.title = parts.at(-1) + ' · ' + t('Wefto');
   $('#sideToggle').setAttribute('title', t('Toggle sidebar'));
   requestAnimationFrame(placeSelections);
 }
@@ -208,7 +210,7 @@ async function ensureManagement() {
   if (!managementSession) managementSession = (async () => {
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 3000);
     try {
-      const response = await fetch('/api/management/session', { method: 'POST', headers: { 'X-API-Router-UI': '1' }, mode: 'same-origin', referrerPolicy: 'same-origin', credentials: 'omit', cache: 'no-store', redirect: 'error', signal: controller.signal });
+      const response = await fetch('/api/management/session', { method: 'POST', headers: { 'X-Wefto-UI': '1' }, mode: 'same-origin', referrerPolicy: 'same-origin', credentials: 'omit', cache: 'no-store', redirect: 'error', signal: controller.signal });
       if (!response.ok) throw new Error('Connection failed. Check that the service is running.');
       const data = await response.json();
       if (data.schemaVersion !== 1 || typeof data.token !== 'string' || !/^[a-f0-9]{64}$/.test(data.token)) throw new Error('Connection failed. Check that the service is running.');
@@ -235,7 +237,7 @@ async function refreshService() {
     const response = await managementFetch('/api/service', { signal: controller.signal });
     if (!response.ok) throw new Error('Connection failed. Check that the service is running.');
     const data = await response.json();
-    if (data.service !== 'api-router') throw new Error('Connection failed. Check that the service is running.');
+    if (!isWeftoService(data.service)) throw new Error('Connection failed. Check that the service is running.');
     healthy = true; serviceInfo = data; $('#status').textContent = ''; renderService();
   } catch (error) {
     healthy = false; serviceInfo = null; managementToken = ''; renderService();

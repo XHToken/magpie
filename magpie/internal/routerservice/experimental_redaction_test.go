@@ -67,7 +67,7 @@ func TestExperimentalProductionAdmissionPreservesUnknownAndBlocksInvalidResults(
 	redactor := newRuntimeRedactor(localModels, true)
 	defer redactor.close()
 	options := ModelOptions{ExperimentalRedaction: true, LocalRuntime: localModels, Routing: &RoutingOptions{Judge: RuntimeJudge{Manager: manager, PromptVersion: defaultPromptVersion}, LocalInvoker: manager, Redactor: redactor, PromptVersion: defaultPromptVersion}}
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "management-token", store, options)
+	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "management-token", store, options)
 	call := func(method, path, body string, management bool) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, "http://"+address+path, strings.NewReader(body))
 		req.RemoteAddr = "127.0.0.1:2345"

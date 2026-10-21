@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/yetone/magpie/internal/edit"
 	"net"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/yetone/magpie/internal/edit"
+	"github.com/yetone/magpie/internal/product"
 )
 
 // PortTarget identifies an already connected host. Port synchronization never
@@ -39,10 +41,12 @@ func (e Engine) portLockPaths(groups []portGroup) []string {
 	paths := []string{filepath.Join(e.StateDir, ".operation.lock")}
 	seen := map[string]bool{}
 	for _, group := range groups {
-		path := filepath.Join(group.Root, ".api-router-host.lock")
-		if !seen[path] {
-			paths = append(paths, path)
-			seen[path] = true
+		for _, name := range []string{product.HostLock, product.LegacyHostLock} {
+			path := filepath.Join(group.Root, name)
+			if !seen[path] {
+				paths = append(paths, path)
+				seen[path] = true
+			}
 		}
 	}
 	return paths
@@ -172,7 +176,7 @@ func rewritePort(host, model, origin string, raw []byte) ([]byte, string, bool, 
 			return nil, "", false, err
 		}
 		entry, index := workBuddyModel(doc, model)
-		if entry == nil || entry["apiKey"] != PlaceholderAPIKey {
+		if entry == nil || !product.IsPlaceholder(entry["apiKey"]) {
 			return nil, "", false, nil
 		}
 		old, ok := entry["url"].(string)
@@ -193,12 +197,13 @@ func rewritePort(host, model, origin string, raw []byte) ([]byte, string, bool, 
 	if err != nil {
 		return nil, "", false, err
 	}
+	loomyProvider := providerID(doc, "provider")
 	provider, exists := lookup(doc, []string{"provider", loomyProvider})
 	if !exists {
 		return nil, "", false, nil
 	}
 	key, _ := lookup(doc, []string{"provider", loomyProvider, "options", "apiKey"})
-	if key != PlaceholderAPIKey {
+	if !product.IsPlaceholder(key) {
 		return nil, "", false, nil
 	}
 	value, _ := lookup(doc, []string{"provider", loomyProvider, "options", "baseURL"})
@@ -221,6 +226,6 @@ func rewritePort(host, model, origin string, raw []byte) ([]byte, string, bool, 
 		!loomyCompatibleProvider(provider, wanted, model) {
 		return nil, "", false, errors.New("Loomy Router connection fields conflict")
 	}
-	after, err := edit.PatchJSON(raw, []edit.KV{{Path: "provider.api_router.options.baseURL", Value: origin + "/app/loomy/v1"}}, nil)
+	after, err := edit.PatchJSON(raw, []edit.KV{{Path: "provider." + loomyProvider + ".options.baseURL", Value: origin + "/app/loomy/v1"}}, nil)
 	return after, base, true, err
 }

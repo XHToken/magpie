@@ -3,10 +3,6 @@ package routerservice
 import (
 	"context"
 	"encoding/json"
-	"github.com/yetone/magpie/internal/routerconfig"
-	"github.com/yetone/magpie/internal/routercontrol"
-	"github.com/yetone/magpie/internal/routermanifest"
-	"github.com/yetone/magpie/internal/routerruntime"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,12 +13,17 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/yetone/magpie/internal/routerconfig"
+	"github.com/yetone/magpie/internal/routercontrol"
+	"github.com/yetone/magpie/internal/routermanifest"
+	"github.com/yetone/magpie/internal/routerruntime"
 )
 
 func TestServiceControlActionsKeepLocalManagementBoundary(t *testing.T) {
 	var stopped atomic.Bool
 	l, address := fixture(t)
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address, ProcessStamp: "one"}, "secret", routerconfig.New(l), ModelOptions{serviceControl: &serviceController{layout: l, stop: func() { stopped.Store(true) }}})
+	h := handlerWithModelOptions(Info{Service: "wefto", Address: address, ProcessStamp: "one"}, "secret", routerconfig.New(l), ModelOptions{serviceControl: &serviceController{layout: l, stop: func() { stopped.Store(true) }}})
 	for _, path := range []string{"/api/service/stop", "/api/service/restart", "/api/service/autostart"} {
 		for _, tc := range []struct {
 			name, method, host, remote, origin, auth string
@@ -57,7 +58,7 @@ func TestServiceControlActionsKeepLocalManagementBoundary(t *testing.T) {
 	r := httptest.NewRequest("POST", "http://"+address+"/api/service/stop", nil)
 	r.RemoteAddr = "127.0.0.1:2"
 	r.Header.Set("Authorization", "Bearer secret")
-	r.Header.Set("X-API-Router-Instance", "old")
+	r.Header.Set("X-Wefto-Instance", "old")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	if w.Code != 409 || stopped.Load() {

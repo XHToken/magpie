@@ -1,5 +1,5 @@
-// Build the matching API-router candidate first, then run:
-// API_ROUTER_BINARY=/absolute/path/api-router BROWSER=chromium node --test this file
+// Build the matching Wefto candidate first, then run:
+// WEFTO_BINARY=/absolute/path/wefto BROWSER=chromium node --test this file
 // BROWSER may be chromium or webkit; without it both engines run.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -11,14 +11,14 @@ const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { chromium, webkit } = require('playwright');
 
-const binary = process.env.API_ROUTER_BINARY || path.resolve(__dirname, '../../..', 'dist/api-router');
-const storageKey = 'api-router.tutorial.v1';
+const binary = process.env.WEFTO_BINARY || path.resolve(__dirname, '../../..', 'dist/wefto');
+const storageKey = 'wefto.tutorial.v1';
 const modal = '#tutorialModal';
 
 for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 'webkit'])) {
   test(`first-run tutorial (${engine})`, { timeout: 180000 }, async (t) => {
     assert.ok(['chromium', 'webkit'].includes(engine), `unsupported browser: ${engine}`);
-    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'api-router-tutorial-'));
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'wefto-tutorial-'));
     let service, exited, browser;
     t.after(async () => {
       if (browser) await browser.close();
@@ -75,7 +75,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         const url = new URL(request.url());
         if (url.pathname === '/api/management/session') {
           const headers = request.headers();
-          sessionHeaders.push(Object.fromEntries(['origin', 'sec-fetch-site', 'x-api-router-ui', 'accept-language'].map(key => [key, headers[key] || ''])));
+          sessionHeaders.push(Object.fromEntries(['origin', 'sec-fetch-site', 'x-wefto-ui', 'accept-language'].map(key => [key, headers[key] || ''])));
         }
         if (!['http:', 'https:'].includes(url.protocol)) return;
         if (url.origin !== origin) {
@@ -128,7 +128,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     await t.test('first open, skip and resume preserve independent reading progress', async t => {
       const page = await openCase(t);
       await visible(page);
-      const uiBefore = await page.evaluate(() => localStorage.getItem('api-router.ui'));
+      const uiBefore = await page.evaluate(() => localStorage.getItem('wefto.ui'));
       assert.equal(await page.locator(modal).getAttribute('role'), 'dialog');
       assert.equal(await page.locator(modal).getAttribute('aria-modal'), 'true');
       assert.equal(await page.locator(modal).getAttribute('aria-labelledby'), 'tutorialTitle');
@@ -155,7 +155,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       await assertStep(page, 2);
       assert.equal(await page.locator('#tutorialContent button[data-app="loomy"]').getAttribute('aria-pressed'), 'true');
       const stored = await page.evaluate(() => ({ ...localStorage }));
-      assert.equal(stored['api-router.ui'] ?? null, uiBefore, 'reading progress must not overwrite ordinary UI preferences');
+      assert.equal(stored['wefto.ui'] ?? null, uiBefore, 'reading progress must not overwrite ordinary UI preferences');
       assert.equal(JSON.stringify(stored).includes(token), false, 'reading state must never contain the management token');
       assert.deepEqual(Object.keys(await state(page)).sort(), ['app', 'completed', 'dismissed', 'route', 'step', 'version']);
     });

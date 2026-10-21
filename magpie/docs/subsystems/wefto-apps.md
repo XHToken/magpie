@@ -1,4 +1,4 @@
-# API-Router Application Profiles, Routing Groups, and Agent Onboarding
+# Wefto Application Profiles, Routing Groups, and Agent Onboarding
 
 ## Purpose
 
@@ -64,7 +64,7 @@ combining saved groups (`Config.Groups`) with cross-provider auto-merged groups
 `DELETE /api/routing-groups/{id}` removes or hides (`Hidden: true`) auto groups,
 and `POST /api/routing-groups/switch` switches the active manual member.
 
-When a request arrives (either via `X-API-Router-App` or an explicit `model`
+When a request arrives (either via `X-Wefto-App` or an explicit `model`
 parameter matching `group/<id>` or a group name), `resolveRuntimeGroupRoute` and
 `executeGroupRoute` resolve the candidate execution order:
 

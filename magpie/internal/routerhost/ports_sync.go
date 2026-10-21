@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/yetone/magpie/internal/product"
 )
 
 func (e Engine) preparePortGroup(target PortTarget, oldOrigin, origin string) (*portGroup, error) {
@@ -111,13 +113,15 @@ func (e Engine) portLocks(groups []portGroup) (func(), error) {
 		if held[group.Root] {
 			continue
 		}
-		path := filepath.Join(group.Root, ".api-router-host.lock")
-		if err := os.Mkdir(path, 0o700); err != nil {
-			release()
-			return nil, errors.New("host configuration is being changed; port synchronization blocked")
+		for _, name := range []string{product.HostLock, product.LegacyHostLock} {
+			path := filepath.Join(group.Root, name)
+			if err := os.Mkdir(path, 0o700); err != nil {
+				release()
+				return nil, errors.New("host configuration is being changed; port synchronization blocked")
+			}
+			locks = append(locks, path)
 		}
 		held[group.Root] = true
-		locks = append(locks, path)
 	}
 	return release, nil
 }

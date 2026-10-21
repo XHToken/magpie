@@ -13,16 +13,16 @@ func TestMain(m *testing.M) { testenv.Main(m) }
 
 func TestPlatformPaths(t *testing.T) {
 	home := t.TempDir()
-	exe := filepath.Join(t.TempDir(), "bin", "api-router")
+	exe := filepath.Join(t.TempDir(), "bin", "wefto")
 	join := func(parts ...string) string { return filepath.Join(append([]string{home}, parts...)...) }
 	for _, tt := range []struct {
 		os                  string
 		config, data, cache string
 		state, logs         string
 	}{
-		{"linux", join(".config", "api-router"), join(".local", "share", "api-router"), join(".cache", "api-router"), join(".local", "state", "api-router"), join(".local", "state", "api-router", "logs")},
-		{"darwin", join("Library", "Application Support", "api-router"), join("Library", "Application Support", "api-router"), join("Library", "Caches", "api-router"), join("Library", "Application Support", "api-router", "state"), join("Library", "Logs", "api-router")},
-		{"windows", join("Roaming", "api-router"), join("Local", "api-router"), join("Local", "api-router", "cache"), join("Local", "api-router", "state"), join("Local", "api-router", "logs")},
+		{"linux", join(".config", "wefto"), join(".local", "share", "wefto"), join(".cache", "wefto"), join(".local", "state", "wefto"), join(".local", "state", "wefto", "logs")},
+		{"darwin", join("Library", "Application Support", "wefto"), join("Library", "Application Support", "wefto"), join("Library", "Caches", "wefto"), join("Library", "Application Support", "wefto", "state"), join("Library", "Logs", "wefto")},
+		{"windows", join("Roaming", "wefto"), join("Local", "wefto"), join("Local", "wefto", "cache"), join("Local", "wefto", "state"), join("Local", "wefto", "logs")},
 	} {
 		t.Run(tt.os, func(t *testing.T) {
 			l, err := resolve(tt.os, home, exe, func(k string) string {
@@ -44,7 +44,7 @@ func TestPlatformPaths(t *testing.T) {
 
 func TestDirectoryOverrides(t *testing.T) {
 	home := t.TempDir()
-	exe := filepath.Join(home, "bin", "api-router")
+	exe := filepath.Join(home, "bin", "wefto")
 	for _, platform := range []struct {
 		os   string
 		keys []string
@@ -64,7 +64,7 @@ func TestDirectoryOverrides(t *testing.T) {
 		for _, k := range platform.keys {
 			found := false
 			for _, p := range []string{l.Config, l.Data, l.Cache, l.State} {
-				found = found || p == filepath.Join(vars[k], "api-router")
+				found = found || p == filepath.Join(vars[k], "wefto")
 			}
 			if !found {
 				t.Errorf("%s override ignored: %+v", k, l)
@@ -81,7 +81,7 @@ func TestDirectoryOverrides(t *testing.T) {
 
 func TestEnsurePrivateAndOutsideInstall(t *testing.T) {
 	home, install := t.TempDir(), t.TempDir()
-	l, err := resolve("linux", home, filepath.Join(install, "api-router"), func(string) string { return "" })
+	l, err := resolve("linux", home, filepath.Join(install, "wefto"), func(string) string { return "" })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestEnsureRejectsLegacyDirectoryLink(t *testing.T) {
 		t.Skip("symlink creation requires privileges on Windows")
 	}
 	home, legacy := t.TempDir(), t.TempDir()
-	l, err := resolve("linux", home, filepath.Join(home, "bin", "api-router"), func(string) string { return "" })
+	l, err := resolve("linux", home, filepath.Join(home, "bin", "wefto"), func(string) string { return "" })
 	if err != nil {
 		t.Fatal(err)
 	}

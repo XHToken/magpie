@@ -278,13 +278,13 @@ func TestDamagedMissingRecordsLocksAndWriteFailures(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := os.Mkdir(filepath.Join(o.ConfigRoot, ".api-router-host.lock"), 0o700); err != nil {
+			if err := os.Mkdir(filepath.Join(o.ConfigRoot, ".wefto-host.lock"), 0o700); err != nil {
 				t.Fatal(err)
 			}
 			if err = e.Restore(p); err == nil {
 				t.Fatal("busy lock accepted")
 			}
-			if err = os.Remove(filepath.Join(o.ConfigRoot, ".api-router-host.lock")); err != nil {
+			if err = os.Remove(filepath.Join(o.ConfigRoot, ".wefto-host.lock")); err != nil {
 				t.Fatal(err)
 			}
 			e.write = func(string, []byte, uint32) error { return fs.ErrPermission }
@@ -439,7 +439,7 @@ func TestHTTPCheckerExactPathsAndSecrets(t *testing.T) {
 					if r.Header.Get("Authorization") != "" {
 						t.Error("health received credential")
 					}
-					_, _ = w.Write([]byte(`{"service":"api-router","status":"ok"}`))
+					_, _ = w.Write([]byte(`{"service":"wefto","status":"ok"}`))
 					return
 				}
 				if r.Header.Get("Authorization") != "" {

@@ -5,23 +5,24 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/yetone/magpie/internal/dirs"
-	"github.com/yetone/magpie/internal/routercontrol"
-	"github.com/yetone/magpie/internal/routerdelivery"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/yetone/magpie/internal/dirs"
+	"github.com/yetone/magpie/internal/routercontrol"
+	"github.com/yetone/magpie/internal/routerdelivery"
 )
 
 const deliveryHelp = `Usage:
- api-router install --manifest ABSOLUTE_JSON --package ABSOLUTE_ZIP [--install-dir ABSOLUTE_DIR]
- api-router uninstall <preview|execute> [--install-dir ABSOLUTE_DIR]
+ wefto install --manifest ABSOLUTE_JSON --package ABSOLUTE_ZIP [--install-dir ABSOLUTE_DIR]
+ wefto uninstall <preview|execute> [--install-dir ABSOLUTE_DIR]
 Install accepts a locally supplied fixed Windows amd64 package. No latest lookup, download,
 config initialization, service startup, autostart or model installation is performed.
-Default installation: %LOCALAPPDATA%/Programs/API-router. User data is stored separately.
-After installation: api-router.exe service start; service autostart enable|disable|status.
+Default installation: %LOCALAPPDATA%/Programs/Wefto. User data is stored separately.
+After installation: wefto.exe service start; service autostart enable|disable|status.
 Uninstall preview writes nothing. execute stops only this product instance, removes its
 login autostart and receipt-managed support files. Config, credentials, models, statistics,
 runtime caches and host recovery backups are preserved. The EXE and receipt are retained
@@ -68,7 +69,7 @@ func runDelivery(ctx context.Context, command string, args []string, out io.Writ
 		return err
 	}
 	if root == "" {
-		root = filepath.Join(filepath.Dir(l.Data), "Programs", "API-router")
+		root = filepath.Join(filepath.Dir(l.Data), "Programs", "Wefto")
 	}
 	if !filepath.IsAbs(root) {
 		return fmt.Errorf("--install-dir must be absolute")
@@ -99,7 +100,7 @@ func runDelivery(ctx context.Context, command string, args []string, out io.Writ
 	if err != nil {
 		return err
 	}
-	if !strings.EqualFold(filepath.Clean(actual), filepath.Join(filepath.Clean(root), "api-router.exe")) {
+	if !strings.EqualFold(filepath.Clean(actual), filepath.Join(filepath.Clean(root), "wefto.exe")) {
 		return fmt.Errorf("execute uninstall using the installed EXE in %s; no service or files changed", root)
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)

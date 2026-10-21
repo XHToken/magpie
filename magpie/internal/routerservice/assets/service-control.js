@@ -81,7 +81,7 @@
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 3000);
     try {
       const send = path === '/healthz' ? fetch : managementFetch;
-      return await send(path, { method, headers: { ...(token ? { Authorization: 'Bearer ' + token } : {}), ...(method === 'POST' && serviceInfo?.processStamp ? { 'X-API-Router-Instance': serviceInfo.processStamp } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), credentials: 'omit', cache: 'no-store', redirect: 'error', signal: controller.signal });
+      return await send(path, { method, headers: { ...(token ? { Authorization: 'Bearer ' + token } : {}), ...(method === 'POST' && serviceInfo?.processStamp ? { 'X-Wefto-Instance': serviceInfo.processStamp } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), credentials: 'omit', cache: 'no-store', redirect: 'error', signal: controller.signal });
     } finally { clearTimeout(timeout); }
   }
   function clearPrivateState() {
@@ -92,7 +92,7 @@
     if (run !== generation) return;
     try {
       const response = await request('/healthz'); const data = await response.json();
-      if (response.ok && data.service === 'api-router' && data.status === 'ok' && Number.isInteger(data.pid) && data.pid > 0 && data.pid !== oldPID) {
+      if (response.ok && isWeftoService(data.service) && data.status === 'ok' && Number.isInteger(data.pid) && data.pid > 0 && data.pid !== oldPID) {
         await refreshService();
         if (serviceInfo?.pid !== data.pid) throw new Error('Restart not ready');
         working = false; phase = ''; message = 'Router restarted. Management connection restored.';
@@ -115,7 +115,7 @@
         throw new Error('Service operation failed. Refresh to inspect the current state.');
       }
       if (name === 'autostart') {
-        if (result.service !== 'api-router' || result.running !== true || result.autostart?.enabled !== body.enabled) throw new Error('Service operation failed. Refresh to inspect the current state.');
+        if (!isWeftoService(result.service) || result.running !== true || result.autostart?.enabled !== body.enabled) throw new Error('Service operation failed. Refresh to inspect the current state.');
         serviceInfo = result; message = 'Autostart setting saved.';
       } else {
         if (result[name === 'stop' ? 'stopping' : 'restarting'] !== true) throw new Error('Service operation failed. Refresh to inspect the current state.');
