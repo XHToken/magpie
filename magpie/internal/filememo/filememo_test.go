@@ -1,7 +1,9 @@
 package filememo
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,8 +29,11 @@ func TestRead(t *testing.T) {
 		t.Fatalf("after a change: %q, parsed %d times", v, n)
 	}
 	os.Remove(p)
-	if _, err := Read("t", p, parse); err == nil {
-		t.Fatal("a file gone is an error")
+	if _, err := Read("t", p, parse); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("a file removed on purpose is missing: %v", err)
+	}
+	if n != 2 {
+		t.Fatal("a missing file was parsed as empty")
 	}
 }
 

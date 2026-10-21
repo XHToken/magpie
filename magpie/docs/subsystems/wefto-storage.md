@@ -20,6 +20,12 @@ Models and inference runtimes live in `data/models` and `data/runtime`. Configur
 
 Provider records contain credential references and previews; API keys remain in `credentials.json`. Application Profiles hold ordered model/group references, with the first synchronized to legacy primary-model fields. Provider deletion rejects references from saved applications or groups. Model/runtime artifacts and request ledger records remain in their existing owners' paths; renaming does not rewrite their contents.
 
+## Shared file replacement
+
+[`steady.Rename` and `WriteFileContext`](../../internal/steady/steady.go) publish staged state files beside their destination. On Windows these sibling replacements use [`os.Root.Rename`](../../internal/steady/rename_windows.go), which requests handle-based POSIX replacement and owns the filesystem fallback. On supporting filesystems such as NTFS, a reader that permits deletion can finish reading the previous generation while new readers open the complete replacement. A reader that denies replacement is still waited out by the existing bounded retry. Moves between different directory paths retain `os.Rename` behavior; the staged file is flushed before publication and a failed write removes its staging file.
+
+[`filememo.Read`](../../internal/filememo/filememo.go) continues to report genuine deletion as `fs.ErrNotExist` and other read failures as errors. The replacement fix does not return a cached account list on failure or parse a missing file as empty. The existing bounded read retries remain for replacement by older or external writers.
+
 ## Service and host recovery
 
 [`routercontrol`](../../internal/routercontrol/control.go) verifies the recorded executable path, process stamp, instance identity and authenticated service before control operations. [`routerservice`](../../internal/routerservice/service.go) acquires the instance lock, binds a loopback listener and persists the actual address. Unrelated listeners remain running; another available port is selected and established host connections synchronize transactionally.
@@ -28,4 +34,4 @@ Recognized records are archived only after their process is proven exited or its
 
 Host recovery records retain the original root, first snapshot, checksum and declared adapter contract. Exact frozen version-1 Codex/Loomy contracts remain readable by the version-2 adapters; arbitrary versions or fields are rejected. Host transactions acquire both new and legacy writer locks. Details belong to [host configuration](wefto-host-config.md) and [Loomy](wefto-loomy.md).
 
-Verification: `go test ./internal/dirs ./internal/routerconfig ./internal/routerhost ./internal/routercontrol`, then the [complete product gate](../product-regression.md). Rename tests cover all platform layouts, retained credentials/models/recovery sentinels, dual-layout conflicts, unknown roots and legacy host restore/reconnect.
+Verification: `go test ./internal/dirs ./internal/routerconfig ./internal/routerhost ./internal/routercontrol ./internal/steady ./internal/filememo`, then the [complete product gate](../product-regression.md). Rename tests cover all platform layouts, retained credentials/models/recovery sentinels, dual-layout conflicts, unknown roots and legacy host restore/reconnect. Native Windows replacement tests keep an old reader open through both publication paths, reject missing sources and read-only destinations without losing the previous generation, and exercise concurrent replacement under `-race`.

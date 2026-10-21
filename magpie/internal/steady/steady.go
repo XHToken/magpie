@@ -120,9 +120,11 @@ func ReadFileContext(ctx context.Context, p string) ([]byte, error) {
 	return b, err
 }
 
-// Rename is os.Rename, waiting out a reader holding newpath open.
+// Rename replaces sibling files through the platform's native replacement
+// operation, waiting out a reader that refuses replacement. Other moves use
+// os.Rename with the same retry policy.
 func Rename(oldpath, newpath string) error {
-	return retry(func() error { return os.Rename(oldpath, newpath) })
+	return retry(func() error { return rename(oldpath, newpath) })
 }
 
 // Sync is (*os.File).Sync; a test stands in for it to make a flush fail.
@@ -163,7 +165,7 @@ func WriteFileContext(ctx context.Context, p string, b []byte, perm fs.FileMode)
 		err = cerr
 	}
 	if err == nil {
-		err = retryContext(ctx, func() error { return os.Rename(tmp.Name(), p) })
+		err = retryContext(ctx, func() error { return rename(tmp.Name(), p) })
 	}
 	if err != nil {
 		os.Remove(tmp.Name())
