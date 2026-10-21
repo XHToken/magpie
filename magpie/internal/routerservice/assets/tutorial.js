@@ -319,9 +319,11 @@
     }
     isolated = [];
   }
-  function open() {
+  function open(event) {
     if (opened) return;
-    returnFocus = document.activeElement;
+    // WebKit does not always focus a button when it is clicked. Remember
+    // the actual entry button so closing the guide restores keyboard focus.
+    returnFocus = event?.currentTarget instanceof HTMLElement ? event.currentTarget : document.activeElement;
     opened = true;
     // Remember the first display immediately so a refresh never forces it open again.
     state.dismissed = true;
