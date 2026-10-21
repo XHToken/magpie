@@ -147,6 +147,22 @@ func Verify(r Record) error {
 	return nil
 }
 func samePath(a, b string) bool {
+	if !filepath.IsAbs(a) || !filepath.IsAbs(b) {
+		return false
+	}
+	// OS process queries can retain Windows 8.3 names or a symlinked macOS
+	// temporary root, while LaunchRecord stores the resolved executable path.
+	// Compare resolved paths, not file IDs: another hard-linked installation
+	// is still another executable path. Unavailable paths remain unknown.
+	var err error
+	a, err = filepath.EvalSymlinks(a)
+	if err != nil {
+		return false
+	}
+	b, err = filepath.EvalSymlinks(b)
+	if err != nil {
+		return false
+	}
 	if runtime.GOOS == "windows" {
 		return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
 	}
