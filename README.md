@@ -32,10 +32,6 @@ $router = Join-Path $env:LOCALAPPDATA 'Programs\Wefto\wefto.exe'
 
 已有安装的用户请先阅读[手动版本替换与备份说明](magpie/docs/windows-delivery.md#手动版本替换备份与恢复)，安装器不会直接覆盖其他版本。
 
-## 从旧版升级
-
-旧版 API-router 用户请先阅读[更名升级说明](magpie/docs/wefto-upgrade.md)。Wefto 会整套复用检测到的旧配置与数据目录，保留 API Key、模型、请求记录和宿主恢复备份；新安装默认使用 `wefto` 目录。如果新旧目录同时存在，会报告冲突并等待处理。升级前用旧 EXE 停止旧服务；如启用了登录自启，先用旧 EXE 停用，再按需由 Wefto 启用。
-
 ## 首次使用
 
 1. 打开管理页面，在供应商页添加 API Key、API 地址及模型，执行连接检查。
