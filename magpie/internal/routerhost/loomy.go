@@ -79,6 +79,11 @@ func buildLoomyModels(o Options, input []FilePlan) ([]FilePlan, error) {
 		}
 	}
 	wanted := loomyProviderValues(strings.TrimRight(o.RouterURL, "/")+"/app/loomy/v1", models...)
+	for _, model := range models {
+		if name := strings.TrimSpace(o.ModelNames[model]); name != "" {
+			wanted["models"].(map[string]any)[model].(map[string]any)["name"] = name
+		}
+	}
 	var set []edit.KV
 	var staleModels []string
 	if existing, ok := lookup(doc, []string{"provider", loomyProvider}); ok {

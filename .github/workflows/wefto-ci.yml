@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   portable:
-    if: github.ref == 'refs/heads/codex/unix-startup-packages'
+    if: github.ref == 'refs/heads/codex/unix-startup-packages' || github.ref == 'refs/heads/codex/api-router'
     uses: ./.github/workflows/wefto-packages.yml
 
   product:

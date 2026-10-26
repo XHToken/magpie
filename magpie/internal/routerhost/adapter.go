@@ -87,6 +87,8 @@ func checkJournalContract(j *journal, c AdapterContract) error {
 			j.Adapter = &c
 		case j.Host == "codex" && sameContract(*stored, legacyV1Contract("codex")) && sameContract(c, (builtinAdapter{"codex"}).Contract()):
 			// The renamed Codex adapter retains the exact frozen v1 file set.
+		case j.Host == "workbuddy" && sameContract(*stored, workBuddyV1Contract()) && sameContract(c, (WorkBuddyAdapter{}).Contract()):
+			j.Adapter = &c
 		default:
 			return fmt.Errorf("recovery adapter version or contract conflict; use the matching adapter to restore")
 		}

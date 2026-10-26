@@ -170,6 +170,9 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     const loomyCfg = JSON.parse(await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8'));
     assert.equal(loomyCfg.model, 'wefto/group/coding-hybrid');
     assert.deepEqual(Object.keys(loomyCfg.provider.wefto.models).sort(), ['group/coding-hybrid', 'local/spark-x2.5-1.7b', 'openai/gpt-4o']);
+    assert.equal(loomyCfg.provider.wefto.models['group/coding-hybrid'].name, '端云编程主力组');
+    assert.equal(loomyCfg.provider.wefto.models['openai/gpt-4o'].name, 'gpt-4o · OpenAI');
+    assert.equal(loomyCfg.provider.wefto.models['local/spark-x2.5-1.7b'].name, 'Spark-X2.5-1.7B');
 
     // A failed clear must retain the connected selection and configuration.
     await page.route('**/api/hosts/auto', async route => {
@@ -219,6 +222,8 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     let wbModels = JSON.parse(await fs.readFile(path.join(workBuddyRoot, 'models.json'), 'utf8'));
     let wbSettings = JSON.parse(await fs.readFile(path.join(workBuddyRoot, 'settings.json'), 'utf8'));
     assert.deepEqual(wbModels.models.map(m => m.id), ['group/coding-hybrid', 'openai/gpt-4o']);
+    assert.equal(wbModels.models.find(m => m.id === 'group/coding-hybrid').name, '端云编程主力组');
+    assert.equal(wbModels.models.find(m => m.id === 'openai/gpt-4o').name, 'gpt-4o · OpenAI');
     assert.equal(wbSettings.model, 'custom-local:group/coding-hybrid');
 
     // Reorder while connected: move openai/gpt-4o up to index 0 (Primary)

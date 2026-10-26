@@ -1,0 +1,16 @@
+# 用户明确要求更新时
+
+先读取目标标签的 [Windows 交付、备份和恢复文档](https://github.com/XHToken/magpie/blob/main/magpie/docs/windows-delivery.md)，执行以目标版本为准。仅选择 XHToken/magpie 的 `wefto-v*`，不混用旧仓库附件。
+
+从 API-router 更名切换到 Wefto 时，另读目标标签的 [更名升级说明](https://github.com/XHToken/magpie/blob/main/magpie/docs/wefto-upgrade.md)：用旧 EXE 查看 `dirs`、私有备份、记录并关闭旧自启、停止旧实例，保留旧程序及恢复记录，再将 Wefto 安装到新的独立程序目录。新程序自行原地复用完整旧数据布局，不手动移动、改名或合并数据目录；新旧布局冲突时保留两套并澄清。普通启动可继续复用旧 API-router，不隐式执行这次迁移。以下同名版本替换流程不取代更名升级流程。
+
+用户明确请求更新已授权常规下载、停止本产品实例、私有备份和切换，无须重复确认。实例归属不明、数据冲突或涉及额外删除/数据丢失时才澄清。
+
+1. 用旧程序 `dirs` 与已认证服务状态确定程序、真实配置/数据目录、运行状态及原自启/试用选择，确认无活跃或排队请求。Mac 不使用不支持的跨进程 service 命令，先核对进程身份再 SIGTERM，或用原前台终端 Ctrl+C。
+2. 先准备目标版本，保留旧安装。Windows 用 `-DownloadOnly -Tag ...`；Unix 优先用 `--download-only --tag ...` 下载校验匹配平台的包，再用 `--prepare-only --tag ... --install-dir NEW_EMPTY_DIR` 安装。只有目标版本没有匹配平台包时才从源码构建。两版本不同时访问同一数据根。
+3. 停止旧实例，记录并关闭 Windows 自启。在停止后完整复制 Config 和 Data 到私有备份位置，包括凭证、SQLite sidecar、state、宿主恢复记录；Config=Data 只复制一次，保持私有权限。大型 models/runtime 可明确单独保留；空间不足时报告，不静默漏备份。只报告路径，不输出凭证。
+4. Windows 按官方流程把旧程序目录移到备份路径，再在原路径用新包安装，receipt 绑定绝对路径。Unix 按目标标签的 README-unix.md 保留旧程序目录，使用已校验的新解压目录（或把准备好的整个程序目录放回原程序路径），保留 `start.sh`、macOS `start.command`、README 和 LICENSE。不覆盖运行中的 EXE，不让旧自启指向临时路径。
+5. 启动并核对版本、真实 URL、身份、原配置，按原选择恢复自启/试用。不重新接入宿主或下载模型。
+6. 失败保留现场，不循环安装或无条件回滚数据库。旧版本明确支持当前 schema 才能复用数据；否则需兼容备份。恢复会丢失备份后的数据，应说明并取得针对数据损失的授权。
+
+遇到锁归属其他 EXE、宿主地址不一致或恢复冲突，先读取该版本的服务/宿主事务和恢复文档，不直接修改宿主文件修端口。

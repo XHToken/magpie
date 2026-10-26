@@ -52,6 +52,9 @@ func (e Engine) lock(root string) (func(), error) {
 // change on this same Router, and retires obsolete generated model entries.
 func (e Engine) Connect(ctx context.Context, o Options) (*Plan, error) {
 	o = NormalizeOptions(o)
+	if (o.Host == "loomy" || o.Host == "workbuddy") && len(o.ModelNames) > 0 {
+		return e.ConnectAndCommit(ctx, o, nil)
+	}
 	p, err := e.connect(ctx, o)
 	if err != nil {
 		return nil, err

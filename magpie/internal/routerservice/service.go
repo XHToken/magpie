@@ -45,6 +45,7 @@ type Info struct {
 	ExperimentalRedaction bool                    `json:"experimentalRedaction"`
 	Autostart             routercontrol.Autostart `json:"autostart"`
 	StartCommand          string                  `json:"startCommand"`
+	TutorialDismissed     *bool                   `json:"tutorialDismissed"`
 }
 
 func TokenFile(l dirs.Layout) string { return filepath.Join(l.ServiceLock(), "management-token") }
@@ -228,6 +229,7 @@ func RunWithModelOptions(ctx context.Context, l dirs.Layout, version string, rea
 	info.StartCommand = routercontrol.StartCommand(l, record.Executable)
 	options.serviceControl = &serviceController{layout: l, stop: stopService}
 	options.HostStateDir = filepath.Join(l.State, "host-config")
+	options.tutorialStateFile = filepath.Join(l.State, "tutorial-dismissed")
 	srv := &http.Server{
 		Handler: handlerWithModelOptions(info, token, store, options), ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10,

@@ -10,7 +10,8 @@ separate. See [Loomy integration](wefto-loomy.md) and
 ## Options and files
 
 `routerhost.Options` contains `Host`, `ConfigRoot`, `RouterURL`, `Model` and
-`Models`. `EffectiveModels` deduplicates selections; `NormalizeOptions` sets the
+`Models`, plus an optional trusted `ModelNames` map for host display labels.
+`EffectiveModels` deduplicates selections; `NormalizeOptions` sets the
 primary to the first selection. Targets are `group/<id>`, `<providerId>/<model>`
 or `local/<id>`. The service validates the proposed Profile revision and every
 selected target before host writes, including group existence, enabled state,
@@ -22,12 +23,25 @@ active members and direct provider credentials. These checks run no inference.
 `<origin>/app/workbuddy/v1`, the public placeholder, `supportsToolCall: true`
 and `useCustomProtocol: false`. `settings.model` is `custom-local:<primary>`.
 Stale generated entries are retired; user entries and extensions survive.
+The service resolves `ModelNames` from the same saved catalog as Loomy. New
+entries use `<model> · <provider name>`, the configured group name, or the fixed
+local model name. Reconnecting upgrades legacy `API Router`/ID labels and
+refreshes generated labels while retaining user aliases. WorkBuddy 5.3.8 itself
+formats custom menu labels as `name:ID`; the readable name comes first and the
+request ID remains unchanged. No installed WorkBuddy files are patched.
+
+WorkBuddy adapter contract v2 adds reversible generated labels. Valid v1 records
+upgrade in place while retaining both original file snapshots. Label writes,
+recovery metadata and Profile saves share the host transaction; a failed save
+rolls them back together. The journal identifies generated entries for status
+and retirement instead of treating the current display name as an ownership
+marker. Existing user labels, including opaque values, remain unowned.
 
 `LoomyAdapter` manages JSONC `opencode.json`: new connections use the `wefto`
 provider, while established `api_router` connections remain recognized. It uses
 `<origin>/app/loomy/v1`, the public placeholder and `useSessionAuth: false`.
 It publishes all selected IDs and selects `<provider>/<primary>`. Sidecar state,
-small-model preservation and runtime refresh are documented in
+display-label resolution and migration, small-model preservation and runtime refresh are documented in
 [Loomy integration](wefto-loomy.md).
 Contract v3 also manages `api-router-title.mjs` and its own `plugin` list entry
 in the same transaction. The filename is retained for recovery ownership.
@@ -71,3 +85,8 @@ Run `internal/routerhost` and `internal/routerservice` Go suites and the
 Chromium/WebKit Agents and Loomy host browser suites. Isolated host roots cover
 model changes, first-baseline preservation, Profile-write rollback, stale
 configuration and offline restoration.
+`workbuddy_names_test.go` covers v1 upgrades, label/Profile rollback, aliases,
+existing labels and recovery. `workbuddy_model_names_test.go` covers native
+array and CLI object catalogs, generated names, group renames, primary changes,
+retirement, status and exact restoration. Agents browser tests assert labels
+written for both hosts in Chromium and WebKit.

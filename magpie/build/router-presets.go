@@ -72,7 +72,6 @@ func fieldModels(lit *ast.CompositeLit, named map[string][]string) []string {
 }
 
 var defaultPresetModels = map[string][]string{
-	"spark":        {"4.0Ultra", "generalv3.5", "max-32k", "generalv3", "pro-128k", "lite"},
 	"spark-maas":   {"spark-x2.5", "spark-x2.5-4b", "spark-x2.5-1.7b"},
 	"openai":       {"gpt-5.4", "gpt-5.4-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4o", "o3", "o4-mini"},
 	"anthropic":    {"claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001", "claude-sonnet-4-5-20250929"},
@@ -90,9 +89,9 @@ var defaultPresetModels = map[string][]string{
 	"stepfun":      {"step-3.5-flash", "step-2-16k", "step-1-8k"},
 	"stepfun-cn":   {"step-3.5-flash", "step-2-16k", "step-1-8k"},
 	"xiaomi":       {"mimo-v2-pro", "mimo-v2-flash"},
-	"qwen":       {"qwen3.8-max", "qwen3.8-flash", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-flash", "qwen3-max", "qwen-plus", "qwen-turbo", "qwen3-coder-plus", "qwq-plus"},
-	"qwen-cn":    {"qwen3.8-max", "qwen3.8-flash", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-flash", "qwen3-max", "qwen-plus", "qwen-turbo", "qwen3-coder-plus", "qwq-plus"},
-	"qianwen-ai": {"qwen3.8-max", "qwen3.8-flash", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-flash", "qwen3-max", "qwen-plus", "qwen-turbo", "qwen3-coder-plus"},
+	"qwen":         {"qwen3.8-max", "qwen3.8-flash", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-flash", "qwen3-max", "qwen-plus", "qwen-turbo", "qwen3-coder-plus", "qwq-plus"},
+	"qwen-cn":      {"qwen3.8-max", "qwen3.8-flash", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-flash", "qwen3-max", "qwen-plus", "qwen-turbo", "qwen3-coder-plus", "qwq-plus"},
+	"qianwen-ai":   {"qwen3.8-max", "qwen3.8-flash", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-flash", "qwen3-max", "qwen-plus", "qwen-turbo", "qwen3-coder-plus"},
 	"mistral":      {"mistral-large-latest", "codestral-latest", "mistral-small-latest"},
 	"groq":         {"llama-3.3-70b-versatile", "llama-3.1-8b-instant", "qwen/qwen3-32b"},
 }
@@ -114,12 +113,6 @@ func main() {
 		return true
 	})
 	result := []map[string]any{{
-		"id": "spark", "name": "Spark", "icon": "spark-color", "kind": "vendor",
-		"endpoints": map[string]string{"chat": "https://spark-api-open.xf-yun.com/v1"},
-		"models":    defaultPresetModels["spark"],
-		"website":   "https://xinghuo.xfyun.cn",
-		"docsURL":   "https://www.xfyun.cn/doc/spark/HTTP调用文档.html",
-	}, {
 		"id": "spark-maas", "name": "Spark MaaS", "icon": "spark-color", "kind": "vendor",
 		"defaultProtocol": "chat",
 		"endpoints": map[string]string{

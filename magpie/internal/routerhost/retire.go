@@ -215,12 +215,16 @@ func retireWorkBuddyModels(o Options, raw []byte, j *journal) ([]byte, error) {
 		return nil, err
 	}
 	keep := o.effectiveModelSet()
+	beforeNames, afterNames, err := workBuddyNameCatalogs(j)
+	if err != nil {
+		return nil, err
+	}
 	entries := workBuddyModelEntries(doc)
 	for i := len(entries) - 1; i >= 0; i-- {
 		entry := entries[i]
 		id := entry["id"].(string)
 		url, ok := entry["url"].(string)
-		if keep[id] || strings.TrimSpace(id) == "" || strings.ContainsAny(id, "\r\n\x00") || len(entry) != 6 || !product.IsProviderName(entry["name"]) || !product.IsPlaceholder(entry["apiKey"]) || entry["supportsToolCall"] != true || entry["useCustomProtocol"] != false || !ok {
+		if keep[id] || strings.TrimSpace(id) == "" || strings.ContainsAny(id, "\r\n\x00") || len(entry) != 6 || !workBuddyGeneratedName(id, entry["name"], beforeNames, afterNames) || !product.IsPlaceholder(entry["apiKey"]) || entry["supportsToolCall"] != true || entry["useCustomProtocol"] != false || !ok {
 			continue
 		}
 		origin := strings.TrimSuffix(url, "/app/workbuddy/v1")

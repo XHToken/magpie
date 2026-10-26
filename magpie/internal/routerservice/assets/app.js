@@ -240,6 +240,7 @@ async function refreshService() {
     const data = await response.json();
     if (!isWeftoService(data.service)) throw new Error('Connection failed. Check that the service is running.');
     healthy = true; serviceInfo = data; $('#status').textContent = ''; renderService();
+    window.routerTutorialConnected?.(data);
   } catch (error) {
     healthy = false; serviceInfo = null; managementToken = ''; renderService();
     window.routerAppsDisconnected?.(); window.routerProvidersDisconnected?.();

@@ -117,7 +117,9 @@ upstream bodies. A returned catalogue is not proof of generation access.
 For management listings, `effectiveProviderModels` prefers a usable discovery
 cache and otherwise uses `presetModelsForProvider`; absent both, the list is
 empty. Presets come from embedded `assets/provider-presets.json`, also served
-at `/provider-presets.json`. `completeProviderModelList` in
+at `/provider-presets.json`. The selectable iFlytek preset is Spark MaaS
+(`spark-maas`); the legacy Spark (`spark`) preset is no longer offered.
+`completeProviderModelList` in
 [`spark_catalog.go`](../../internal/routerservice/spark_catalog.go) supplies the
 explicit official Spark catalogue completion rules. Each public provider adds
 `models`, `effectiveModels` and, when available, `modelSource` (`discovered` or

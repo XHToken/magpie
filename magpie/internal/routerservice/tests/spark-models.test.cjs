@@ -77,7 +77,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     const providerResponse = await fetch(origin + '/api/cloud-providers', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ name: 'Spark fixture', preset: 'spark', protocol: 'chat', baseURL: `http://127.0.0.1:${upstream.address().port}/v1`, apiKey: 'fake-spark-fixture-key', proxyMode: 'direct' }),
+      body: JSON.stringify({ name: 'Spark fixture', preset: 'spark', protocol: 'chat', baseURL: `http://127.0.0.1:${upstream.address().port}/v1`, apiKey: 'fake-spark-fixture-key', proxyMode: 'direct', discoveredModels: officialModels }),
     });
     assert.equal(providerResponse.status, 200);
     const { provider } = await providerResponse.json();
@@ -95,14 +95,14 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     const sparkListed = listed.providers.find(p => p.id === provider.id);
     const maasListed = listed.providers.find(p => p.id === maasProvider.id);
     assert.deepEqual(sparkListed.effectiveModels, officialModels);
-    assert.equal(sparkListed.modelSource, 'preset');
+    assert.equal(sparkListed.modelSource, 'discovered');
     assert.deepEqual(maasListed.effectiveModels, maasModels);
     assert.equal(maasListed.modelSource, 'preset');
 
     const sparkCatalogRes = await fetch(origin + '/api/cloud-providers/models', { method: 'POST', headers, body: JSON.stringify({ id: provider.id, fallback: true }) });
     assert.equal(sparkCatalogRes.status, 200);
     const sparkCatalog = await sparkCatalogRes.json();
-    assert.equal(sparkCatalog.source, 'preset');
+    assert.equal(sparkCatalog.source, 'discovered');
     assert.equal(sparkCatalog.fallback, true);
     assert.deepEqual(sparkCatalog.models, officialModels);
 
@@ -132,9 +132,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       await skipTutorial(page); await page.goto(origin + `/?locale=${language}&view=providers`);
       await page.waitForFunction(() => document.querySelector('#service').classList.contains('ok'));
       await page.waitForFunction(() => !!managementToken && !!serviceInfo);
-      await page.locator('[data-preset=spark]').click();
-      assert.equal(await page.locator('#cloudBase').inputValue(), 'https://spark-api-open.xf-yun.com/v1');
-      await page.locator('#providerCancel').click();
+      assert.equal(await page.locator('[data-preset=spark]').count(), 0, 'Spark must not be offered as a provider preset');
       await page.locator('[data-preset=spark-maas]').click();
       assert.equal(await page.locator('#providerTitle').textContent(), await page.evaluate(() => t('Spark MaaS')));
       assert.equal(await page.locator('#cloudBase').inputValue(), 'https://maas-api.cn-huabei-1.xf-yun.com/v2', 'new MaaS providers must start with the Chat model-discovery endpoint');

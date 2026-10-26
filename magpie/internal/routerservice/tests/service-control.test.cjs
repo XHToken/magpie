@@ -98,7 +98,8 @@ for (const engine of process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 
       assert.equal(controls.length, 0);
       assert.equal(await page.locator('#serviceControlPID').textContent(), '10001');
       assert.equal(await page.locator('#serviceControlExecutable').textContent(), executable);
-      assert.equal(await page.locator('#serviceStartCommand').textContent(), startCommand);
+      assert.equal(await page.locator('#serviceStartCommand, .router-service-command').count(), 0);
+      assert.equal((await page.locator('#serviceControl').innerText()).includes(startCommand), false);
       assert.equal(await page.locator('#serviceControlTrial').textContent(), await translated('Enabled'));
       assert.equal(await page.locator('#serviceControl > .row-head').textContent(), await translated('Service management'));
       if (language !== 'en') assert.notEqual(await page.locator('#serviceControl > .row-head').textContent(), 'Service management');
@@ -135,9 +136,10 @@ for (const engine of process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 
       const beforeCancel = controls.length; await page.locator('#serviceControlCancel').click(); assert.equal(controls.length, beforeCancel);
       await page.locator('#serviceControl-stop').click();
       await page.locator('#serviceControlAck').check(); await page.locator('#serviceControlExecute').click();
-      await page.waitForFunction(() => document.querySelector('#serviceControlMessage').textContent === t('Stop requested. Use the saved PowerShell command to start Router again.'));
+      await page.waitForFunction(() => document.querySelector('#serviceControlMessage').textContent === t('Stop requested. Start Router again using your usual launcher.'));
       assert.equal(await page.locator('#serviceControl-stop').isDisabled(), true);
-      assert.equal(await page.locator('#serviceStartCommand').textContent(), startCommand);
+      assert.equal(await page.locator('#serviceStartCommand, .router-service-command').count(), 0);
+      assert.equal((await page.locator('#serviceControl').innerText()).includes(startCommand), false);
       assert.equal(await page.evaluate(() => managementToken), '');
       assert.equal(await page.locator('#serviceControlExecutable').count(), 0);
 
@@ -154,7 +156,8 @@ for (const engine of process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 
       assert.equal(await page.evaluate(token => JSON.stringify({ ...localStorage, ...sessionStorage }).includes(token), token), false);
       assert.equal((await page.content()).includes(token), false);
       assert.equal((await page.content()).includes(restartedToken), false);
-      assert.equal(await page.locator('#serviceStartCommand').textContent(), startCommand);
+      assert.equal(await page.locator('#serviceStartCommand, .router-service-command').count(), 0);
+      assert.equal((await page.locator('#serviceControl').innerText()).includes(startCommand), false);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.deepEqual(errors, [], `${language}/${width} page errors`);
       assert.deepEqual(unexpected, [], 'settings must not perform model or host operations');

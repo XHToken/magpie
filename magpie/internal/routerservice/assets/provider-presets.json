@@ -1,24 +1,5 @@
 [
   {
-    "docsURL": "https://www.xfyun.cn/doc/spark/HTTP调用文档.html",
-    "endpoints": {
-      "chat": "https://spark-api-open.xf-yun.com/v1"
-    },
-    "icon": "spark-color",
-    "id": "spark",
-    "kind": "vendor",
-    "models": [
-      "4.0Ultra",
-      "generalv3.5",
-      "max-32k",
-      "generalv3",
-      "pro-128k",
-      "lite"
-    ],
-    "name": "Spark",
-    "website": "https://xinghuo.xfyun.cn"
-  },
-  {
     "defaultProtocol": "chat",
     "docsURL": "https://www.xfyun.cn/doc/spark/产品使用说明.html",
     "endpoints": {
