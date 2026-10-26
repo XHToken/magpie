@@ -27,8 +27,8 @@ macOS 包没有 Developer ID 签名或公证；首次启动若被系统阻止，
 `./wefto dirs` 显示实际路径。若检测到完整的旧 API-router 数据布局会沿用它。
 升级前停止旧进程，备份这些目录，再使用新解压目录启动；不要同时运行两个版本。
 包内不含模型权重或推理运行时，可在管理页面按需配置云端或下载本地模型。
-验证范围是原生启动、管理页面、鉴权、端口回退与正常停止；不代表所有宿主或
-所有平台的本地推理后端均已通过兼容验证。
+各平台的实际验证结果以对应 Release 的发布说明为准。提供预编译包不代表
+所有宿主或所有平台的本地推理后端均已通过兼容验证。
 
 ## English
 
@@ -48,5 +48,6 @@ this program in System Settings → Privacy & Security, then launch it again.
 Stop the old version and back up those directories before upgrading. Existing
 complete API-router layouts are reused. Archives contain no model weights or
 inference runtimes; configure cloud providers or download models in the UI.
-Native startup tests do not certify every host integration or inference backend.
+See the release notes for the platforms actually tested. Prebuilt archives do
+not certify every host integration or inference backend.
 The MIT license and upstream attribution are included in LICENSE.
