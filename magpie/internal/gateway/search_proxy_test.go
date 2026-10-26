@@ -166,11 +166,14 @@ func TestSearchFollowsTheSearchersProxy(t *testing.T) {
 		io.WriteString(w, `{"search_results":[{"site_name":"Go","title":"Go downloads","url":"https://go.dev/dl/","snippet":"go1.27.1 from Kimi.","date":"2026-09-30"}]}`)
 	}))
 	t.Cleanup(kimi.Close)
+	// Documentation IPs avoid resolver search suffixes turning a test name
+	// into a real LAN host, which Auto deliberately reaches without a proxy.
+	// Both the proxy and direct dialer below map these only to local fixtures.
 	where := map[string]string{
-		"kimi.test":   kimi.Listener.Addr().String(),
-		"turn.test":   turn.Listener.Addr().String(),
-		"search.test": searcherSrv.Listener.Addr().String(),
-		"api.test":    api.Listener.Addr().String(),
+		"203.0.113.14": kimi.Listener.Addr().String(),
+		"203.0.113.11": turn.Listener.Addr().String(),
+		"203.0.113.12": searcherSrv.Listener.Addr().String(),
+		"203.0.113.13": api.Listener.Addr().String(),
 	}
 	at := func(addr string) (string, bool) {
 		host, _, _ := net.SplitHostPort(addr)
@@ -188,7 +191,7 @@ func TestSearchFollowsTheSearchersProxy(t *testing.T) {
 	// as chatgpt.com's poisoned addresses were
 	var d net.Dialer
 	dial := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		if host, _, _ := net.SplitHostPort(addr); host == "turn.test" {
+		if host, _, _ := net.SplitHostPort(addr); host == "203.0.113.11" {
 			a, _ := at(addr)
 			return d.DialContext(ctx, network, a)
 		}
@@ -197,7 +200,7 @@ func TestSearchFollowsTheSearchersProxy(t *testing.T) {
 		}
 		return d.DialContext(ctx, network, addr)
 	}
-	searchesOn(t, provider.Anthropic, "https://search.test")
+	searchesOn(t, provider.Anthropic, "https://203.0.113.12")
 	// the model lists, fetched once beforehand, reach every name
 	defaultTransport := http.DefaultClient.Transport
 	http.DefaultClient.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -208,8 +211,8 @@ func TestSearchFollowsTheSearchersProxy(t *testing.T) {
 			return d.DialContext(ctx, network, addr)
 		}}
 	for _, p := range []provider.Provider{
-		{ID: "turn", Name: "Turn", Key: "k", Chat: "https://turn.test/v1", Models: []string{"flash"}, Proxy: "direct"},
-		{ID: "srch", Name: "Searcher", Key: "k", Anthropic: "https://search.test/anthropic", Models: []string{"m1"}},
+		{ID: "turn", Name: "Turn", Key: "k", Chat: "https://203.0.113.11/v1", Models: []string{"flash"}, Proxy: "direct"},
+		{ID: "srch", Name: "Searcher", Key: "k", Anthropic: "https://203.0.113.12/anthropic", Models: []string{"m1"}},
 	} {
 		save(t, p)
 	}
@@ -252,7 +255,7 @@ func TestSearchFollowsTheSearchersProxy(t *testing.T) {
 	if err := settings.Save(st); err != nil {
 		t.Fatal(err)
 	}
-	ask("the searcher, Settings' proxy", "Go 1.27.1 is out.", []string{"search.test:443"})
+	ask("the searcher, Settings' proxy", "Go 1.27.1 is out.", []string{"203.0.113.12:443"})
 
 	// Auto: the proxy followed from the environment
 	st = settings.Load()
@@ -262,7 +265,7 @@ func TestSearchFollowsTheSearchersProxy(t *testing.T) {
 	}
 	// (ALL_PROXY: Go reads HTTPS_PROXY once a process, before this test)
 	t.Setenv("ALL_PROXY", proxy.URL())
-	ask("the searcher, Auto", "Go 1.27.1 is out.", []string{"search.test:443"})
+	ask("the searcher, Auto", "Go 1.27.1 is out.", []string{"203.0.113.12:443"})
 
 	// a searcher with a proxy of its own goes through it, though the
 	// global one is direct: a Kimi Code plan's search service too
@@ -272,11 +275,11 @@ func TestSearchFollowsTheSearchersProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := provider.Save(provider.Provider{ID: "kimi", Name: "Kimi Code", Preset: "kimi-code-cn", Key: "sk-kimi",
-		Chat: "https://kimi.test/coding/v1", Models: []string{"kimi-for-coding"}, Proxy: proxy.URL()}); err != nil {
+		Chat: "https://203.0.113.14/coding/v1", Models: []string{"kimi-for-coding"}, Proxy: proxy.URL()}); err != nil {
 		t.Fatal(err)
 	}
 	setSearcher("kimi")
-	ask("Kimi Code's search, its own proxy", "go1.27.1 from Kimi.", []string{"kimi.test:443"})
+	ask("Kimi Code's search, its own proxy", "go1.27.1 from Kimi.", []string{"203.0.113.14:443"})
 	st = settings.Load()
 	st.Proxy = ""
 	if err := settings.Save(st); err != nil {
@@ -285,8 +288,8 @@ func TestSearchFollowsTheSearchersProxy(t *testing.T) {
 
 	// the search APIs, with the providers' search off, go the same way
 	setSearcher("off")
-	if err := provider.SetSearchAPI(provider.SearchAPI{Vendor: "tavily", Key: "tvly-k", URL: "https://api.test/tavily"}); err != nil {
+	if err := provider.SetSearchAPI(provider.SearchAPI{Vendor: "tavily", Key: "tvly-k", URL: "https://203.0.113.13/tavily"}); err != nil {
 		t.Fatal(err)
 	}
-	ask("the search API, Auto", "go1.27.1 from the API.", []string{"api.test:443"})
+	ask("the search API, Auto", "go1.27.1 from the API.", []string{"203.0.113.13:443"})
 }
