@@ -50,4 +50,3 @@ execution and `RuntimeJudge` observers. They prefer it over admission-time
 identity and never reread completion-time state for an admitted call; a call
 that acquired no slot retains its admission identity. This binding is
 separate from the [privacy specification and cache binding](wefto-runtime.md#standard-context-and-budgets).
-

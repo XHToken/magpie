@@ -104,7 +104,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         assert.equal(await page.locator('#manage, #manageSettings, #modal, #token, #connect').count(), 0);
         assert.equal(await page.locator('body').evaluate(node => node.classList.contains('side-nav')), width >= 1024);
         if (width >= 1024) {
-          assert.equal(await page.locator('.nav-sub .nav-s').count(), 2);
+          assert.deepEqual(await page.locator('.nav-sub .nav-s').evaluateAll(nodes => nodes.map(node => node.dataset.of)), ['usageTab-usage', 'usageTab-requests', 'usageTab-redaction']);
           assert.equal(await page.locator('#crumb b').textContent(), await page.locator('#usageTab-usage').textContent());
           assert.equal(Math.round(await page.locator('#side').evaluate(node => node.getBoundingClientRect().width)), 212);
         }
@@ -234,6 +234,20 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         assert.equal(await page.locator('#usagePane').isVisible(), true);
         await page.locator(width >= 1024 ? '.nav-s[data-of=usageTab-requests]' : '#usageTab-requests').click();
         assert.equal(await page.locator('#ledgerPane').isVisible(), true);
+        const redactionResponse = page.waitForResponse(response => response.request().method() === 'GET' && new URL(response.url()).pathname === '/api/redaction/observations');
+        const redactionTab = page.locator(width >= 1024 ? '.nav-s[data-of=usageTab-redaction]' : '#usageTab-redaction');
+        await redactionTab.click();
+        assert.equal((await redactionResponse).status(), 200);
+        await page.waitForFunction(() => document.querySelector('#redactionObsRecords').textContent === t('No redaction observations yet'));
+        assert.equal(await page.locator('#redactionObsPane').isVisible(), true);
+        assert.equal(await page.locator('#usagePane').isVisible(), false);
+        assert.equal(await page.locator('#ledgerPane').isVisible(), false);
+        assert.equal(await redactionTab.getAttribute('aria-selected'), 'true');
+        assert.equal(await page.locator('#pageTitle').textContent(), await page.locator('#usageTab-redaction').textContent());
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        await page.locator(tab).click();
+        assert.equal(await page.locator('#usagePane').isVisible(), true);
+        assert.equal(await page.locator('#redactionObsPane').isVisible(), false);
         await page.locator('#prefs').click();
         assert.equal(await page.locator('#setPage-general').isVisible(), true);
         await page.locator('#themeSegs button').nth(2).click();
