@@ -1,14 +1,14 @@
 # Wefto 织流 Windows x64 本地安装与管理
 
-[English installation guide](https://github.com/xyzane54/magpie/blob/codex/wefto-rename/README.en.md#download-and-install-on-windows-x64)
+[English installation guide](https://github.com/XHToken/magpie/blob/main/README.en.md#download-and-install-on-windows-x64)
 
-本包包含已编译的产品 EXE 和内嵌网页。使用产品无需 Go、Node、Python 或源码，不需要管理员服务。预览包支持 Windows x64，由个人仓库 [xyzane54/magpie 的 Releases](https://github.com/xyzane54/magpie/releases) 发布，标签使用 `wefto-v` 前缀，与上游 Magpie 版本分别管理。当前未进行发布者代码签名，也没有自动更新功能。SHA256 校验用于核对文件完整性，不能证明 manifest 的发布者身份。
+本包包含已编译的产品 EXE 和内嵌网页。使用产品无需 Go、Node、Python 或源码，不需要管理员服务。预览包支持 Windows x64，由项目仓库 [xyzane54/magpie 的 Releases](https://github.com/XHToken/magpie/releases) 发布，标签使用 `wefto-v` 前缀，与上游 Magpie 版本分别管理。当前未进行发布者代码签名，也没有自动更新功能。SHA256 校验用于核对文件完整性，不能证明 manifest 的发布者身份。
 
-旧版 Wefto 升级请先阅读[更名升级说明](https://github.com/xyzane54/magpie/blob/wefto-v0.1.0-beta.2/magpie/docs/wefto-upgrade.md)，由旧 EXE 停止旧服务并处理旧登录自启；Wefto 会复用检测到的完整旧数据布局。
+旧版 Wefto 升级请先阅读[更名升级说明](https://github.com/XHToken/magpie/blob/wefto-v0.1.0-beta.4/magpie/docs/wefto-upgrade.md)，由旧 EXE 停止旧服务并处理旧登录自启；Wefto 会复用检测到的完整旧数据布局。
 
 ## 安装固定版本
 
-从同一 [Wefto 发布版本](https://github.com/xyzane54/magpie/releases/tag/wefto-v0.1.0-beta.2)取得 `*.zip`、`*.manifest.json`、`SHA256SUMS` 和独立 `install-windows.ps1`，保存在同一个本地文件夹。`SHA256SUMS` 列出 ZIP、manifest 和独立安装脚本的校验值，可用 `Get-FileHash -Algorithm SHA256` 核对。安装器只接受明确给定的本地包，不执行网络脚本文本，不查询或隐式使用 latest；当前不实现自动升级、自动回滚或其他平台安装。
+从同一 [Wefto 发布版本](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.4)取得 `*.zip`、`*.manifest.json`、`SHA256SUMS` 和独立 `install-windows.ps1`，保存在同一个本地文件夹。`SHA256SUMS` 列出 ZIP、manifest 和独立安装脚本的校验值，可用 `Get-FileHash -Algorithm SHA256` 核对。安装器只接受明确给定的本地包，不执行网络脚本文本，不查询或隐式使用 latest；当前不实现自动升级、自动回滚或其他平台安装。
 
 在 PowerShell 中指定绝对路径（支持空格和中文）：
 
@@ -85,7 +85,7 @@ $router = Join-Path $env:LOCALAPPDATA 'Programs\Wefto\wefto.exe'
 
 ## 来源与许可证
 
-本程序基于 [Magpie](https://github.com/yetone/magpie) 改造，源代码及本包对应版本可在 [Wefto 仓库](https://github.com/xyzane54/magpie/tree/codex/wefto-rename)取得。模型权重和推理运行时另行下载，遵循各自的许可证。原始 MIT 许可证与版权声明如下：
+本程序基于 [Magpie](https://github.com/yetone/magpie) 改造，源代码及本包对应版本可在 [Wefto 仓库](https://github.com/XHToken/magpie/tree/main)取得。模型权重和推理运行时另行下载，遵循各自的许可证。原始 MIT 许可证与版权声明如下：
 
 ```text
 MIT License
