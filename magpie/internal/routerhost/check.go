@@ -228,6 +228,9 @@ func workBuddyReplaceModel(raw []byte, index int, replacement []byte) ([]byte, e
 
 func workBuddyPatchModel(raw []byte, index int, values map[string]any, del []string) ([]byte, error) {
 	var set []edit.KV
+	if name, exists := values["name"]; exists {
+		set = append(set, edit.KV{Path: "name", Value: name})
+	}
 	for _, key := range workBuddyConnectionFields {
 		if value, exists := values[key]; exists {
 			set = append(set, edit.KV{Path: key, Value: value})

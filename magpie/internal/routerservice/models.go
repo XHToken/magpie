@@ -19,7 +19,8 @@ import (
 // Cloud Observe/Complete expose no target, credential, URL or prompt. The local
 // runtime hooks below are trusted in-process diagnostics, never HTTP options.
 type ModelOptions struct {
-	serviceControl *serviceController
+	serviceControl    *serviceController
+	tutorialStateFile string
 	// ExperimentalRedaction is a local startup opt-in, never request input or
 	// formal capability evidence. It permits only the bound fixed-model trial policy.
 	ExperimentalRedaction bool

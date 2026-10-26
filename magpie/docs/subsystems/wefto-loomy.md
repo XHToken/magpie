@@ -40,7 +40,26 @@ The provider uses `npm: "@ai-sdk/openai-compatible"`,
 `options.apiKey: "wefto-local-placeholder"` and `useSessionAuth: false`.
 Application identity comes from the URL; cloud credentials stay in Router.
 Every selected `group/<id>`, `<providerId>/<model>` or `local/<id>` is a literal
-key in the selected provider's `models` with `name` and `tool_call: true`.
+key in `provider.wefto.models` with `name` and `tool_call: true`.
+The model key and `wefto/<target>` selector remain routing identities;
+`name` is a separate display label resolved from Router's saved configuration by
+[`hostModelNames`](../../internal/routerservice/host_model_names.go). Cloud
+labels are `<model> · <provider name>`, groups use their configured group names
+(including effective automatic groups), and fixed local models use their
+catalog names, such as `Spark-X2.5-1.7B`. Unknown catalog entries fall back to
+the model portion of the selector; they do not expose a provider UUID as a label.
+The explicit-directory preview/apply API uses the same label resolver for newly
+generated entries. Its digest includes the resolved labels, so catalog changes
+between preview and apply require another preview.
+
+Reconnecting through `/api/hosts/auto` upgrades legacy ID labels and refreshes
+previously generated labels after provider/group renames. The host catalog and
+recovery journal change in the same Profile transaction via
+[`synchronizeLoomyModelNames`](../../internal/routerhost/loomy_names.go), retaining
+the first pre-connection snapshot. Existing user labels and later user aliases
+are preserved. Status reads never migrate names; an already running Loomy may
+need to be reopened to reload its catalog after reconnecting.
+
 Obsolete generated entries are retired; unrelated providers and user extensions
 are preserved. The first selection becomes `model: "<provider>/<target>"` and
 the managed `small_model`. A later user-selected small model from another
@@ -129,6 +148,11 @@ Run Go suites for `internal/routerhost`, `internal/routerconfig`,
 Consistency tests reproduce orphaned menus, nonexistent groups and Profile-write
 rollback. Host tests cover retirement, exact backups and failed disconnects.
 Browser tests check failed clears and stale Profiles in all five UI languages.
+`TestLoomyModelNamesThroughConnectUpgradeAndRestore` covers names for new and
+legacy connections, group renames, aliases, unchanged IDs, read-only status and
+recovery. `TestLoomyLabelUpgradeRollsBackWithProfileAndPreservesBaseline` covers
+atomic label rollback, nested model IDs and exact offline restoration. The
+Agents browser suite checks the labels written by the model picker.
 Title tests cover hidden input removal, model-generated greetings, stream/error
 boundaries, plugin scoping, manual titles, v1 upgrades and offline removal.
 Run `node --test internal/routerhost/tests/loomy-title.test.mjs` as well.

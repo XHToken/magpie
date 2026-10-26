@@ -26,6 +26,9 @@ const PlaceholderAPIKey = product.PlaceholderKey
 type Options struct {
 	Host, ConfigRoot, RouterURL, Model string
 	Models                             []string
+	// ModelNames carries trusted display labels. Keys and request selectors stay
+	// unchanged; adapters without display-label support ignore it.
+	ModelNames map[string]string
 }
 
 func (o Options) EffectiveModels() []string {

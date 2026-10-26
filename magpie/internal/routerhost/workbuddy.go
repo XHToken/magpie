@@ -17,11 +17,18 @@ type WorkBuddyAdapter struct{}
 
 var workBuddyConnectionFields = []string{"url", "apiKey", "supportsToolCall", "useCustomProtocol"}
 
-func (WorkBuddyAdapter) Contract() AdapterContract {
+func workBuddyV1Contract() AdapterContract {
 	return AdapterContract{ID: "workbuddy", Version: 1, Files: []FileSpec{
 		{Name: "models.json", Fields: []string{"models[id=selected-model].url", "models[id=selected-model].apiKey", "models[id=selected-model].supportsToolCall", "models[id=selected-model].useCustomProtocol"}},
 		{Name: "settings.json", Fields: []string{"model"}},
 	}}
+}
+
+func (WorkBuddyAdapter) Contract() AdapterContract {
+	c := workBuddyV1Contract()
+	c.Version = 2
+	c.Files[0].Fields = append(c.Files[0].Fields, "models[id=selected-model].name (generated labels only)")
+	return c
 }
 
 func (WorkBuddyAdapter) Build(o Options, files []FilePlan) ([]FilePlan, error) {
@@ -54,6 +61,9 @@ func (WorkBuddyAdapter) Build(o Options, files []FilePlan) ([]FilePlan, error) {
 		entry, index := workBuddyModel(doc, m)
 		if entry == nil {
 			entry = map[string]any{"id": m, "name": "Wefto"}
+			if name := strings.TrimSpace(o.ModelNames[m]); name != "" {
+				entry["name"] = name
+			}
 			for k, v := range values {
 				entry[k] = v
 			}
@@ -126,6 +136,10 @@ func (WorkBuddyAdapter) Restore(f FilePlan, current []byte) ([]byte, error) {
 		id := a["id"].(string)
 		b, _ := workBuddyModel(before, id)
 		changed := b == nil
+		bn, bnok := b["name"]
+		an, anok := a["name"]
+		nameChanged := !equalValue(bn, bnok, an, anok)
+		changed = changed || nameChanged
 		for _, key := range workBuddyConnectionFields {
 			bv, bok := b[key]
 			av, aok := a[key]
@@ -176,6 +190,18 @@ func (WorkBuddyAdapter) Restore(f FilePlan, current []byte) ([]byte, error) {
 				current, err = workBuddyReplaceModel(current, index, patched)
 			}
 		} else {
+			// Only undo a generated label still equal to our applied value.
+			// Later user aliases and opaque names remain user-owned.
+			if cn, cnok := c["name"]; nameChanged && equalValue(cn, cnok, an, anok) {
+				if bnok {
+					patched, err = edit.PatchJSON(patched, []edit.KV{{Path: "name", Value: bn}}, nil)
+				} else {
+					patched, err = deleteJSONField(patched, "name")
+				}
+				if err != nil {
+					return nil, err
+				}
+			}
 			current, err = workBuddyReplaceModel(current, index, patched)
 		}
 		if err != nil {

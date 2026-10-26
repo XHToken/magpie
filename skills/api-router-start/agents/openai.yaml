@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wefto 使用向导"
+  short_description: "学习 Wefto 使用，也可一键安装本地模型、配置端云协同并接入 Loomy 与 WorkBuddy"
+  default_prompt: "请使用 $api-router-start 带我亲手配置 Wefto，接入常用应用并完成首次对话；我已有 API Key，请一步一步教我操作和验证。"

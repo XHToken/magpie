@@ -44,6 +44,12 @@ func (e Engine) ConnectAndCommit(ctx context.Context, o Options, persist func() 
 	if err := retireConnectionModels(o, group); err != nil {
 		return nil, err
 	}
+	if err := synchronizeLoomyModelNames(o, group); err != nil {
+		return nil, err
+	}
+	if err := synchronizeWorkBuddyModelNames(o, group); err != nil {
+		return nil, err
+	}
 	if e.Checker == nil {
 		return nil, errors.New("connection checker is required")
 	}

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yetone/magpie/internal/routerconfig"
 	"github.com/yetone/magpie/internal/routerhost"
 )
 
@@ -28,7 +29,7 @@ func containsSecret(values []string, secret string) bool {
 // loomyHostAPI edits only an explicitly supplied local OpenCode directory.
 // Opening the page and saving a Profile never call this operation. Each write
 // re-previews the original files and requires the user's matching digest.
-func loomyHostAPI(w http.ResponseWriter, r *http.Request, info Info, token, stateDir string) {
+func loomyHostAPI(w http.ResponseWriter, r *http.Request, info Info, token, stateDir string, store *routerconfig.Store, local *LocalModels) {
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
 	deadline, _ := ctx.Deadline()
@@ -57,6 +58,14 @@ func loomyHostAPI(w http.ResponseWriter, r *http.Request, info Info, token, stat
 		return
 	}
 	o := routerhost.NormalizeOptions(routerhost.Options{Host: "loomy", ConfigRoot: in.ConfigRoot, RouterURL: "http://" + info.Address, Model: in.Model, Models: in.Models})
+	if in.Action == "preview" || in.Action == "apply" {
+		var err error
+		o.ModelNames, err = hostModelNames(ctx, store, o.EffectiveModels(), local)
+		if err != nil {
+			fail(409, "host_profile_invalid", "Model names could not be read; host configuration is unchanged")
+			return
+		}
+	}
 	e := routerhost.Engine{StateDir: stateDir, Adapter: routerhost.LoomyAdapter{}, Checker: routerhost.LoomyChecker(token)}
 	if in.Action == "check" {
 		if err := e.Checker.Check(ctx, o); err != nil {

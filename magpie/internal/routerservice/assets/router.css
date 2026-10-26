@@ -69,7 +69,7 @@
   .tutorial-rail { padding: 12px; border-right: 0; border-bottom: 1px solid var(--line); }
   .tutorial-eyebrow, .tutorial-rail-title, .tutorial-rail-note { display: none; }
   #tutorialSteps { display: flex; gap: 4px; justify-content: space-between; }
-  .tutorial-step { padding: 6px; justify-content: center; flex: 1; }
+  .tutorial-step { padding: 6px 2px; justify-content: center; flex: 1; min-width: 0; }
   .tutorial-step-label { display: none; }
   .tutorial-body { min-height: 0; max-height: calc(100dvh - 88px); }
   .tutorial-top { padding: 11px 16px 0; }
@@ -116,7 +116,6 @@
 }
 .router-kpis { margin-top: 10px; }
 .router-service-value { max-width: 100%; overflow-wrap: anywhere; font-size: 12px; }
-.router-service-command { display: block; padding: 12px; border: 1px solid var(--line); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
 .router-service-confirm { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; }
 .router-service-ack { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.6; margin-bottom: 12px; }
 .router-service-ack input { flex-shrink: 0; margin-top: 3px; }

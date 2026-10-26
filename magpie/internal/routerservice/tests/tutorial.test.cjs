@@ -39,6 +39,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     await new Promise(resolve => reservation.close(resolve));
     const origin = `http://${address}`;
     const configFile = path.join(layout.config, 'config.json');
+    const tutorialStateFile = path.join(layout.state, 'tutorial-dismissed');
     const config = JSON.parse(await fs.readFile(configFile, 'utf8'));
     config.listen.address = address;
     await fs.writeFile(configFile, JSON.stringify(config), { mode: 0o600 });
@@ -64,6 +65,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     // No external provider is configured. Observe the browser's real network
     // path and assert that reading sends no writes or external traffic.
     async function openCase(testCase, options = {}) {
+      if (!options.keepDismissal) await fs.rm(tutorialStateFile, { force: true });
       const context = await browser.newContext({ locale: 'en-US', viewport: { width: options.width || 1600, height: options.height || 950 } });
       const page = await context.newPage();
       const errors = [], mutations = [], external = [];
@@ -81,7 +83,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         if (url.origin !== origin) {
           external.push(request.url());
         }
-        if (!['GET', 'HEAD'].includes(request.method()) && !(request.method() === 'POST' && url.pathname === '/api/management/session')) {
+        if (!['GET', 'HEAD'].includes(request.method()) && !(request.method() === 'POST' && ['/api/management/session', '/api/tutorial/dismiss'].includes(url.pathname))) {
           mutations.push(`${request.method()} ${url.pathname}`);
         }
       });
@@ -108,6 +110,9 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         }
         throw error;
       }
+      // Finish each first-display save before another fresh context resets
+      // the shared fixture marker. This avoids racing an earlier page's POST.
+      if (!options.keepDismissal) await page.waitForFunction(() => serviceInfo.tutorialDismissed === true);
       return page;
     }
     async function visible(page) {
@@ -125,6 +130,43 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       assert.equal((await state(page)).step, number);
     }
 
+    await t.test('first display is remembered across fresh browser storage and manual entry remains available', async t => {
+      const page = await openCase(t);
+      await visible(page);
+      await page.locator('#tutorialClose').click();
+      await page.waitForFunction(() => serviceInfo.tutorialDismissed === true);
+      // A new browser context also models a changed management origin: no
+      // localStorage or cookies can carry the previous dismissal forward.
+      const returning = await openCase(t, { keepDismissal: true });
+      assert.equal(await returning.locator(modal).isVisible(), false, 'closing the guide must survive empty browser storage');
+      await returning.locator('#tutorialOpen').click();
+      await visible(returning);
+      await returning.locator('#tutorialClose').click();
+      await returning.reload();
+      await returning.waitForFunction(() => !!managementToken && !!serviceInfo);
+      assert.equal(await returning.locator(modal).isVisible(), false, 'manual reading must never re-enable automatic opening');
+    });
+
+    await t.test('existing dismissed progress migrates to the service preference', async t => {
+      const page = await openCase(t, { stored: JSON.stringify({ version: 1, step: 2, route: 'local', app: 'loomy', dismissed: true, completed: false }) });
+      await page.waitForFunction(() => serviceInfo.tutorialDismissed === true);
+      assert.equal(await page.locator(modal).isVisible(), false);
+      const returning = await openCase(t, { keepDismissal: true, disabledStorage: true });
+      assert.equal(await returning.locator(modal).isVisible(), false, 'service preference must work even when browser storage is disabled');
+      await returning.locator('#tutorialOpen').click();
+      await visible(returning);
+    });
+
+    await t.test('unknown service preference suppresses automatic opening while manual entry works', async t => {
+      await fs.writeFile(tutorialStateFile, 'damaged');
+      const page = await openCase(t, { keepDismissal: true });
+      assert.equal(await page.locator(modal).isVisible(), false);
+      await page.locator('#tutorialOpen').click();
+      await visible(page);
+      await page.locator('#tutorialClose').click();
+      assert.equal(await fs.readFile(tutorialStateFile, 'utf8'), 'damaged');
+    });
+
     await t.test('first open, skip and resume preserve independent reading progress', async t => {
       const page = await openCase(t);
       await visible(page);
@@ -133,7 +175,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       assert.equal(await page.locator(modal).getAttribute('aria-modal'), 'true');
       assert.equal(await page.locator(modal).getAttribute('aria-labelledby'), 'tutorialTitle');
       assert.equal(await page.locator('#tutorialTitle').evaluate(node => node.tagName), 'H2');
-      assert.deepEqual(await page.locator('#tutorialSteps button[data-step]').evaluateAll(nodes => nodes.map(node => Number(node.dataset.step))), [0, 1, 2, 3, 4, 5]);
+      assert.deepEqual(await page.locator('#tutorialSteps button[data-step]').evaluateAll(nodes => nodes.map(node => Number(node.dataset.step))), [0, 1, 2, 3, 4, 5, 6, 7, 8]);
       assert.equal(await page.locator('#tutorialBack').isDisabled(), true);
       const fresh = await state(page);
       assert.equal(fresh.version, 1);
@@ -234,13 +276,14 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       await assertStep(page, 5);
       await page.locator('#tutorialBack').click();
       await assertStep(page, 4);
-      for (const [number, target] of [[0, 'agents'], [1, 'providers'], [2, 'agents'], [3, 'local-model'], [4, 'local-model'], [5, 'usage']]) {
+      for (const [number, target] of [[0, 'agents'], [1, 'providers'], [2, 'agents'], [3, 'local-model'], [4, 'local-model'], [5, 'usage'], [6, 'routing'], [7, 'usage'], [8, 'agents']]) {
         await step(page, number);
         await page.locator('#tutorialGo').click();
         await page.locator(modal).waitFor({ state: 'hidden' });
         assert.equal(await page.locator(`#view-${target}`).isVisible(), true, `chapter ${number} must open ${target}`);
         assert.equal(await page.locator('#providerModal, #profileModal').evaluateAll(nodes => nodes.every(node => node.hidden)), true, 'Go must only navigate, not open an editor that writes or verifies a model');
-        if (number === 5) assert.equal(await page.locator('#ledgerPane').isVisible(), true, 'last chapter opens the per-request statistics tab');
+        if (number === 5) assert.equal(await page.locator('#ledgerPane').isVisible(), true, 'first-request chapter opens the per-request statistics tab');
+        if (number === 7) assert.equal(await page.locator('#redactionObsPane').isVisible(), true, 'redaction chapter opens the comparison records');
         await page.locator('#tutorialOpen').click();
         await visible(page);
         await assertStep(page, number);
@@ -252,7 +295,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       await visible(page);
       assert.equal(await page.locator('.tutorial-rail-title').textContent(), '从这里开始');
       assert.equal(await page.locator('.tutorial-eyebrow').textContent(), '新手入门');
-      await step(page, 5);
+      await step(page, 8);
       await page.locator('#tutorialNext').click();
       await page.locator(modal).waitFor({ state: 'hidden' });
       assert.equal((await state(page)).completed, true);
@@ -265,7 +308,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       assert.equal(await page.locator(modal).isVisible(), false);
       await page.locator('#tutorialOpen').click();
       await visible(page);
-      await assertStep(page, 5);
+      await assertStep(page, 8);
     });
 
     await t.test('five languages fit desktop and mobile without untranslated chapter headings', async t => {
@@ -274,7 +317,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         for (const [width, height] of [[1600, 950], [1100, 600], [375, 667]]) {
           const page = await openCase(t, { language, width, height });
           await visible(page);
-          for (let number = 0; number < 6; number++) {
+          for (let number = 0; number < 9; number++) {
             await step(page, number);
             if (number === 3) {
               await page.locator('#tutorialContent button[data-route="local"]').click();
@@ -297,6 +340,10 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
               const footer = node.querySelector('.tutorial-footer').getBoundingClientRect();
               return rect.left >= -1 && rect.right <= innerWidth + 1 && rect.top >= -1 && rect.bottom <= innerHeight + 1 && dialog.scrollWidth <= dialog.clientWidth + 1 && footer.top >= rect.top && footer.bottom <= rect.bottom + 1;
             }), true, `${language}/${width} chapter ${number} must fit its dialog`);
+            if (process.env.ARTIFACT_DIR && language === 'zh' && [2, 4, 6, 7].includes(number)) {
+              await fs.mkdir(process.env.ARTIFACT_DIR, { recursive: true });
+              await page.screenshot({ path: path.join(process.env.ARTIFACT_DIR, `tutorial-${engine}-${language}-${width}-chapter-${number + 1}.png`) });
+            }
           }
           if (process.env.ARTIFACT_DIR && ['en', 'de', 'zh'].includes(language)) {
             await fs.mkdir(process.env.ARTIFACT_DIR, { recursive: true });
@@ -304,6 +351,38 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
           }
         }
       }
+    });
+
+    await t.test('current workflows explain the controls and preserve previous reading progress', async t => {
+      const page = await openCase(t, { stored: JSON.stringify({ version: 1, step: 5, route: 'cloud', app: 'loomy', dismissed: true, completed: true }) });
+      assert.equal(await page.locator(modal).isVisible(), false, 'returning users are not forced through the guide');
+      await page.locator('#tutorialOpen').click();
+      await visible(page);
+      await assertStep(page, 5);
+      await page.locator('#tutorialNext').click();
+      await assertStep(page, 6);
+      assert.match(await page.locator('#tutorialContent').textContent(), /group\/<id>/);
+      await step(page, 2);
+      const appCopy = await page.locator('#tutorialContent').textContent();
+      assert.match(appCopy, /Changes save automatically/);
+      assert.match(appCopy, /connection switch/);
+      assert.doesNotMatch(appCopy, /Verify and save|forward mode/);
+      await step(page, 3);
+      await page.locator('#tutorialContent button[data-route="local"]').click();
+      await step(page, 4);
+      const localCopy = await page.locator('#tutorialContent').textContent();
+      assert.match(localCopy, /Configured on-device models/);
+      assert.match(localCopy, /remembered on restart/);
+      assert.match(localCopy, /CPU fallback/);
+      assert.doesNotMatch(localCopy, /click the trial button|does not automatically load/);
+      await step(page, 7);
+      const privacyCopy = await page.locator('#tutorialContent').textContent();
+      assert.match(privacyCopy, /Redact On/);
+      assert.match(privacyCopy, /original text and replacement values/);
+      assert.match(privacyCopy, /seven days and 500 request IDs/);
+      assert.match(privacyCopy, /30-second budget/);
+      await step(page, 8);
+      assert.match(await page.locator('#tutorialContent').textContent(), /Disconnect & restore/);
     });
 
     await t.test('invalid saved state safely resets without disrupting the app', async t => {

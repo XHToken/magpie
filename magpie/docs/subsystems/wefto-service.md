@@ -43,3 +43,40 @@ Manual tutorial entry records the actual clicked entry button as its focus-retur
 While the guide is open, Tab and Shift+Tab explicitly cycle its visible controls in both directions. This keeps focus in the dialog even when native browser keyboard preferences skip buttons. Keyboard focus may scroll the reading pane normally; entry and exit preserve the page scroll position.
 
 Verification includes management-origin/authentication tests, legacy-header tests, service/control tests, native Windows lifecycle checks and the complete Chromium/WebKit gate in [product regression](../product-regression.md).
+
+On the first management connection, an unseen guide opens automatically once.
+The service stores the first-display marker in `Layout.State/tutorial-dismissed`,
+separately from model/provider/host configuration. `/api/service` reports
+`tutorialDismissed` (`false` for no marker, `true` after display, `null` if state
+is unavailable); authenticated same-origin `POST /api/tutorial/dismiss` records
+the marker atomically and idempotently. Restarting, changing management ports,
+or opening a browser with empty/disabled storage does not force the guide back.
+Existing dismissed/completed browser progress is migrated to this marker.
+Unknown or corrupt state suppresses automatic opening and is preserved;
+failed saves retain browser progress and retry on closing or a later management
+refresh. The header/settings entries always allow manual reading, which never
+resets the marker. Per-chapter progress remains in browser storage.
+
+Service management shows process information and login startup controls without
+displaying the PowerShell start command. Stop/restart confirmation acknowledges
+the page disconnect; recovery messages refer to the user's usual launcher.
+The service API still supplies `startCommand` for CLI lifecycle compatibility.
+
+The embedded `tutorial.js` guide has nine chapters: introduction, providers,
+Agent model selection and connection, optional local-model selection and
+installation, first-request inspection, routing groups, redaction observations,
+and troubleshooting/restoration (including service controls). Instructions follow
+the current multi-select/automatic-save Agent UI and installed-model switch;
+they distinguish host connection from verified cloud generation, experimental
+local checks from quality acceptance, and group redaction from local routing.
+The redaction chapter explains retained plaintext observations and deletion.
+Cloud-only readers skip local installation. The first six chapter IDs and the
+`wefto.tutorial.v1` storage schema remain stable, so existing reading
+preferences survive; returning readers can continue into the added chapters
+without a forced reopening. Guide links only navigate to existing views/tabs;
+the guide only saves its display preference and never mutates configuration,
+probes devices or sends model requests.
+
+`internal/routerservice/tests/tutorial.test.cjs` checks all chapters, navigation,
+previous saved progress, focus, read-only behavior, and five languages at desktop
+and mobile sizes in Chromium and WebKit against an isolated candidate service.

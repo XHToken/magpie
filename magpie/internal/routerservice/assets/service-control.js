@@ -12,20 +12,18 @@
     ['Experimental redaction at startup', '启动时实验脱敏', '啟動時實驗去識別化', '起動時の実験的匿名化', 'Experimentelle Anonymisierung beim Start'],
     ['Stop Router', '停止 Router', '停止 Router', 'Router を停止', 'Router stoppen'],
     ['Restart Router', '重启 Router', '重新啟動 Router', 'Router を再起動', 'Router neu starten'],
-    ['Start from PowerShell', '从 PowerShell 启动', '從 PowerShell 啟動', 'PowerShell から起動', 'Aus PowerShell starten'],
-    ['Keep this command before stopping. Run it in PowerShell to start Router again.', '停止前请保存此命令，在 PowerShell 中运行即可重新启动 Router。', '停止前請儲存此命令，在 PowerShell 中執行即可重新啟動 Router。', '停止前にこのコマンドを保存してください。PowerShell で実行すると Router を再起動できます。', 'Diesen Befehl vor dem Stoppen aufbewahren. In PowerShell ausführen, um Router erneut zu starten.'],
-    ['I have saved the command and can open PowerShell independently.', '我已保存命令，并且可以独立打开 PowerShell。', '我已儲存命令，並且可以獨立開啟 PowerShell。', 'コマンドを保存し、PowerShell を別途開けることを確認しました。', 'Ich habe den Befehl gespeichert und kann PowerShell unabhängig öffnen.'],
+    ['I understand this will disconnect the page.', '我了解此操作会断开页面连接。', '我了解此操作會中斷頁面連線。', 'この操作でページが切断されることを理解しました。', 'Ich verstehe, dass dieser Vorgang die Seite trennt.'],
     ['Stopping disconnects this page. Active requests will be drained or canceled. Host connections stay configured.', '停止后此页面将失联，正在处理的请求会排空或取消，宿主接入配置保留。', '停止後此頁面將中斷連線，處理中的請求會排空或取消，宿主接入設定保留。', '停止するとこのページは切断されます。処理中のリクエストは終了または取消され、ホスト設定は保持されます。', 'Beim Stoppen wird diese Seite getrennt. Aktive Anfragen werden abgeschlossen oder abgebrochen; Host-Einstellungen bleiben erhalten.'],
-    ['Restarting disconnects this page temporarily. Save the start command in case recovery is needed.', '重启期间页面会暂时失联，请保存启动命令以便必要时恢复。', '重新啟動期間頁面會暫時中斷，請儲存啟動命令以便必要時復原。', '再起動中は一時的に切断されます。復旧に備えて起動コマンドを保存してください。', 'Beim Neustart wird die Seite kurz getrennt. Startbefehl für eine mögliche Wiederherstellung aufbewahren.'],
+    ['Restarting disconnects this page temporarily. The page will reconnect automatically.', '重启期间页面会暂时失联，随后将自动恢复连接。', '重新啟動期間頁面會暫時中斷，隨後將自動恢復連線。', '再起動中は一時的に切断されます。その後、自動的に再接続します。', 'Beim Neustart wird die Seite kurz getrennt und danach automatisch wieder verbunden.'],
     ['Confirm stop', '确认停止', '確認停止', '停止を確認', 'Stoppen bestätigen'],
     ['Confirm restart', '确认重启', '確認重新啟動', '再起動を確認', 'Neustart bestätigen'],
     ['Service controls are unavailable. Refresh or use the installed CLI.', '服务控制不可用，请刷新或使用已安装的命令行程序。', '服務控制無法使用，請重新整理或使用已安裝的命令列程式。', 'サービス操作を利用できません。更新するか、インストール済み CLI を使用してください。', 'Dienststeuerung nicht verfügbar. Aktualisieren oder die installierte CLI verwenden.'],
     ['Service operation failed. Refresh to inspect the current state.', '服务操作失败，请刷新确认当前状态。', '服務操作失敗，請重新整理確認目前狀態。', 'サービス操作に失敗しました。更新して現在の状態を確認してください。', 'Dienstvorgang fehlgeschlagen. Aktuellen Status durch Aktualisieren prüfen.'],
     ['Autostart setting saved.', '自启设置已保存。', '自動啟動設定已儲存。', '自動起動の設定を保存しました。', 'Autostart-Einstellung gespeichert.'],
-    ['Stop requested. Use the saved PowerShell command to start Router again.', '已请求停止。重新启动时请使用保存的 PowerShell 命令。', '已要求停止。重新啟動時請使用儲存的 PowerShell 命令。', '停止を要求しました。再起動には保存した PowerShell コマンドを使用してください。', 'Stoppen angefordert. Zum erneuten Starten den gespeicherten PowerShell-Befehl verwenden.'],
+    ['Stop requested. Start Router again using your usual launcher.', '已请求停止。需要时请通过原来的启动入口重新启动 Router。', '已要求停止。需要時請透過原來的啟動入口重新啟動 Router。', '停止を要求しました。通常の起動方法で Router を再起動してください。', 'Stoppen angefordert. Router bei Bedarf wie gewohnt erneut starten.'],
     ['Restart requested. Waiting for a new Router process…', '已请求重启，正在等待新的 Router 进程…', '已要求重新啟動，正在等候新的 Router 程序…', '再起動を要求しました。新しい Router プロセスを待っています…', 'Neustart angefordert. Auf neuen Router-Prozess wird gewartet…'],
     ['Router restarted. Management connection restored.', 'Router 已重启，管理连接已自动恢复。', 'Router 已重新啟動，管理連線已自動恢復。', 'Router が再起動し、管理接続を自動復元しました。', 'Router neu gestartet. Verwaltungsverbindung automatisch wiederhergestellt.'],
-    ['Restart could not be confirmed. Use the saved PowerShell command, then refresh.', '尚未确认重启成功。请使用保存的 PowerShell 命令，然后刷新页面。', '尚未確認重新啟動成功。請使用儲存的 PowerShell 命令，再重新整理頁面。', '再起動を確認できません。保存した PowerShell コマンドを実行し、ページを更新してください。', 'Neustart nicht bestätigt. Gespeicherten PowerShell-Befehl ausführen und Seite aktualisieren.'],
+    ['Restart could not be confirmed. Start Router using your usual launcher, then refresh.', '尚未确认重启成功。请通过原来的启动入口启动 Router，然后刷新页面。', '尚未確認重新啟動成功。請透過原來的啟動入口啟動 Router，再重新整理頁面。', '再起動を確認できません。通常の起動方法で Router を起動してから、ページを更新してください。', 'Neustart nicht bestätigt. Router wie gewohnt starten und die Seite aktualisieren.'],
   ]) for (const [lang, text] of [['zh', zh], ['zh-TW', tw], ['ja', ja], ['de', de]]) (I18N[lang] ||= {})[key] = text;
 
   let working = false, confirmation = '', acknowledged = false, command = '', message = '', phase = '', timer, generation = 0;
@@ -55,11 +53,6 @@
       auto.append(button(known && autostart.enabled ? 'Disable autostart' : 'Enable autostart', 'serviceControlAutostart', () => action('autostart', { enabled: !autostart.enabled }), !known)); list.append(auto);
     }
     root.append(list);
-    if (command) {
-      root.append(el('h3', 'router-label', t('Start from PowerShell')));
-      const code = el('code', 'router-service-command', command); code.id = 'serviceStartCommand'; root.append(code);
-      root.append(el('p', 'hint router-note', t('Keep this command before stopping. Run it in PowerShell to start Router again.')));
-    }
     const actions = el('div', 'request-choices');
     for (const [name, actionName] of [['Stop Router', 'stop'], ['Restart Router', 'restart']]) {
       actions.append(button(name, 'serviceControl-' + actionName, () => { confirmation = actionName; acknowledged = false; render(); }, !active() || !command));
@@ -67,10 +60,10 @@
     actions.append(button('Refresh now', 'serviceControlRefresh', () => refresh(), working)); root.append(actions);
     if (confirmation && active()) {
       const panel = el('div', 'router-service-confirm'); panel.id = 'serviceControlConfirm';
-      panel.append(el('p', 'hint router-note', t(confirmation === 'stop' ? 'Stopping disconnects this page. Active requests will be drained or canceled. Host connections stay configured.' : 'Restarting disconnects this page temporarily. Save the start command in case recovery is needed.')));
+      panel.append(el('p', 'hint router-note', t(confirmation === 'stop' ? 'Stopping disconnects this page. Active requests will be drained or canceled. Host connections stay configured.' : 'Restarting disconnects this page temporarily. The page will reconnect automatically.')));
       const label = el('label', 'router-service-ack'), check = el('input'); check.type = 'checkbox'; check.id = 'serviceControlAck'; check.checked = acknowledged;
       check.onchange = () => { acknowledged = check.checked; $('#serviceControlExecute').disabled = working || !acknowledged; };
-      label.append(check, el('span', '', t('I have saved the command and can open PowerShell independently.'))); panel.append(label);
+      label.append(check, el('span', '', t('I understand this will disconnect the page.'))); panel.append(label);
       const controls = el('div', 'request-choices');
       controls.append(button('Cancel', 'serviceControlCancel', () => { confirmation = ''; acknowledged = false; render(); }), button(confirmation === 'stop' ? 'Confirm stop' : 'Confirm restart', 'serviceControlExecute', () => action(confirmation), !acknowledged)); panel.append(controls); root.append(panel);
     }
@@ -101,7 +94,7 @@
       }
     } catch {}
     if (run !== generation) return;
-    if (attempt >= 14) { working = false; phase = ''; message = 'Restart could not be confirmed. Use the saved PowerShell command, then refresh.'; render(); return; }
+    if (attempt >= 14) { working = false; phase = ''; message = 'Restart could not be confirmed. Start Router using your usual launcher, then refresh.'; render(); return; }
     timer = setTimeout(() => awaitRestart(oldPID, attempt + 1, run), 1000);
   }
   async function action(name, body) {
@@ -121,7 +114,7 @@
         if (result[name === 'stop' ? 'stopping' : 'restarting'] !== true) throw new Error('Service operation failed. Refresh to inspect the current state.');
         if (typeof result.startCommand === 'string' && result.startCommand) command = result.startCommand;
         confirmation = ''; acknowledged = false; phase = name;
-        message = name === 'stop' ? 'Stop requested. Use the saved PowerShell command to start Router again.' : 'Restart requested. Waiting for a new Router process…';
+        message = name === 'stop' ? 'Stop requested. Start Router again using your usual launcher.' : 'Restart requested. Waiting for a new Router process…';
         clearPrivateState();
         if (name === 'restart') { generation++; awaitRestart(oldPID); }
       }

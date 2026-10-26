@@ -108,12 +108,13 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 		isGroup := r.URL.Path == "/api/routing-groups" || r.URL.Path == "/api/routing-groups/switch"
 		isRedaction := r.URL.Path == "/api/redaction"
 		isRedactionObs := r.URL.Path == "/api/redaction/observations"
+		isTutorial := r.URL.Path == "/api/tutorial/dismiss"
 		allowed, methods := r.Method == http.MethodGet || r.Method == http.MethodHead, "GET, HEAD"
 		if r.URL.Path == "/api/cloud-providers" || r.URL.Path == "/api/routing-groups" || isApp {
 			allowed = allowed || r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete
 			methods = "GET, HEAD, POST, PUT, DELETE"
 		}
-		if r.URL.Path == "/api/cloud-providers/models" || r.URL.Path == "/api/routing-groups/switch" || r.URL.Path == "/api/apps/check" || isLoomy || (isLocal && !localModelRead(r)) || isControl {
+		if r.URL.Path == "/api/cloud-providers/models" || r.URL.Path == "/api/routing-groups/switch" || r.URL.Path == "/api/apps/check" || isLoomy || (isLocal && !localModelRead(r)) || isControl || isTutorial {
 			allowed, methods = r.Method == http.MethodPost, "POST"
 		}
 		if isRedaction || isHostAuto {
@@ -129,7 +130,7 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if (r.URL.Path == "/api/service" || isControl || isProvider || isGroup || isApp || isRequest || isLoomy || isHostAuto || isLocal || isRedaction || isRedactionObs) && subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
+		if (r.URL.Path == "/api/service" || isControl || isProvider || isGroup || isApp || isRequest || isLoomy || isHostAuto || isLocal || isRedaction || isRedactionObs || isTutorial) && subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, "management token required", http.StatusUnauthorized)
 			return
@@ -138,8 +139,12 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 			serviceControlAPI(w, r, info, options.serviceControl)
 			return
 		}
+		if isTutorial {
+			tutorialDismissAPI(w, r, options.tutorialStateFile)
+			return
+		}
 		if isLoomy {
-			loomyHostAPI(w, r, info, token, options.HostStateDir)
+			loomyHostAPI(w, r, info, token, options.HostStateDir, store, options.LocalRuntime)
 			return
 		}
 		if isHostAuto {
@@ -238,6 +243,9 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 				_ = json.NewEncoder(w).Encode(map[string]any{"service": "wefto", "status": "ok", "pid": info.PID, "startedAt": info.StartedAt})
 			} else {
 				current := info
+				if dismissed, err := tutorialDismissed(r.Context(), options.tutorialStateFile); err == nil {
+					current.TutorialDismissed = &dismissed
+				}
 				if options.serviceControl != nil {
 					var err error
 					current.Autostart, err = routercontrol.AutostartStatus(options.serviceControl.layout, info.Executable)
@@ -257,7 +265,7 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 
 func allowedAPIPath(path string) bool {
 	switch path {
-	case "/api/service", "/api/cloud-providers", "/api/cloud-providers/models", "/api/routing-groups", "/api/routing-groups/switch", "/api/apps", "/api/apps/check", "/api/hosts/loomy", "/api/hosts/auto", "/api/redaction", "/api/redaction/observations", "/api/service/stop", "/api/service/restart", "/api/service/autostart":
+	case "/api/service", "/api/tutorial/dismiss", "/api/cloud-providers", "/api/cloud-providers/models", "/api/routing-groups", "/api/routing-groups/switch", "/api/apps", "/api/apps/check", "/api/hosts/loomy", "/api/hosts/auto", "/api/redaction", "/api/redaction/observations", "/api/service/stop", "/api/service/restart", "/api/service/autostart":
 		return true
 	}
 	return false

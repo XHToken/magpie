@@ -24,7 +24,7 @@ func hostAutoAPI(w http.ResponseWriter, r *http.Request, info Info, token string
 		local = runtimes[0]
 	}
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		items := inspectAutoHostConnections(r.Context(), store, info, local)
+		items := inspectAutoHostConnections(r.Context(), store, info, local, stateDir)
 		if r.Method == http.MethodHead {
 			return
 		}
@@ -135,6 +135,13 @@ func hostAutoAPI(w http.ResponseWriter, r *http.Request, info Info, token string
 			return
 		}
 	}
+	if in.Host == "loomy" || in.Host == "workbuddy" {
+		o.ModelNames, err = hostModelNames(ctx, store, o.EffectiveModels(), local)
+		if err != nil {
+			fail(http.StatusConflict, "host_profile_invalid", "Model names could not be read; host configuration is unchanged")
+			return
+		}
+	}
 	p, err := e.ConnectAndCommit(ctx, o, func() error {
 		if store == nil {
 			return nil
@@ -152,7 +159,7 @@ func hostAutoAPI(w http.ResponseWriter, r *http.Request, info Info, token string
 	if in.Host == "loomy" {
 		raw, readErr := os.ReadFile(filepath.Join(root, "opencode.json"))
 		var doc map[string]any
-		if readErr != nil || json.Unmarshal(raw, &doc) != nil {
+		if readErr != nil || json.Unmarshal(jsonc.ToJSON(raw), &doc) != nil {
 			fail(http.StatusConflict, "host_config_unavailable", "Connection was applied but its selected model cannot be read; inspect the retained recovery record")
 			return
 		}
@@ -243,11 +250,17 @@ func inspectAutoHosts(ctx context.Context, store *routerconfig.Store) []map[stri
 	return inspectAutoHostConnections(ctx, store, Info{}, nil)
 }
 
-func inspectAutoHostConnections(ctx context.Context, store *routerconfig.Store, info Info, local *LocalModels) []map[string]any {
+func inspectAutoHostConnections(ctx context.Context, store *routerconfig.Store, info Info, local *LocalModels, stateDirs ...string) []map[string]any {
 	var out []map[string]any
 	for _, host := range []string{"loomy", "workbuddy"} {
 		root, _ := autoHostConfigRoot(host)
-		connected, liveModels := inspectHostLiveFiles(host, root)
+		var managed []string
+		var ownershipErr error
+		if host == "workbuddy" && root != "" && len(stateDirs) > 0 && stateDirs[0] != "" {
+			managed, ownershipErr = routerhost.ManagedWorkBuddyModelIDs(stateDirs[0], root)
+		}
+		connected, liveModels := inspectHostLiveFiles(host, root, managed...)
+		connected = connected && ownershipErr == nil
 		saved := findSavedApp(ctx, store, host)
 		hostConfigured := connected
 		models, enabled := liveModels, false
@@ -281,7 +294,7 @@ func inspectAutoHostConnections(ctx context.Context, store *routerconfig.Store, 
 	return out
 }
 
-func inspectHostLiveFiles(host, root string) (bool, []string) {
+func inspectHostLiveFiles(host, root string, managedModels ...string) (bool, []string) {
 	if root == "" {
 		return false, nil
 	}
@@ -324,6 +337,10 @@ func inspectHostLiveFiles(host, root string) (bool, []string) {
 		return false, nil
 	}
 	models := []string{primary}
+	managed := map[string]bool{}
+	for _, id := range managedModels {
+		managed[id] = true
+	}
 	if mRaw, err := os.ReadFile(filepath.Join(root, "models.json")); err == nil {
 		var entries []map[string]any
 		if json.Unmarshal(mRaw, &entries) != nil {
@@ -337,7 +354,7 @@ func inspectHostLiveFiles(host, root string) (bool, []string) {
 		}
 		for _, item := range entries {
 			id, _ := item["id"].(string)
-			if id != "" && id != primary && product.IsProviderName(item["name"]) {
+			if id != "" && id != primary && (product.IsProviderName(item["name"]) || managed[id]) {
 				models = append(models, id)
 			}
 		}
