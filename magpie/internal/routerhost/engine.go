@@ -144,7 +144,7 @@ func (e Engine) Preview(o Options) (*Plan, error) {
 			if err != nil {
 				return nil, err
 			}
-			if _, err = restoreContent(a, f.FilePlan, s.Before); err != nil {
+			if _, err = restoreConnectionContent(a, j, f.FilePlan, s.Before); err != nil {
 				return nil, err
 			}
 		}
@@ -241,6 +241,9 @@ func (e Engine) Apply(ctx context.Context, p *Plan) error {
 	j.Status = "applied"
 	if err := e.saveJournal(j); err != nil {
 		return e.failed(j, err)
+	}
+	if p.Host == "loomy" {
+		refreshLoomyRuntime(p.options.ConfigRoot, p.files)
 	}
 	return nil
 }

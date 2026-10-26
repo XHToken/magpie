@@ -2001,6 +2001,12 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request, from provider.Pro
 		// begins; within it, whoever answered last stays while it is of
 		// the rule's member, the member's others behind it (#1946)
 		cands, pl = ruleOver(hit, ms, cands, pl, aff)
+	} else if isGroup && routingOf(g.Routing) == provider.EdgeCloud {
+		was := cands[0]
+		cands, pl = s.planEdgeCloud(r.Context(), g, from, body, ruleReq, r.Header.Get("User-Agent") == RouterAgent, cands, pl)
+		if aff != nil && aff.Kept && len(cands) > 0 && cands[0].rest != was.rest {
+			aff.Kept, aff.Why = false, "edge-cloud"
+		}
 	}
 	// the rules of the groups in the group, down the one that goes first
 	var nested []NestedRule
@@ -2454,6 +2460,20 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request, from provider.Pro
 			// a streaming agent waiting is kept alive meanwhile
 			queuedAlive := hw.keepQueued()
 			release, inLane, err := s.lanes.take(ctx, c.who(), c.p.LaneLimit(), c.p.QueueLimit, time.Duration(c.p.QueueWait)*time.Second)
+			if err == nil && isGroup && routingOf(g.Routing) == provider.EdgeCloud && isLocalCandidate(c) && !last {
+				localRelease, inLocal, slotErr := edgeCloudAcquireSlot(ctx)
+				inLane += inLocal
+				if slotErr != nil {
+					release()
+					err = errQueueWait
+				} else if localRelease != nil {
+					prevRelease := release
+					release = func() {
+						localRelease()
+						prevRelease()
+					}
+				}
+			}
 			var inMinute time.Duration
 			if err == nil && c.p.RPMLimit() > 0 {
 				// with a MaxRPM, it then waits for room in the minute, and
@@ -2481,7 +2501,13 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request, from provider.Pro
 					defer release()
 					defer hw.watch()()
 					defer notePhase(ctx, "upstream")()
-					call.Status, call.Error = s.attempt(hw, r.WithContext(ctx), from, c.p, c.model, attemptBody, &call)
+					attemptCtx := ctx
+					if isGroup && routingOf(g.Routing) == provider.EdgeCloud && isLocalCandidate(c) && !last && edgeCloudLocalAttemptTimeout > 0 {
+						var cancelAttempt context.CancelFunc
+						attemptCtx, cancelAttempt = context.WithTimeout(ctx, edgeCloudLocalAttemptTimeout)
+						defer cancelAttempt()
+					}
+					call.Status, call.Error = s.attempt(hw, r.WithContext(attemptCtx), from, c.p, c.model, attemptBody, &call)
 				}()
 			}
 			stop()

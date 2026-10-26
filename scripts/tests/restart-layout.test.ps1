@@ -1,7 +1,19 @@
 #requires -Version 5.1
-param([Parameter(Mandatory = $true)][string]$Executable)
+param([Parameter(Mandatory = $true)][string]$Executable, [switch]$OccupyRestartPort)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\start-project.ps1')
+$Executable = [IO.Path]::GetFullPath($Executable)
+
+function Assert-LayoutInstance($Status, [string]$ExpectedInstance, [string]$ExpectedAddress, [string]$ConfigPath, [string]$Stage) {
+    $routerTestSavedConfig = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
+    # Layout identity is fixed. A competing listener may legitimately change
+    # the port; require the native handoff and persisted address to agree.
+    if (-not $Status.running -or $Status.instanceId -ne $ExpectedInstance -or
+        $routerTestSavedConfig.instanceId -ne $ExpectedInstance -or $Status.address -ne $routerTestSavedConfig.listen.address -or
+        ($Status.address -ne $ExpectedAddress -and $Status.previousAddress -ne $ExpectedAddress)) {
+        throw "$Stage used an unexpected instance/address. expectedAddress=$ExpectedAddress actualAddress=$($Status.address) savedAddress=$($routerTestSavedConfig.listen.address) running=$($Status.running) pid=$($Status.pid) previousAddress=$($Status.previousAddress) expectedInstance=$ExpectedInstance actualInstance=$($Status.instanceId)"
+    }
+}
 
 $routerTestRoot = Join-Path ([IO.Path]::GetTempPath()) ('router-layout-test-' + [Guid]::NewGuid().ToString('N'))
 $routerTestAppData = Join-Path $routerTestRoot 'roaming'
@@ -10,6 +22,8 @@ $routerTestHost = Join-Path $routerTestRoot 'workbuddy'
 $routerTestSavedAppData = $env:APPDATA
 $routerTestSavedLocalAppData = $env:LOCALAPPDATA
 $routerTestCleanup = $false
+$routerTestPassed = $false
+$routerTestRestartOccupant = $null
 New-Item -ItemType Directory -Path $routerTestRoot | Out-Null
 try {
     $env:APPDATA = $routerTestAppData
@@ -25,8 +39,15 @@ try {
     $routerTestConfig.listen.address = "127.0.0.1:$routerTestPort"
     [IO.File]::WriteAllText($routerTestConfigPath, ($routerTestConfig | ConvertTo-Json -Depth 30))
     $routerTestFirst = Invoke-WeftoCommand -Executable $Executable -Arguments @('service', 'start')
-    if ($routerTestFirst.address -ne "127.0.0.1:$routerTestPort") { throw 'The isolated service used the wrong port.' }
+    Assert-LayoutInstance $routerTestFirst $routerTestConfig.instanceId "127.0.0.1:$routerTestPort" $routerTestConfigPath 'Initial startup'
+    $routerTestPort = ([Uri]$routerTestFirst.managementURL).Port
     $null = Invoke-WeftoCommand -Executable $Executable -Arguments @('service', 'stop')
+    if ($OccupyRestartPort) {
+        # Own the released fixture port to reproduce a competing listener
+        # deterministically, without touching any existing process.
+        $routerTestRestartOccupant = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, $routerTestPort)
+        $routerTestRestartOccupant.Start()
+    }
     # Run the page/CLI's copied restart command from a terminal with a different
     # layout. Neither layout is the real user's configuration.
     $env:APPDATA = Join-Path $routerTestRoot 'wrong-roaming'
@@ -34,13 +55,18 @@ try {
     $routerTestRestartText = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command $routerTestFirst.startCommand
     if ($LASTEXITCODE -ne 0) { throw 'Copied restart command failed.' }
     $routerTestRestart = $routerTestRestartText | ConvertFrom-Json
-    if ($routerTestRestart.address -ne "127.0.0.1:$routerTestPort" -or -not $routerTestRestart.running) { throw 'Copied restart switched to another configuration/port.' }
+    Assert-LayoutInstance $routerTestRestart $routerTestFirst.instanceId $routerTestFirst.address $routerTestConfigPath 'Copied restart'
+    if ($routerTestRestart.tokenFile -ne $routerTestFirst.tokenFile) { throw 'Copied restart switched to another configuration directory.' }
+    if ($OccupyRestartPort -and ($routerTestRestart.address -eq $routerTestFirst.address -or -not $routerTestRestartOccupant.Server.IsBound)) {
+        throw 'Copied restart did not preserve the competing listener while selecting a replacement port.'
+    }
+    $routerTestPort = ([Uri]$routerTestRestart.managementURL).Port
     if (Test-Path -LiteralPath $env:APPDATA) { throw 'Copied command initialized the wrong configuration directory.' }
     $routerTestAgainText = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command $routerTestFirst.startCommand
     if ($LASTEXITCODE -ne 0) { throw 'Repeated startup failed.' }
     $routerTestAgain = $routerTestAgainText | ConvertFrom-Json
     if ($routerTestAgain.pid -ne $routerTestRestart.pid) { throw 'Repeated startup created another instance.' }
-    Write-Host 'PASS: copied restart keeps the actual port/configuration; repeated start reuses its PID'
+    Write-Host 'PASS: copied restart preserves configuration and reports its actual port; repeated start reuses its PID'
 
     Start-WeftoProject -Executable $Executable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -NoBrowser -CheckOnly
     $routerTestConfig.listen.address = '127.0.0.1:1'
@@ -67,11 +93,14 @@ try {
     $routerTestProcess.Dispose()
     Start-WeftoProject -Executable $Executable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -NoBrowser
     $routerTestRecovered = Invoke-WeftoCommand -Executable $Executable -Arguments @('service', 'status')
+    Assert-LayoutInstance $routerTestRecovered $routerTestFirst.instanceId $routerTestRestart.address $routerTestConfigPath 'Crash recovery'
     $routerTestState = Join-Path $routerTestLocalAppData 'wefto\state'
     $routerTestArchives = @(Get-ChildItem -LiteralPath $routerTestState -Directory -Filter 'router.lock.exited-*')
-    if ($routerTestRecovered.address -ne "127.0.0.1:$routerTestPort" -or $routerTestArchives.Count -ne 1) { throw 'Crash recovery changed the port or lost the old lock.' }
-    Write-Host 'PASS: forced-exit recovery preserves the old lock and restarts on the same configured port'
+    if ($routerTestArchives.Count -ne 1) { throw 'Crash recovery lost the old lock.' }
+    Write-Host 'PASS: forced-exit recovery preserves the old lock and the selected layout, allowing a verified port fallback'
+    $routerTestPassed = $true
 } finally {
+    if ($routerTestRestartOccupant) { $routerTestRestartOccupant.Stop() }
     try {
         $env:APPDATA = $routerTestAppData
         $env:LOCALAPPDATA = $routerTestLocalAppData
@@ -81,8 +110,10 @@ try {
         $env:APPDATA = $routerTestSavedAppData
         $env:LOCALAPPDATA = $routerTestSavedLocalAppData
     }
-    if ($routerTestCleanup -and [IO.Path]::GetFullPath($routerTestRoot).StartsWith([IO.Path]::GetTempPath(), [StringComparison]::OrdinalIgnoreCase) -and
+    if ($routerTestCleanup -and $routerTestPassed -and [IO.Path]::GetFullPath($routerTestRoot).StartsWith([IO.Path]::GetTempPath(), [StringComparison]::OrdinalIgnoreCase) -and
         (Split-Path -Leaf $routerTestRoot).StartsWith('router-layout-test-')) {
         Remove-Item -LiteralPath $routerTestRoot -Recurse -Force
+    } elseif (-not $routerTestPassed) {
+        Write-Host "Failed test evidence retained: $routerTestRoot"
     }
 }

@@ -6,6 +6,8 @@
   let hosts = {}, routingGroups = [], cloudProviders = [], localModels = [], activePop = null;
   for (const [key, zh, tw, ja, de] of [
     ['Configured', '已配置', '已設定', '設定済み', 'Konfiguriert'], ['No models', '未选择模型', '未選擇模型', 'モデル未選択', 'Keine Modelle'],
+    ['Reconnect required', '需要重新连接', '需要重新連線', '再接続が必要', 'Erneut verbinden'],
+    ['Select available routing groups and models before reconnecting.', '请选择仍可用的路由组和模型后重新连接。', '請選擇仍可用的路由組和模型後重新連線。', '利用可能なグループとモデルを選択して再接続してください。', 'Verfügbare Gruppen und Modelle auswählen und erneut verbinden.'],
     ['Choose models', '选择路由组或模型', '選擇路由組或模型', 'グループまたはモデルを選択', 'Gruppen oder Modelle wählen'],
     ['Routing groups', '路由组', '路由組', 'ルーティンググループ', 'Routing-Gruppen'], ['Local models', '本地模型', '本機模型', 'ローカルモデル', 'Lokale Modelle'],
     ['Custom models', '自定义模型', '自訂模型', 'カスタムモデル', 'Eigene Modelle'], ['Create in Routing', '前往路由页创建', '前往路由頁建立', 'ルーティングで作成', 'Unter Routing erstellen'],
@@ -29,11 +31,11 @@
   ]) for (const [lang, text] of [['zh', zh], ['zh-TW', tw], ['ja', ja], ['de', de]]) (I18N[lang] ||= {})[key] = text;
 
   const dedup = (list) => { const out = [], seen = new Set(); for (const raw of list || []) { const m = String(raw || '').trim(); if (m && !seen.has(m)) { seen.add(m); out.push(m); } } return out; };
-  const appModels = (app) => Array.isArray(app?.models) && app.models.length ? dedup(app.models) : (app?.cloud?.providerId && app?.cloud?.model ? dedup([`${app.cloud.providerId}/${app.cloud.model}`]) : []);
+  const appModels = (app) => Array.isArray(app?.models) ? dedup(app.models) : (app?.cloud?.providerId && app?.cloud?.model ? dedup([`${app.cloud.providerId}/${app.cloud.model}`]) : []);
   const shortModel = (id) => { const s = String(id || '').trim(), i = s.indexOf('/'); return i > 0 ? s.slice(i + 1) : s; };
   const menuSaid = (models) => !models.length ? t('No models') : (models.length <= 2 ? models.map(shortModel).join(', ') : `${models.slice(0, 2).map(shortModel).join(', ')} +${models.length - 2}`);
   const setStatus = (msg) => { const n = $('#appStatus'); if (n && msg !== undefined) n.textContent = msg; };
-  const hostErrText = (data) => data?.error?.code === 'host_config_unavailable' ? t('Host configuration directory was not found. Launch the host application first or use setup to specify its directory.') : (data?.error?.message || t('Connection failed. Check that the service is running.'));
+  const hostErrText = (data) => data?.error?.code === 'host_config_unavailable' ? t('Host configuration directory was not found. Launch the host application first or use setup to specify its directory.') : data?.error?.code === 'host_profile_invalid' ? t('Select available routing groups and models before reconnecting.') : (data?.error?.message || t('Connection failed. Check that the service is running.'));
   const chevronRightSvg = '<svg viewBox="0 0 12 12" width="11" height="11"><path d="M4.5 2.5L8 6l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const caretDownSvg = '<svg viewBox="0 0 12 12" width="11" height="11"><path d="M3 4.5L6 7.5l3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
@@ -61,17 +63,22 @@
     try { const res = await managementFetch('/api/apps'); if (!res?.ok) return; const data = await res.json(); for (const item of data.apps || []) { const target = apps.find((a) => a.id === item.id); if (target && typeof item.revision === 'number') target.revision = item.revision; } } catch {}
   }
   function enqueueSave(app) {
-    const id = app.id, snapshot = [...appModels(app)];
+    const id = app.id, snapshot = [...appModels(app)], seq = app.editSeq;
     savingCount[id] = (savingCount[id] || 0) + 1;
     saveQueues[id] = (saveQueues[id] || Promise.resolve()).catch(() => {}).then(async () => {
+      const previous = [...(app.savedModels || [])];
+      const failed = (data) => { if (app.editSeq === seq) app.models = previous; setStatus(`${app.name}: ${hostErrText(data)}`); updateRowState(app); activePop?.paint(); };
       if (app.enabled) {
         if (!snapshot.length) {
-          await managementFetch('/api/hosts/auto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ host: id, enabled: false, action: 'disconnect' }) });
-          app.enabled = false; await syncRevisions(); updateRowState(app); return;
+          const res = await managementFetch('/api/hosts/auto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ host: id, enabled: false, action: 'disconnect', models: [] }) });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) { failed(data); return; }
+          app.enabled = false; app.savedModels = []; app.needsReconnect = false; await syncRevisions(); updateRowState(app); return;
         } else {
           const res = await managementFetch('/api/hosts/auto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ host: id, enabled: true, models: snapshot }) });
           const data = await res.json().catch(() => ({}));
-          if (!res.ok) { setStatus(`${app.name}: ${hostErrText(data)}`); return; }
+          if (!res.ok) { failed(data); return; }
+          app.savedModels = snapshot; app.needsReconnect = false;
           await syncRevisions(); setStatus(`${app.name}: ${t('Connected')} · ${snapshot[0]}`); updateRowState(app); return;
         }
       }
@@ -79,9 +86,9 @@
         const body = { id, revision: Number(app.revision) || 0, name: app.name, enabled: false, models: snapshot, cloud: { providerId: '', model: '' }, credentialMode: app.credentialMode || 'stored', redactionEnabled: Boolean(app.redactionEnabled), referencePrice: app.referencePrice || null };
         const res = await managementFetch('/api/apps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const data = await res.json().catch(() => ({}));
-        if (res.ok && data.app) { app.revision = data.app.revision; updateRowState(app); return; }
+        if (res.ok && data.app) { app.revision = data.app.revision; app.savedModels = snapshot; updateRowState(app); return; }
         if (res.status === 409 && attempt === 0) { await syncRevisions(); continue; }
-        if (data?.error?.message) setStatus(`${app.name}: ${data.error.message}`);
+        failed(data);
         return;
       }
     }).finally(() => { savingCount[id] = Math.max(0, (savingCount[id] || 1) - 1); });
@@ -210,16 +217,18 @@
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { app.enabled = !wantOn; setStatus(`${app.name}: ${hostErrText(data)}`); updateRowState(app); return; }
       app.enabled = wantOn;
+      app.needsReconnect = false;
       if (data?.host) hosts[app.id] = data.host;
       const rm = data?.models || data?.host?.models;
       if (wantOn && Array.isArray(rm) && rm.length) app.models = dedup(rm);
+      app.savedModels = [...appModels(app)];
       await syncRevisions();
       setStatus(wantOn ? `${app.name}: ${t('Connected')} · ${appModels(app)[0] || ''}` : `${app.name}: ${t('Disconnected and restored original host configuration.')}`);
       updateRowState(app);
     } finally { if (sw) sw.disabled = false; }
   }
 
-  const stateLabel = (isOn, models) => isOn ? (models[0] ? `${t('Connected')} · ${models[0]}` : t('Connected')) : (models.length ? `${t('Configured')} · ${models[0]}` : t('Not connected yet'));
+  const stateLabel = (isOn, models, needsReconnect) => needsReconnect ? t('Reconnect required') : isOn ? (models[0] ? `${t('Connected')} · ${models[0]}` : t('Connected')) : (models.length ? `${t('Configured')} · ${models[0]}` : t('Not connected yet'));
 
   function buildExpandPanel(app, sw, menuBtn) {
     const exp = el('div', 'ag-exp'), grid = el('div', 'ag-settings'), models = appModels(app), selSet = new Set(models);
@@ -248,7 +257,7 @@
     grid.append(el('span', 'ag-k', t('New sessions')), defVal);
 
     const foot = el('div', 'ag-foot'), h = hosts[app.id] || {}, cfgPath = h.configPath || h.configRoot || h.path || '';
-    const footText = app.enabled && cfgPath ? t('Modified {path}').replace('{path}', cfgPath) : (cfgPath || stateLabel(Boolean(app.enabled), models));
+    const footText = app.enabled && cfgPath ? t('Modified {path}').replace('{path}', cfgPath) : (cfgPath || stateLabel(Boolean(app.enabled), models, app.needsReconnect));
     foot.append(el('span', 'mono', footText));
     if (app.enabled) {
       const disc = el('button', 'ag-quiet red', t('Disconnect & restore')); disc.type = 'button';
@@ -264,7 +273,7 @@
     const isOn = Boolean(app.enabled), open = expandedApps.has(app.id), models = appModels(app), state = row.querySelector('.router-state'), sw = row.querySelector('.lib-switch.ag-conn');
     row.classList.toggle('off', !isOn);
     row.classList.toggle('open', open);
-    if (state) { state.className = 'router-state' + (isOn ? ' ok' : ''); state.textContent = stateLabel(isOn, models); }
+    if (state) { state.className = 'router-state' + (isOn ? ' ok' : ''); state.textContent = stateLabel(isOn, models, app.needsReconnect); }
     const db = row.querySelector('.ag-link'); if (db) fillDetailButton(db, open);
     const mb = row.querySelector('.field.ag-menu'); if (mb) fillMenuButton(mb, app);
     if (sw) { sw.classList.toggle('on', isOn); sw.setAttribute('aria-checked', String(isOn)); }
@@ -284,7 +293,7 @@
       const isOn = Boolean(app.enabled), open = expandedApps.has(app.id), models = appModels(app);
       const row = el('div', 'row agent conn' + (isOn ? '' : ' off') + (open ? ' open' : '')); row.dataset.app = app.id;
       const ic = el('span', 'ic'), img = el('img'); img.src = '/icons/' + (icons[app.id] || 'loomy.png'); img.alt = ''; ic.append(img);
-      const who = el('div', 'who'), sub = el('div', 'sub'), state = el('span', 'router-state' + (isOn ? ' ok' : ''), stateLabel(isOn, models));
+      const who = el('div', 'who'), sub = el('div', 'sub'), state = el('span', 'router-state' + (isOn ? ' ok' : ''), stateLabel(isOn, models, app.needsReconnect));
       sub.append(state); who.append(el('div', 'name', app.name), sub);
       const fields = el('div', 'fields'), detailBtn = el('button', 'ag-link'), menuBtn = el('button', 'field solo ag-menu');
       detailBtn.type = 'button'; fillDetailButton(detailBtn, open);
@@ -320,9 +329,9 @@
     for (const target of apps) {
       const a = byId.get(target.id); if (typeof a?.revision === 'number') target.revision = a.revision;
       if ((target.editSeq || 0) !== seqBefore[target.id] || savingCount[target.id] > 0) continue;
-      const h = hosts[target.id], connected = Boolean(h ? (h.connected || h.enabled) : a?.enabled);
-      const models = dedup(connected && h?.models?.length ? h.models : (Array.isArray(a?.models) && a.models.length ? a.models : (h?.models?.length ? h.models : appModels(a || target))));
-      Object.assign(target, a || {}, { enabled: connected, models: models.length ? models : target.models });
+      const h = hosts[target.id], connected = Boolean(h ? h.connected : a?.enabled && a?.configured);
+      const models = dedup(a ? appModels(a) : (h?.models || []));
+      Object.assign(target, a || {}, { enabled: connected, models, savedModels: [...models], needsReconnect: Boolean(h?.needsReconnect) });
     }
     renderRows(); if (activePop) activePop.paint();
   }

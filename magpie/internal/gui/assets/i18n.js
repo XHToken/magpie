@@ -4,6 +4,7 @@
 // works. {name} slots are filled by t(str, vars).
 const I18N = {
   zh: {
+    "Edge-cloud": "端云协同",
     "Check again": "重新检测",
     "Manage": "管理",
     "Manage agents": "批量管理",

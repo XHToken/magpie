@@ -192,8 +192,8 @@ func TestVRAMRecommendationNeedsBackendForSameAdapter(t *testing.T) {
 	}
 	s = fixture("darwin", 16*GiB)
 	s.Backends = Known([]Backend{{Kind: CPU, State: Available}, {Kind: Metal, State: UnknownAvailability}})
-	if r := Evaluate(s, fixtureRequirements); r.Detection.State != CheckUnknown {
-		t.Fatalf("CPU masked unknown Metal: %+v", r)
+	if r := Evaluate(s, fixtureRequirements); r.Detection.State != CheckPassed {
+		t.Fatalf("Apple CPU fallback was blocked by unknown Metal: %+v", r)
 	}
 }
 

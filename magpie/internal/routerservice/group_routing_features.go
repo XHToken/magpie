@@ -61,19 +61,15 @@ func bareMember(ref string) string {
 	if subID, ok := routerconfig.GroupIDOf(ref); ok {
 		return routerconfig.GroupPrefix + subID
 	}
-	if idx := strings.IndexByte(ref, ':'); idx > 0 {
-		return ref[:idx]
+	if bare, _, ok := routerconfig.SplitMemberEffort(ref); ok {
+		return bare
 	}
 	return ref
 }
 
 func memberInlineEffort(ref string) string {
-	ref = strings.TrimSpace(ref)
-	if _, ok := routerconfig.GroupIDOf(ref); ok {
-		return ""
-	}
-	if idx := strings.IndexByte(ref, ':'); idx > 0 && idx+1 < len(ref) {
-		return strings.ToLower(strings.TrimSpace(ref[idx+1:]))
+	if _, effort, ok := routerconfig.SplitMemberEffort(ref); ok {
+		return effort
 	}
 	return ""
 }
@@ -463,7 +459,8 @@ func promoteRuleTarget(target string, members []string, all []routerconfig.Group
 	if subID, ok := routerconfig.GroupIDOf(target); ok {
 		for _, subGrp := range all {
 			if strings.EqualFold(subGrp.ID, subID) || routerconfig.GroupSlug(subGrp.ID) == routerconfig.GroupSlug(subID) {
-				subMembers := routerconfig.ExpandGroupMembers(subGrp, all)
+				subGrp.Off = append(append([]string(nil), subGrp.Off...), off...)
+				subMembers := expandActiveGroupMembers(subGrp, all, nil)
 				var head, rest []string
 				for _, sm := range subMembers {
 					if !isMemberOff(off, sm) {
@@ -478,8 +475,10 @@ func promoteRuleTarget(target string, members []string, all []routerconfig.Group
 				if len(head) > 0 {
 					return append(head, rest...)
 				}
+				return members
 			}
 		}
+		return members
 	}
 	targetBare := bareMember(target)
 	idx := slices.IndexFunc(members, func(m string) bool {

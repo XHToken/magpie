@@ -227,7 +227,7 @@ func (e Executor) executeWithPrepared(parent context.Context, w http.ResponseWri
 		return out, failure("invalid_target", "invalid cloud credential or session identifier", 503)
 	}
 	for key, value := range p.Headers {
-		if forbiddenHeader(key) || !validHeaderName(key) || strings.ContainsAny(value, "\r\n\x00") {
+		if routerconfig.ReservedCloudHeader(key) || !validHeaderName(key) || strings.ContainsAny(value, "\r\n\x00") {
 			return out, failure("invalid_target", "invalid cloud header", 503)
 		}
 	}
@@ -512,14 +512,6 @@ func PrepareRequestBody(in Request, countTokens bool) (PreparedRequest, error) {
 	return PreparedRequest{protocol: in.Protocol, sourceBody: source, body: body, target: in.Target, countTokens: countTokens, valid: true}, nil
 }
 
-func forbiddenHeader(key string) bool {
-	switch strings.ToLower(key) {
-	case "host", "content-length", "connection", "transfer-encoding", "upgrade", "proxy-authorization", "proxy-connection", "cookie", "set-cookie", "trailer", "te", "content-type", "accept-encoding":
-		return true
-	}
-	return false
-}
-
 func validHeaderName(key string) bool {
 	if key == "" {
 		return false
@@ -540,8 +532,7 @@ func extraBody(body []byte, extra map[string]json.RawMessage, session string) ([
 	}
 	for key, raw := range extra {
 		// These fields select a target or change which conversation is sent.
-		switch strings.ToLower(strings.TrimPrefix(key, "!")) {
-		case "model", "models", "stream", "messages", "input", "contents", "instructions", "system", "systeminstruction", "system_instruction", "tools", "tool_choice", "functions", "function_call", "previous_response_id", "conversation", "background", "store", "modalities", "audio", "image", "images", "video", "web_search_options", "web_search", "plugins", "mcp_servers", "prompt", "tool_resources", "data_sources", "attachments", "file_ids", "provider", "route", "fallback", "fallbacks", "routing":
+		if routerconfig.ReservedCloudBodyField(key) {
 			return nil, failure("invalid_target", "cloud options cannot override conversation or target", 503)
 		}
 		if strings.HasPrefix(key, "!") || !json.Valid(raw) {

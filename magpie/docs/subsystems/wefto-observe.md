@@ -44,8 +44,8 @@ A deferred `End("interrupted", ...)` is a fallback: the first finish wins and
 subsequent calls return the same persistence result. Nil watches are safe no-ops.
 A failed `Begin` returns no watch and its error; no persistence success is claimed.
 
-`Observe(routercloud.Event)` takes a short mutex and keeps at most two attempts in
-memory. It performs no serialization, disk access, queries or goroutine creation.
+`Observe(routercloud.Event)` takes a short mutex and keeps at most `routerledger.MaxAttempts` (16) attempts in
+memory (up to two attempts per single-target cloud executor, or bounded multi-member/patience retries across a routing group). It performs no serialization, disk access, queries or goroutine creation.
 When the sink implements `Progress`, the callback sends only a bounded safe
 progress projection to the store's separate memory lock, outside the adapter lock.
 Management reads can therefore see actual dispatch count and first output while a

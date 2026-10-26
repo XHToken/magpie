@@ -24,6 +24,7 @@ func Run(args []string, stderr io.Writer, exit func(int)) int {
 	flags.Int("parallel", 1, "slots")
 	flags.Int("cache-reuse", 256, "KV reuse configuration")
 	flags.Int("n-gpu-layers", 0, "GPU layers")
+	flags.String("device", "none", "fixture accelerator device")
 	flags.Bool("jinja", true, "template")
 	startFail := flags.Bool("fake-start-fail", false, "exit before listening")
 	unhealthy := flags.Bool("fake-unhealthy", false, "stay loading")

@@ -29,6 +29,7 @@ const (
 // Paths describe the installed execution tree; hashes and versions must come
 // from the catalog, never a receipt generated from the local files themselves.
 type DependencySpec struct {
+	MixedVersions             bool
 	ID, Version, Architecture string
 	Files                     []DependencyFile
 }
@@ -99,7 +100,11 @@ func ValidateDependencies(ctx context.Context, executable string, spec *Dependen
 			return dependencyError(DependencyLayoutCode, errors.New("dependencies must have unique names directly beside the executable"))
 		}
 		names[name], paths[pathKey] = true, true
-		if item.Size <= 0 || item.Size > maxDependencyFileBytes || len(item.SHA256) != 64 {
+		maximum := int64(maxDependencyFileBytes)
+		if spec.MixedVersions {
+			maximum = 512 << 20
+		}
+		if item.Size <= 0 || item.Size > maximum || len(item.SHA256) != 64 {
 			return dependencyError(DependencyLayoutCode, errors.New("invalid dependency size or SHA256 metadata"))
 		}
 		if _, err := hex.DecodeString(item.SHA256); err != nil {
@@ -109,7 +114,7 @@ func ValidateDependencies(ctx context.Context, executable string, spec *Dependen
 		if err != nil {
 			return dependencyError(DependencyVersionCode, err)
 		}
-		if item.Version != spec.Version {
+		if !spec.MixedVersions && item.Version != spec.Version {
 			return dependencyError(DependencyVersionCode, errors.New("dependency file version differs from its runtime dependency set"))
 		}
 		if err := validateDependencyFile(ctx, path, item, wantVersion); err != nil {
@@ -276,7 +281,20 @@ func dependencyVersion(value string) ([4]uint16, error) {
 
 func dependencyLaunch(ctx context.Context, s Spec) (string, []string, error) {
 	if s.RuntimeDependencies == nil {
-		return "", append(os.Environ(), s.Env...), nil
+		var env []string
+		for _, entry := range os.Environ() {
+			key, _, _ := strings.Cut(entry, "=")
+			if !acceleratorEnvironmentKey(key) {
+				env = append(env, entry)
+			}
+		}
+		for _, entry := range s.Env {
+			key, _, _ := strings.Cut(entry, "=")
+			if acceleratorEnvironmentKey(key) {
+				return "", nil, dependencyError(DependencyLayoutCode, errors.New("explicit environment cannot override the fixed runtime plan"))
+			}
+		}
+		return filepath.Dir(s.Executable), append(env, s.Env...), nil
 	}
 	if err := ValidateDependencies(ctx, s.Executable, s.RuntimeDependencies); err != nil {
 		return "", nil, err
@@ -290,7 +308,14 @@ func dependencyLaunch(ctx context.Context, s Spec) (string, []string, error) {
 
 func dependencyLoaderKey(key string) bool {
 	key = strings.ToUpper(key)
-	return key == "PATH" || key == "SYSTEMROOT" || key == "WINDIR" || key == "GGML_BACKEND_PATH" || strings.HasPrefix(key, "LLAMA_ARG_")
+	return key == "PATH" || key == "SYSTEMROOT" || key == "WINDIR" || acceleratorEnvironmentKey(key)
+}
+
+func acceleratorEnvironmentKey(key string) bool {
+	key = strings.ToUpper(key)
+	return strings.HasPrefix(key, "LLAMA_ARG_") || strings.HasPrefix(key, "GGML_") ||
+		strings.HasPrefix(key, "DYLD_") || key == "LD_LIBRARY_PATH" || key == "LD_PRELOAD" ||
+		key == "CUDA_VISIBLE_DEVICES" || key == "CUDA_DEVICE_ORDER" || key == "VK_ICD_FILENAMES" || key == "VK_DRIVER_FILES" || key == "VK_ADD_DRIVER_FILES" || key == "VK_LAYER_PATH"
 }
 
 func dependencyEnvironment(base, extra []string, systemDir, windowsDir string) ([]string, error) {

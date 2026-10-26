@@ -43,7 +43,7 @@ func (m *Manager) SnapshotBinding(ctx context.Context) (LocalCallIdentity, route
 	if err != nil {
 		return LocalCallIdentity{}, s
 	}
-	return LocalCallIdentity{ModelID: model.ID, ModelFingerprint: model.Fingerprint(runtime), RuntimeID: runtime.ID, RuntimeFingerprint: RuntimeFingerprint(runtime)}, s
+	return LocalCallIdentity{ExecutionPlan: runtime.Execution, ModelID: model.ID, ModelFingerprint: model.Fingerprint(runtime), RuntimeID: runtime.ID, RuntimeFingerprint: RuntimeFingerprint(runtime)}, s
 }
 
 func (m *Manager) EffectiveSettings() routerconfig.RuntimeSettings {

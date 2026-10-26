@@ -52,6 +52,13 @@ func validateModelHeaders(header http.Header, protocol string) error {
 // executePreparedModel is shared by actual application requests and explicit
 // editor connection checks. B alone decides retry eligibility and waiting.
 func executePreparedModel(w http.ResponseWriter, prepared *http.Request, sub string, body []byte, options ModelOptions) (routercloud.Result, error) {
+	if input, ok := parseLoomyTitle(prepared, sub, body); ok {
+		return executeLoomyTitle(w, prepared, sub, body, input, options)
+	}
+	return executePreparedModelBody(w, prepared, sub, body, options)
+}
+
+func executePreparedModelBody(w http.ResponseWriter, prepared *http.Request, sub string, body []byte, options ModelOptions) (routercloud.Result, error) {
 	ctx, options := snapshotRuntimeSettings(prepared.Context(), options)
 	prepared = prepared.WithContext(ctx)
 	state, _ := routerrequest.FromContext(prepared.Context())
@@ -84,6 +91,9 @@ func executePreparedModel(w http.ResponseWriter, prepared *http.Request, sub str
 		}
 	}
 	writer := &modelWriter{ResponseWriter: w, commit: func() {
+		if options.bufferOutput {
+			return
+		}
 		// Bound a blocked downstream write/flush as well as upstream work.
 		// net/http clears this deadline after finishing the response.
 		_ = controller.SetWriteDeadline(state.Deadline)

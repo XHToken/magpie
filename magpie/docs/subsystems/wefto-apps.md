@@ -23,7 +23,8 @@ streamlined `#view-agents` UI for one-click Loomy and WorkBuddy integration.
     `selectSmartSplitOrder`, `selectGroupCandidates`, `matchGroupRule`
   - `routing.go`: `executeRoute`, `resolveAppRoute`, `decideRoute`
   - `apps.go`: `handleApps`, `handleAppByID`, `handleAppCheck`
-  - `hosts.go`: `handleHosts`, `handleHostsAuto`
+  - `host_auto.go`: `hostAutoAPI`, `inspectAutoHosts`, `syncAutoHostStore`
+  - `loomy.go`: `loomyHostAPI`, `autoHostConfigRoot`
 - Frontend UI (`internal/routerservice/assets/`):
   - `profiles.js`: `#view-agents` two-row agent connection list (`loomy` and
     `workbuddy`), multi-select model/group picker (`.field.solo.ag-menu` +
@@ -37,8 +38,9 @@ streamlined `#view-agents` UI for one-click Loomy and WorkBuddy integration.
 
 `routerconfig.AppProfile` is stored at `apps[id]` in `config.json`:
 
-- `Enabled bool`: controls whether the application profile is active (defaults
-  to `true` when omitted in JSON).
+- `Enabled bool`: controls whether the application profile is active. A saved
+  JSON record that omits this field is inactive (`false`); new profile creation
+  applies its own defaults through the save path.
 - `Models []string`: ordered list of target model/group references bound to the
   agent. Each entry supports three formats:
   - `<providerId>/<model>`: explicit cloud provider and model ID
@@ -57,6 +59,14 @@ streamlined `#view-agents` UI for one-click Loomy and WorkBuddy integration.
   upstream network probes.
 
 ### Routing Groups & Runtime Scheduling (`group_routing.go`)
+
+Runtime expansion uses `routerconfig.ExpandActiveGroupMembers`: disabled and
+hidden groups are excluded, and each group's `Off` exclusions apply throughout
+its descendants. Rule targets use the same expansion, so promoting a nested
+group cannot re-enable an excluded member. A rule targeting an unavailable or
+empty group retains the existing active candidates. `ExpandGroupMembers`
+continues to provide the complete member list for configuration and catalog
+views, including members whose switches are off.
 
 `GET /api/routing-groups` returns `{ groups, effectiveGroups, catalogModels }`
 combining saved groups (`Config.Groups`) with cross-provider auto-merged groups
@@ -108,3 +118,9 @@ coding agents (`loomy` and `workbuddy`):
   connected) persists the `AppProfile` (`POST /api/apps`) and invokes
   `POST /api/hosts/auto` (`action: "connect"` or `"disconnect"`) to synchronize
   or restore the host configuration files without blocking upstream probes.
+
+Connection status requires agreement between the enabled Profile and actual
+host files. Stale model lists with empty, disabled or mismatched Profiles require
+reconnection. Failed host saves restore the previous UI selection; an explicitly
+empty Profile stays empty. Validation and host/Profile rollback are documented
+in [Loomy integration](wefto-loomy.md).

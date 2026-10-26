@@ -97,7 +97,7 @@ func Begin(sink Sink, metadata routerledger.Metadata) (*Request, error) {
 	return &Request{sink: sink, metadata: metadata, done: make(chan struct{})}, nil
 }
 
-// Observe keeps at most two attempts in memory and performs no I/O. Result's
+// Observe keeps at most routerledger.MaxAttempts attempts in memory and performs no I/O. Result's
 // final summaries are authoritative; these events also cover an early End.
 func (r *Request) Observe(e routercloud.Event) {
 	if r == nil {
@@ -135,7 +135,7 @@ func (r *Request) Observe(e routercloud.Event) {
 		changed = true
 		return
 	}
-	if e.Attempt < 1 || e.Attempt > 2 {
+	if e.Attempt < 1 || e.Attempt > routerledger.MaxAttempts {
 		return
 	}
 	switch e.Kind {
@@ -219,7 +219,7 @@ func (r *Request) finish(result routercloud.Result, err error, status, code, sta
 		observedAttempts := attempts
 		attempts = nil
 		for _, a := range result.AttemptDetails {
-			if len(attempts) == 2 {
+			if len(attempts) == routerledger.MaxAttempts {
 				break
 			}
 			attemptCommitted := a.OutputCommitted
@@ -233,7 +233,7 @@ func (r *Request) finish(result routercloud.Result, err error, status, code, sta
 	// The public Result count is actual dispatch count. Event fallback is useful
 	// to an HTTP owner ending while it has no returned Result yet.
 	if result.Attempts > count {
-		count = min(result.Attempts, 2)
+		count = min(result.Attempts, routerledger.MaxAttempts)
 	}
 	code = routerledger.SafeCode(code)
 	if code == "" {

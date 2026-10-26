@@ -3,11 +3,14 @@ package routerservice
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/yetone/magpie/internal/routerconfig"
@@ -165,6 +168,86 @@ func TestLoomyHostAPIRejectsUnsafeRequestsWithoutWrites(t *testing.T) {
 				t.Fatal("GET did not advertise the explicit POST operation")
 			}
 			f.unchanged(t, w)
+		})
+	}
+}
+
+func TestLoomyHostAPICheckAndApplyRejectIncompatibleProtocolTargets(t *testing.T) {
+	for _, protocol := range []string{"responses", "anthropic", "chat"} {
+		t.Run(protocol, func(t *testing.T) {
+			var calls atomic.Int32
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				w.Header().Set("Content-Type", "application/json")
+				io.WriteString(w, cloudHTTPReply(protocol, false))
+			}))
+			defer upstream.Close()
+			f := newLoomyAPIFixture(t)
+			layout, _ := fixture(t)
+			store := routerconfig.New(layout)
+			in := providerInputFor(upstream.URL + "/v1")
+			in.Protocol = protocol
+			key := "loomy-upstream-key"
+			in.APIKey = &key
+			p, err := store.SaveCloudProvider(in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := store.SaveApp(routerconfig.AppEdit{
+				ID: "loomy", Name: "Loomy", CredentialMode: "stored",
+				Cloud: routerconfig.AppCloud{ProviderID: p.ID, Model: "vendor/model.v1"},
+			}); err != nil {
+				t.Fatal(err)
+			}
+			f.config = layout.ConfigFile()
+			f.configRaw, _ = os.ReadFile(f.config)
+			var routerSrv *httptest.Server
+			routerSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				u, _ := url.Parse(routerSrv.URL)
+				h := handlerWithModelOptions(Info{Service: "api-router", Address: u.Host}, f.token, store, ModelOptions{HostStateDir: f.state})
+				h.ServeHTTP(w, r)
+			}))
+			defer routerSrv.Close()
+			u, _ := url.Parse(routerSrv.URL)
+			postLoomy := func(body map[string]any) (int, []byte) {
+				raw, _ := json.Marshal(body)
+				r := httptest.NewRequest("POST", routerSrv.URL+"/api/hosts/loomy", bytes.NewReader(raw))
+				r.RemoteAddr = "127.0.0.1:1234"
+				r.Header.Set("Content-Type", "application/json")
+				r.Header.Set("Authorization", "Bearer "+f.token)
+				w := httptest.NewRecorder()
+				h := handlerWithModelOptions(Info{Service: "api-router", Address: u.Host}, f.token, store, ModelOptions{HostStateDir: f.state})
+				h.ServeHTTP(w, r)
+				return w.Code, w.Body.Bytes()
+			}
+
+			code, previewBytes := postLoomy(f.body("preview"))
+			if code != 200 {
+				t.Fatalf("preview: %d %s", code, previewBytes)
+			}
+			var prev struct{ Digest string }
+			if err := json.Unmarshal(previewBytes, &prev); err != nil {
+				t.Fatal(err)
+			}
+			code, checkBytes := postLoomy(f.body("check"))
+			if protocol == "chat" {
+				if code != 200 || calls.Load() != 1 {
+					t.Fatalf("expected chat check 200 with 1 upstream call, got %d (%s) calls=%d", code, checkBytes, calls.Load())
+				}
+				f.unchanged(t, nil)
+				return
+			}
+			if code != 409 || calls.Load() != 0 {
+				t.Fatalf("expected incompatible %s check 409 with 0 upstream calls, got %d (%s) calls=%d", protocol, code, checkBytes, calls.Load())
+			}
+			f.unchanged(t, nil)
+			applyBody := f.body("apply")
+			applyBody["digest"] = prev.Digest
+			code, applyBytes := postLoomy(applyBody)
+			if code != 409 || calls.Load() != 0 {
+				t.Fatalf("expected incompatible %s apply 409 with 0 upstream calls, got %d (%s) calls=%d", protocol, code, applyBytes, calls.Load())
+			}
+			f.unchanged(t, nil)
 		})
 	}
 }

@@ -38,7 +38,7 @@ func TestExperimentalRedactionRequiresStartupChoiceAndExactBinding(t *testing.T)
 			if _, err := ordinary.NewExperimentalRedactionInvoker(fingerprint, experimentalFixtureSuite()); !errors.Is(err, ErrCapability) {
 				t.Fatal("ordinary startup admitted an experimental handle", err)
 			}
-			if ordinary.o.RedactionBudget != 15*time.Second || factory.count.Load() != 0 {
+			if ordinary.o.RedactionBudget != 30*time.Second || factory.count.Load() != 0 {
 				t.Fatal("ordinary startup changed its budget or loaded a model")
 			}
 			m, _, factory, _ := managerFixture(t, func(o *Options, _ *fixtureInstaller, _ *fixtureFactory) {
@@ -62,7 +62,7 @@ func TestExperimentalRedactionRequiresStartupChoiceAndExactBinding(t *testing.T)
 					t.Fatal("experimental invocation admitted another purpose", p, err)
 				}
 			}
-			for _, suite := range []string{"", "privacy-trial-v1:", "privacy-go-v5:" + strings.Repeat("a", 64), experimentalRedactionSuitePrefix + strings.Repeat("a", 63), experimentalRedactionSuitePrefix + strings.Repeat("A", 64), experimentalFixtureSuite() + " ", experimentalFixtureSuite() + "a"} {
+			for _, suite := range []string{"", "privacy-trial-v2:", "privacy-trial-v1:" + strings.Repeat("a", 64), "privacy-go-v6:" + strings.Repeat("a", 64), experimentalRedactionSuitePrefix + strings.Repeat("a", 63), experimentalRedactionSuitePrefix + strings.Repeat("A", 64), experimentalFixtureSuite() + " ", experimentalFixtureSuite() + "a"} {
 				if _, err := m.NewExperimentalRedactionInvoker(fingerprint, suite); !errors.Is(err, ErrCapability) {
 					t.Fatal("experimental handle accepted an incomplete or different suite", err)
 				}

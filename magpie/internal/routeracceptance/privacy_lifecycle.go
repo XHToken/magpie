@@ -106,9 +106,9 @@ func runPrivacyLifecycleWith(parent context.Context, generate privacyRoundtripGe
 		return report, fail("privacy_lifecycle_runtime_state")
 	}
 	in := routerredact.Extraction{Versions: spec.Versions(), Texts: []string{"姓名：李芳"}}
-	// Every diagnostic generation gets at most the existing 15-second request
+	// Every diagnostic generation gets at most the specification's request
 	// budget. Recovery calls are distinct requests, never renewed batches.
-	cancelCtx, cancel := context.WithTimeout(parent, 15*time.Second)
+	cancelCtx, cancel := context.WithTimeout(parent, spec.Budget())
 	defer cancel()
 	body, err := spec.Build(cancelCtx, in)
 	if err != nil {
@@ -264,7 +264,7 @@ func privacyLifecycleRawWriter(directory, name string) (io.Writer, func(), error
 
 func privacyLifecycleRecover(parent context.Context, generate privacyRoundtripGenerate, status func() routerruntime.Status, spec *routerredact.PrivacySpecification, in routerredact.Extraction, directory, filename string, pid int) (report privacyLifecycleRecoveryEvidence, result error) {
 	started := time.Now()
-	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
+	ctx, cancel := context.WithTimeout(parent, spec.Budget())
 	defer cancel()
 	var timing routerruntime.GenerationDiagnostics
 	defer func() {

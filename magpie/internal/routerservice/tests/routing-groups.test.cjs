@@ -139,10 +139,12 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   assert.equal(await autoCard.locator('[data-member="openai/deepseek-chat"]').isVisible(), true);
   assert.equal(await autoCard.locator('[data-member="deepseek/deepseek-chat"]').isVisible(), true);
 
-  // 2. 新建端云混合路由组 + 智能默认策略测试
+  // 2. 新建端云混合路由组 + 智能默认策略 + 本地模型脱敏选项测试
   await page.locator('#newRoutingGroupBtn').click();
   await page.locator('#routingGroupModal').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#routingGroupModal [data-rg-strategy="smart_hybrid"]').evaluate(node => node.classList.contains('on')), true);
+  assert.equal(await page.locator('#rgLocalRedactionLabel').isHidden(), true);
+  assert.equal(await page.locator('#rgLocalRedactionSection').isHidden(), true);
 
   await page.locator('#rgName').fill('Hybrid Coding');
   assert.equal(await page.locator('#rgCallBadge').textContent(), 'group/hybrid-coding');
@@ -154,8 +156,22 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   await localCand.waitFor({ state: 'visible' });
   await cloudCand.waitFor({ state: 'visible' });
 
-  await localCand.click();
   await cloudCand.click();
+  assert.equal(await page.locator('#rgLocalRedactionLabel').isHidden(), true);
+  await localCand.click();
+  await page.locator('#rgAddModelBtn').click();
+  await page.locator('#rgModelPicker').waitFor({ state: 'hidden' });
+
+  // Adding a local/* model reveals the "本地模型脱敏" row with "开" and "关" options
+  await page.locator('#rgLocalRedactionLabel').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#rgLocalRedactionLabel').textContent(), '本地模型脱敏');
+  const redactOnBtn = page.locator('#rgLocalRedactionSection [data-rg-local-redaction="1"]');
+  const redactOffBtn = page.locator('#rgLocalRedactionSection [data-rg-local-redaction="0"]');
+  assert.equal(await redactOnBtn.textContent(), '开');
+  assert.equal(await redactOffBtn.textContent(), '关');
+  assert.equal(await redactOffBtn.evaluate(node => node.classList.contains('on')), true);
+  await redactOnBtn.click();
+  assert.equal(await redactOnBtn.evaluate(node => node.classList.contains('on')), true);
 
   // Smart hybrid is the explicit default for a new mixed local/cloud group.
   assert.equal(await page.locator('#routingGroupModal [data-rg-strategy="smart_hybrid"]').evaluate(node => node.classList.contains('on')), true);
@@ -168,7 +184,8 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   assert.ok(createCall, 'expected POST /api/routing-groups');
   assert.equal(createCall.body.id, 'hybrid-coding');
   assert.equal(createCall.body.routing, 'smart_hybrid');
-  assert.deepEqual(createCall.body.members, ['local/spark-x2.5-1.7b', 'openai/gpt-4o']);
+  assert.equal(createCall.body.localRedaction, true);
+  assert.deepEqual(createCall.body.members, ['openai/gpt-4o', 'local/spark-x2.5-1.7b']);
 
   const hybridCard = page.locator('#customRoutingGroupsList .rt-group-card[data-group-id="hybrid-coding"]');
   await hybridCard.waitFor({ state: 'visible' });
@@ -198,9 +215,10 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   await hybridCard.locator('[data-rg-toggle="hybrid-coding"]').click();
   await page.waitForFunction(() => !document.querySelector('#customRoutingGroupsList .rt-group-card[data-group-id="hybrid-coding"]')?.classList.contains('is-disabled'));
 
-  // 设为 manual 策略后在列表中点击切换 active 成员
+  // 设为 manual 策略后在列表中点击切换 active 成员（同时验证编辑态下本地模型脱敏保持“开”）
   await hybridCard.locator('[data-rg-edit="hybrid-coding"]').click();
   await page.locator('#routingGroupModal').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#rgLocalRedactionSection [data-rg-local-redaction="1"]').evaluate(node => node.classList.contains('on')), true);
   await page.locator('#routingGroupModal [data-rg-strategy="manual"]').click();
   await page.locator('#rgSaveBtn').click();
   await page.locator('#routingGroupModal').waitFor({ state: 'hidden' });
@@ -243,6 +261,16 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   await page.waitForFunction(() => !document.querySelector('#customRoutingGroupsList .rt-group-card[data-group-id="hybrid-coding"]'));
   const deleteCall = apiCalls.find(c => c.method === 'DELETE' && c.path === '/api/routing-groups?id=hybrid-coding');
   assert.ok(deleteCall, 'expected DELETE /api/routing-groups?id=hybrid-coding');
+
+  // 6. 模型服务商页「本地端侧模型」图标渲染验证
+  await page.goto(`http://${address}/?locale=zh&view=providers`);
+  const localProviderIcon = page.locator('#localProviders .row.local-provider .ic img').first();
+  await localProviderIcon.waitFor({ state: 'visible' });
+  assert.equal(await localProviderIcon.getAttribute('src'), '/icons/spark-color.svg');
+  await page.waitForFunction(() => {
+    const img = document.querySelector('#localProviders .row.local-provider .ic img');
+    return Boolean(img && img.complete && img.naturalWidth > 0);
+  });
 
   assert.deepEqual(pageErrors, []);
 });

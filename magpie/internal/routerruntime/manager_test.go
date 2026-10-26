@@ -463,6 +463,53 @@ func TestExecutionQueueBudgetIsNotGenerationBudget(t *testing.T) {
 	}
 }
 
+func TestAutoEnableSelectedCannotClearExplicitDisable(t *testing.T) {
+	m, _, factory, _ := managerFixture(t, nil)
+	if err := m.Disable(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.AutoEnableSelected(context.Background(), "spark-x2.5-1.7B"); !errors.Is(err, ErrDisabled) {
+		t.Fatalf("startup cleared explicit disable: %v", err)
+	}
+	if status := m.Status(); status.Intent.Enabled || !status.Intent.UserDisabled || factory.count.Load() != 0 {
+		t.Fatalf("startup changed disabled intent: %+v", status)
+	}
+	if err := m.EnableSelected(context.Background(), "spark-x2.5-1.7B"); err != nil {
+		t.Fatal(err)
+	}
+	if status := m.Status(); !status.Intent.Enabled || status.Intent.UserDisabled {
+		t.Fatalf("manual enable did not replace the saved disabled choice: %+v", status.Intent)
+	}
+}
+
+func TestEnabledModelStaysLoadedUntilExplicitDisable(t *testing.T) {
+	var nanos atomic.Int64
+	nanos.Store(time.Now().UnixNano())
+	m, _, factory, store := managerFixture(t, func(o *Options, _ *fixtureInstaller, _ *fixtureFactory) {
+		o.Now = func() time.Time { return time.Unix(0, nanos.Load()) }
+	})
+	if err := m.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	process := factory.last()
+	for _, elapsed := range []time.Duration{16 * time.Minute, 24 * time.Hour, 30 * 24 * time.Hour} {
+		nanos.Add(int64(elapsed))
+		if err := m.Sweep(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if status := m.Status(); status.PID != process.PID() || !status.Healthy || !status.Intent.Enabled || status.Runtime != Idle || process.stops.Load() != 0 {
+			t.Fatalf("idle time unloaded an enabled model: %+v", status)
+		}
+	}
+	if err := m.Disable(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := store.Load(context.Background())
+	if err != nil || saved.Enabled || !saved.UserDisabled || process.stops.Load() != 1 || m.Status().PID != 0 {
+		t.Fatalf("explicit disable did not persist and unload: %+v %v", saved, err)
+	}
+}
+
 func TestControlledLoadingTimeoutReapsAndIdleProtectsOccupancy(t *testing.T) {
 	loadExpired := make(chan time.Time)
 	m, _, f, _ := managerFixture(t, func(o *Options, _ *fixtureInstaller, f *fixtureFactory) {
@@ -487,6 +534,7 @@ func TestControlledLoadingTimeoutReapsAndIdleProtectsOccupancy(t *testing.T) {
 	var nanos atomic.Int64
 	nanos.Store(time.Now().UnixNano())
 	m2, _, f2, _ := managerFixture(t, func(o *Options, _ *fixtureInstaller, _ *fixtureFactory) {
+		o.IdleTimeout = 15 * time.Minute
 		o.Now = func() time.Time { return time.Unix(0, nanos.Load()) }
 	})
 	hold := make(chan struct{})
@@ -581,6 +629,7 @@ func TestRequestedStopDoesNotReportProcessFault(t *testing.T) {
 		t.Run(operation, func(t *testing.T) {
 			now := time.Unix(100, 0)
 			m, _, f, _ := managerFixture(t, func(o *Options, _ *fixtureInstaller, _ *fixtureFactory) {
+				o.IdleTimeout = 15 * time.Minute
 				o.Now = func() time.Time { return now }
 			})
 			if err := m.Use(context.Background(), Execution, noWork); err != nil {
@@ -651,6 +700,7 @@ func TestExitedProcessBeforeStopRetainsFaultWithDelayedWatcher(t *testing.T) {
 				defer releaseWatch()
 				now := time.Unix(100, 0)
 				m, _, _, _ := managerFixture(t, func(o *Options, _ *fixtureInstaller, _ *fixtureFactory) {
+					o.IdleTimeout = 15 * time.Minute
 					o.Factory = delayedWatchFactory{p}
 					o.Now = func() time.Time { return now }
 				})

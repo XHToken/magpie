@@ -32,18 +32,20 @@ type ModelOptions struct {
 	Routing *RoutingOptions
 	// Trusted local diagnostics observe the product-created manager/process.
 	// Neither callback is exposed to configuration or HTTP callers.
-	LocalModelsReady    func(*LocalModels)
-	LocalProcessStarted func(routerprocess.Process, routerprocess.Spec)
-	purpose             string
-	Budget              time.Duration
-	Ledger              *routerledger.Store
-	LedgerErrorCode     string
-	LocalCalls          *routerobserve.Calls
-	Observe             func(ModelEvent)
-	Complete            func(ModelCompletion)
-	LocalObserver       routerruntime.LocalCallObserver
-	store               *routerconfig.Store
-	managementToken     string
+	LocalModelsReady      func(*LocalModels)
+	LocalProcessStarted   func(routerprocess.Process, routerprocess.Spec)
+	purpose               string
+	bufferOutput          bool // internal title buffering; client commitment happens after validation
+	Budget                time.Duration
+	Ledger                *routerledger.Store
+	LedgerErrorCode       string
+	RedactionObservations *routerledger.RedactionObservationStore
+	LocalCalls            *routerobserve.Calls
+	Observe               func(ModelEvent)
+	Complete              func(ModelCompletion)
+	LocalObserver         routerruntime.LocalCallObserver
+	store                 *routerconfig.Store
+	managementToken       string
 }
 type ModelEvent struct {
 	Purpose   string

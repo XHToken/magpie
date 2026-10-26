@@ -64,7 +64,7 @@ are rejected. Attempt duration, configured retry delay and actual
 retry wait use `durationMs`, `retryDelayMs` and `retryWaitMs`. Incoming executor
 nanoseconds must be converted explicitly. Each attempt has a number, start
 time, HTTP status, safe codes, output state, retried state and nullable usage.
-There are at most two actual attempts. A planned retry does not add an attempt.
+There are at most `MaxAttempts` (16) actual attempts across routing-group fallback and patience rounds (and at most two attempts for a single-target cloud executor). A planned retry does not add an attempt.
 
 Statuses are `processing`, `succeeded`, `failed`, `canceled`, `timed_out` and
 `interrupted`. Destination is `none` before dispatch, `cloud` after a real cloud

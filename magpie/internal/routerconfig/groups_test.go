@@ -243,3 +243,29 @@ func TestGroupNormalizationAndOrphanCleanup(t *testing.T) {
 		t.Fatalf("expected error when ID contains space")
 	}
 }
+
+func TestSplitMemberEffortPreservesNonEffortColonModelIDs(t *testing.T) {
+	if bare, eff, ok := SplitMemberEffort("bound/audit-model:free"); ok || bare != "bound/audit-model:free" || eff != "" {
+		t.Fatalf("SplitMemberEffort stripped non-effort colon suffix: bare=%q eff=%q ok=%v", bare, eff, ok)
+	}
+	if bare, eff, ok := SplitMemberEffort("bound/gpt-5:high"); !ok || bare != "bound/gpt-5" || eff != "high" {
+		t.Fatalf("SplitMemberEffort failed on valid effort suffix: bare=%q eff=%q ok=%v", bare, eff, ok)
+	}
+	if bare, eff, ok := SplitMemberEffort("bound/audit-model:free:medium"); !ok || bare != "bound/audit-model:free" || eff != "medium" {
+		t.Fatalf("SplitMemberEffort failed on colon model with inline effort: bare=%q eff=%q ok=%v", bare, eff, ok)
+	}
+	g, err := NormalizeGroup(Group{
+		ID:      "suffix-group",
+		Name:    "Suffix Group",
+		Members: []string{"bound/audit-model:free", "bound/gpt-5:high"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.MemberEfforts["bound/audit-model"] != "" {
+		t.Fatalf("NormalizeGroup treated :free as effort level: %+v", g.MemberEfforts)
+	}
+	if g.MemberEfforts["bound/gpt-5"] != "high" {
+		t.Fatalf("NormalizeGroup did not extract :high effort: %+v", g.MemberEfforts)
+	}
+}

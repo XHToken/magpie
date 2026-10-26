@@ -18,14 +18,15 @@ type groupView struct {
 
 type groupRequest struct {
 	routerconfig.Group
-	ContextRaw   any      `json:"context"`
-	Enabled      *bool    `json:"enabled"`
-	Disabled     *bool    `json:"disabled"`
-	Alias        string   `json:"alias"`
-	Patterns     []string `json:"patterns"`
-	HideMembers  *bool    `json:"hideMembers"`
-	Active       string   `json:"active"`
-	CooldownMove *bool    `json:"cooldownMove"`
+	ContextRaw     any      `json:"context"`
+	Enabled        *bool    `json:"enabled"`
+	Disabled       *bool    `json:"disabled"`
+	Alias          string   `json:"alias"`
+	Patterns       []string `json:"patterns"`
+	HideMembers    *bool    `json:"hideMembers"`
+	Active         string   `json:"active"`
+	CooldownMove   *bool    `json:"cooldownMove"`
+	LocalRedaction *bool    `json:"localRedaction"`
 }
 
 func parseFlexibleContext(raw any) int {
@@ -128,7 +129,7 @@ func validateGroupInput(g routerconfig.Group) error {
 		return &routerconfig.GroupValidation{Message: "group name is required"}
 	}
 	switch strings.ToLower(strings.TrimSpace(g.Routing)) {
-	case "", "order", "ordered", "weight", "weighted", "manual", "smart_split", "smart_hybrid", "smart", "auto", "rules", "rotate", "round_robin", "round-robin", "usage", "least", "least_used", "least-used", "pace", "drain-reset", "drain_reset":
+	case "", "order", "ordered", "weight", "weighted", "manual", "smart_split", "smart_hybrid", "smart", "auto", "rules", "rotate", "round_robin", "round-robin", "usage", "least", "least_used", "least-used", "pace", "drain-reset", "drain_reset", "edge-cloud", "edge_cloud":
 	default:
 		return &routerconfig.GroupValidation{Message: "unsupported routing strategy"}
 	}
@@ -217,9 +218,29 @@ func routingGroupsAPI(w http.ResponseWriter, r *http.Request, store *routerconfi
 		if req.Enabled != nil {
 			g.Disabled = !*req.Enabled
 		}
+		if req.LocalRedaction != nil {
+			g.LocalRedaction = *req.LocalRedaction
+		}
 		if err := validateGroupInput(g); err != nil {
 			writeGroupStoreErr(w, "invalid_group", err)
 			return
+		}
+		hasLocal := false
+		for _, m := range g.Members {
+			if strings.HasPrefix(strings.ToLower(strings.TrimSpace(m)), "local/") {
+				hasLocal = true
+				break
+			}
+		}
+		if rt := strings.ToLower(strings.TrimSpace(g.Routing)); rt == "edge-cloud" || rt == "edge_cloud" {
+			if !hasLocal {
+				g.Routing = ""
+			} else {
+				g.Routing = "edge-cloud"
+			}
+		}
+		if !hasLocal {
+			g.LocalRedaction = false
 		}
 		saved, err := store.SaveGroupContext(r.Context(), g)
 		if err != nil {

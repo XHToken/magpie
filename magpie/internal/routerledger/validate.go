@@ -124,8 +124,10 @@ func validUsage(u *Usage) bool {
 	return true
 }
 
+const MaxAttempts = 16
+
 func validOutcome(o Outcome, processing bool) bool {
-	if !validStatus(o.Status, processing) || o.Attempts < 0 || o.Attempts > 2 || len(o.AttemptDetails) > o.Attempts || !validUsage(o.Usage) || SafeCode(o.SafeErrorCode) != o.SafeErrorCode || SafeCapabilityState(o.CapabilityState) != o.CapabilityState || !display(o.LocalModel, 256) || !identifier(o.LocalCallID, 128, true) || o.Decision != "" && o.Decision != "local" && o.Decision != "cloud" || o.JudgmentMS < 0 {
+	if !validStatus(o.Status, processing) || o.Attempts < 0 || o.Attempts > MaxAttempts || len(o.AttemptDetails) > o.Attempts || !validUsage(o.Usage) || SafeCode(o.SafeErrorCode) != o.SafeErrorCode || SafeCapabilityState(o.CapabilityState) != o.CapabilityState || !display(o.LocalModel, 256) || !identifier(o.LocalCallID, 128, true) || o.Decision != "" && o.Decision != "local" && o.Decision != "cloud" || o.JudgmentMS < 0 {
 		return false
 	}
 	if o.Destination != "" && o.Destination != "none" && o.Destination != "cloud" && o.Destination != "local" {

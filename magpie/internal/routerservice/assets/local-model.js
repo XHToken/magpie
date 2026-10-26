@@ -1,27 +1,15 @@
 'use strict';
 (() => {
   for (const [key, zh, tw, ja, de] of [
-    ['Runtime settings', '运行设置', '執行設定', '実行設定', 'Laufzeiteinstellungen'],
-    ['Context window', '上下文窗口', '上下文視窗', 'コンテキスト長', 'Kontextfenster'],
-    ['Judgment queue (seconds)', '判断排队（秒）', '判斷排隊（秒）', '判断の待機（秒）', 'Beurteilungswarteschlange (Sekunden)'],
-    ['Judgment inference (seconds)', '判断推理（秒）', '判斷推理（秒）', '判断の推論（秒）', 'Beurteilungsinferenz (Sekunden)'],
-    ['Execution queue (seconds)', '执行排队（秒）', '執行排隊（秒）', '実行の待機（秒）', 'Ausführungswarteschlange (Sekunden)'],
-    ['Local execution (seconds)', '本地执行（秒）', '本機執行（秒）', 'ローカル実行（秒）', 'Lokale Ausführung (Sekunden)'],
-    ['Model loading (seconds)', '模型加载（秒）', '模型載入（秒）', 'モデル読込（秒）', 'Modellladen (Sekunden)'],
-    ['Whole request (seconds)', '整条请求（秒）', '整筆請求（秒）', 'リクエスト全体（秒）', 'Gesamte Anfrage (Sekunden)'],
-    ['Cloud fallback reserve (seconds)', '云端回退预留（秒）', '雲端備援預留（秒）', 'クラウド切替の確保時間（秒）', 'Reserve für Cloud-Fallback (Sekunden)'],
-    ['Saved configuration', '已保存参数', '已儲存參數', '保存済み設定', 'Gespeicherte Konfiguration'],
-    ['Active configuration', '当前生效参数', '目前生效參數', '現在の有効設定', 'Aktive Konfiguration'],
-    ['Not loaded; target configuration: {settings}', '尚未加载；目标参数：{settings}', '尚未載入；目標參數：{settings}', '未読込。次回の設定：{settings}', 'Nicht geladen; Zielkonfiguration: {settings}'],
-    ['Original defaults', '原版默认值', '原版預設值', '従来の既定値', 'Ursprüngliche Standardwerte'],
-    ['Judgment queue and inference share 5 seconds with the original defaults.', '原版默认值下，判断排队与推理共用 5 秒。', '原版預設值下，判斷排隊與推理共用 5 秒。', '従来の既定値では、判断の待機と推論は合計5秒です。', 'Bei den ursprünglichen Standardwerten teilen sich Beurteilungswarteschlange und Inferenz 5 Sekunden.'],
-    ['Use long context test settings', '使用长上下文测试参数', '使用長上下文測試參數', '長文テスト用の設定を入力', 'Testwerte für langen Kontext verwenden'],
-    ['Larger windows use more memory. Verify loading and speed on this computer.', '更大的窗口会占用更多内存，请在本机验证加载与速度。', '較大的視窗會使用更多記憶體，請在本機驗證載入與速度。', '長いコンテキストはメモリを多く使用します。この端末で読込と速度を確認してください。', 'Größere Fenster benötigen mehr Speicher. Prüfen Sie Laden und Geschwindigkeit auf diesem Computer.'],
-    ['Save and reload', '保存并重新加载', '儲存並重新載入', '保存して再読込', 'Speichern und neu laden'],
-    ['Waiting for active work and reloading…', '正在等待当前任务完成并重新加载…', '正在等待目前工作完成並重新載入…', '実行中の処理を待ち、再読込しています…', 'Aktive Aufgaben werden abgewartet; das Modell wird neu geladen…'],
-    ['Settings changes require new capability checks before experimental routing and execution.', '修改设置后，请重新检测能力，再启用实验性判断与执行。', '修改設定後，請重新檢測能力，再啟用實驗性判斷與執行。', '設定変更後は、機能を再検査してから試験的な判断と実行を有効にしてください。', 'Prüfen Sie nach Änderungen die Fähigkeiten erneut, bevor Sie experimentelles Routing und Ausführung aktivieren.'],
-    ['Enter whole seconds within the shown limits. The request budget minus the cloud reserve must fit loading, judgment queue plus inference, and execution queue plus execution.', '请输入范围内的整数秒。请求总预算减去云端预留后，须分别容纳加载、判断排队加推理、执行排队加执行。', '請輸入範圍內的整數秒。請求總預算減去雲端預留後，須分別容納載入、判斷排隊加推理、執行排隊加執行。', '表示範囲内の整数秒を入力してください。全体予算からクラウド確保時間を引いた値は、読込、判断の待機＋推論、実行の待機＋処理をそれぞれ収容する必要があります。', 'Geben Sie ganze Sekunden im angezeigten Bereich ein. Das Anfragebudget abzüglich Cloud-Reserve muss Laden, Beurteilungswarten plus Inferenz und Ausführungswarten plus Ausführung jeweils abdecken.'],
-    ['Settings could not be applied. Review the saved and active values, then retry loading.', '设置未能生效。请检查已保存和当前生效参数，然后重试加载。', '設定未能生效。請檢查已儲存和目前生效參數，然後重試載入。', '設定を適用できませんでした。保存済みと有効な値を確認して、再読込してください。', 'Einstellungen konnten nicht angewendet werden. Prüfen Sie gespeicherte und aktive Werte und laden Sie erneut.'],
+    ["Inference backend", "推理后端", "推理後端", "推論バックエンド", "Inferenz-Backend"],
+    ["GPU acceleration", "GPU 加速", "GPU 加速", "GPU アクセラレーション", "GPU-Beschleunigung"],
+    ["Hybrid CPU and GPU", "CPU/GPU 混合推理", "CPU/GPU 混合推理", "CPU/GPU ハイブリッド推論", "Hybride CPU-/GPU-Inferenz"],
+    ["CPU inference", "CPU 推理", "CPU 推理", "CPU 推論", "CPU-Inferenz"],
+    ["Acceleration not verified", "加速尚未验证", "加速尚未驗證", "高速化は未検証", "Beschleunigung nicht geprüft"],
+    ["GPU unavailable; using CPU", "GPU 不可用，已使用 CPU", "GPU 無法使用，已使用 CPU", "GPU を利用できないため CPU を使用", "GPU nicht verfügbar; CPU wird verwendet"],
+    ["GPU components need installation or repair", "GPU 组件需要安装或修复", "GPU 元件需要安裝或修復", "GPU コンポーネントのインストールまたは修復が必要", "GPU-Komponenten müssen installiert oder repariert werden"],
+    ["GPU layers: {loaded}/{total}", "GPU 卸载层数：{loaded}/{total}", "GPU 卸載層數：{loaded}/{total}", "GPU レイヤー: {loaded}/{total}", "GPU-Schichten: {loaded}/{total}"],
+    ["GPU components could not be installed; CPU is available", "GPU 组件未安装成功，CPU 仍可用", "GPU 元件未安裝成功，CPU 仍可用", "GPU コンポーネントをインストールできませんでした。CPU は利用可能です", "GPU-Komponenten konnten nicht installiert werden; CPU ist verfügbar"],
     ['Detect device', '检测设备', '偵測裝置', '端末を検出', 'Gerät prüfen'],
     ['Configured on-device models', '已配置的端侧模型', '已配置的端側模型', '設定済みのオンデバイスモデル', 'Konfigurierte On-Device-Modelle'],
     ['Select a model', '选择模型', '選擇模型', 'モデルを選択', 'Modell auswählen'],
@@ -107,16 +95,35 @@
     ['Local installation verification or extraction failed: files may be in use, blocked by security software, or out of disk space. Check disk space and antivirus logs, then click "Download and install" to retry.', '本地安装校验或解压失败：运行文件可能被占用、杀毒软件拦截或磁盘空间不足。请检查磁盘空间与安全软件拦截记录后点击“下载并安装”重试。', '本機安裝驗證或解壓縮失敗：執行檔案可能被佔用、防毒軟體攔截或磁碟空間不足。請檢查磁碟空間與安全軟體攔截紀錄後點擊「下載並安裝」重試。', 'ローカル検証または展開に失敗しました：ファイルが使用中、セキュリティソフトによるブロック、または容量不足の可能性があります。確認後「ダウンロードしてインストール」で再試行してください。', 'Lokale Prüfung oder Entpacken fehlgeschlagen: Dateien werden evtl. verwendet, durch Sicherheitssoftware blockiert oder der Speicherplatz reicht nicht aus. Prüfen Sie dies und klicken Sie auf „Herunterladen und installieren“.'],
     ['Public execution weights; judgment and redaction need separate acceptance evidence.', '公开执行权重；判断和脱敏需要独立验收证据。', '公開執行權重；判斷及去識別化需要獨立驗收證據。', '公開の実行用重み。判断と匿名化には個別の検証が必要です。', 'Öffentliche Ausführungsgewichte; Beurteilung und Anonymisierung brauchen eigene Nachweise.'],
     ['Opening this page does not enable or download a model. Closing the page keeps Router running.', '打开页面不会启用或下载模型。关闭页面后 Router 继续运行。', '開啟頁面不會啟用或下載模型。關閉頁面後 Router 繼續執行。', 'ページを開いてもモデルは有効化・ダウンロードされません。閉じてもRouterは動作します。', 'Diese Seite aktiviert oder lädt kein Modell. Router läuft nach dem Schließen weiter.'],
-    ['Enabled models unload after 15 idle minutes. Disabling keeps them off and preserves application redaction settings.', '已启用模型空闲 15 分钟后卸载。主动关闭后保持禁用，并保留应用脱敏设置。', '已啟用模型閒置 15 分鐘後卸載。主動關閉後保持停用，並保留應用程式去識別化設定。', '有効なモデルは15分のアイドル後に解放されます。無効化後もアプリの匿名化設定は保持されます。', 'Aktive Modelle werden nach 15 Minuten Leerlauf entladen. Deaktivierung erhält die Anonymisierungseinstellungen.'],
+    ['Enabled models stay loaded while Router runs. Your on/off choice is remembered at the next startup.', '模型开启后保持加载，空闲时不会自动卸载。下次启动会记住您的开关选择。', '模型開啟後保持載入，閒置時不會自動卸載。下次啟動會記住您的開關選擇。', '有効なモデルはRouterの実行中に保持され、アイドル時も解放されません。次回起動時もオン・オフの選択が保存されます。', 'Aktivierte Modelle bleiben geladen, solange Router läuft. Ihre Ein-/Aus-Auswahl wird beim nächsten Start beibehalten.'],
   ]) for (const [lang, text] of [['zh', zh], ['zh-TW', tw], ['ja', ja], ['de', de]]) (I18N[lang] ||= {})[key] = text;
 
-  let data = null, device = null, working = false, timer, settingsDraft = null, applyingSettings = false;
-  let detectionAttempted = false, detecting = false, detectionFailed = false, connection = 0;
+  let data = null, device = null, working = false, timer;
+  let detectionAttempted = false, detecting = false, detectionFailed = false, connection = 0, selectedModelId = '';
   const stateNames = { not_installed: 'Not installed', installed: 'Installed and verified', downloading: 'Downloading', canceled: 'Canceled', failed: 'Failed', unloaded: 'Unloaded', loading: 'Loading model', ready: 'Ready', busy: 'In use', idle: 'Idle', unloading: 'Unloading', fault: 'Fault', unknown: 'Unknown', available: 'Ready', unavailable: 'Unavailable' };
   const label = value => t(stateNames[value] || 'Unknown');
   const dependencyNames = { not_required: 'Not required on this platform', missing: 'Runtime dependencies are missing.', preparing: 'Preparing runtime dependencies', ready: 'Installed and verified', canceled: 'Canceled', failed: 'Runtime dependency download failed.', download_failed: 'Runtime dependency download failed.', corrupt: 'Runtime dependencies are damaged.', architecture: 'Runtime dependency architecture does not match.', version: 'Runtime dependency version does not match.', layout: 'Runtime dependency layout is invalid.' };
   const dependencyMessage = code => dependencyNames[String(code || '').replace(/^local_model_dependency_/, '')] || 'Runtime dependency verification failed.';
   const modelName = tier => ({ '1.7B': 'Spark-X2.5-1.7B', '4B': 'Spark-X2.5-4B' })[tier];
+  function currentChoiceModelId(status) {
+    const catalogModels = data?.catalog?.models || [];
+    if (selectedModelId && catalogModels.some(m => m.id === selectedModelId)) return selectedModelId;
+    if (status?.installingModel && catalogModels.some(m => m.id === status.installingModel)) return status.installingModel;
+    return status?.intent?.selected || '';
+  }
+  function choiceInstallationState(status, choiceModelId) {
+    if (!choiceModelId) return status?.installation || 'not_installed';
+    const choiceId = String(choiceModelId).toLowerCase();
+    const selectedId = String(status?.intent?.selected || '').toLowerCase();
+    const installingId = String(status?.installingModel || '').toLowerCase();
+    if (installingId) {
+      if (choiceId === installingId) return status?.installation || 'not_installed';
+    } else if (choiceId === selectedId && status?.installation && status.installation !== 'unknown') {
+      return status.installation;
+    }
+    const cand = (data?.models || []).find(item => String(item.id || '').toLowerCase() === choiceId);
+    return cand?.installed ? 'installed' : 'not_installed';
+  }
   function resolveProgressMeta(status, dependencies) {
     const p = status?.progress || {};
     const hasDeps = dependencies?.state && dependencies.state !== 'not_required';
@@ -134,7 +141,8 @@
     const step = Number(p.step) || defaultSteps[stage] || 1;
     const defaultHosts = { dependency: 'aka.ms', runtime: 'github.com', model: 'hf-mirror.com', template: 'hf-mirror.com' };
     const host = p.host || defaultHosts[stage] || '';
-    const selectedModel = modelName(data?.catalog?.models?.find(m => m.id === status?.intent?.selected)?.tier) || status?.intent?.selected || 'GGUF';
+    const targetModelId = status?.installingModel || status?.intent?.selected;
+    const selectedModel = modelName(data?.catalog?.models?.find(m => m.id === targetModelId)?.tier) || targetModelId || 'GGUF';
     const stageKeys = {
       dependency: '[{step}/{total}] Windows VC++ runtime components',
       runtime: '[{step}/{total}] Local inference engine llama.cpp',
@@ -202,44 +210,6 @@
     return t('Local model operation failed. Refresh to inspect status.');
   }
   function row(name, value) { const node = el('div', 'row pref'); const who = el('div', 'who'); who.append(el('div', 'name', t(name))); node.append(who, el('span', 'router-state', value)); return node; }
-  const longContextSettings = () => ({ contextTokens: 65536, judgmentQueueSeconds: 15, judgmentInferenceSeconds: 30, executionQueueSeconds: 30, executionSeconds: 300, loadSeconds: 90, requestSeconds: 600, cloudReserveSeconds: 60 });
-  const budgetFields = [['judgmentQueueSeconds', 'Judgment queue (seconds)', 300], ['judgmentInferenceSeconds', 'Judgment inference (seconds)', 300], ['executionQueueSeconds', 'Execution queue (seconds)', 300], ['executionSeconds', 'Local execution (seconds)', 1800], ['loadSeconds', 'Model loading (seconds)', 300], ['requestSeconds', 'Whole request (seconds)', 3600], ['cloudReserveSeconds', 'Cloud fallback reserve (seconds)', 300]];
-  function settingsText(settings) {
-    if (!settings?.contextTokens) return t('Original defaults');
-    return [t('Context window') + ': ' + settings.contextTokens.toLocaleString(intlLang()), ...budgetFields.map(([key, title]) => t(title) + ': ' + settings[key])].join(' · ');
-  }
-  function runtimeSettings(status) {
-    const box = el('section', 'local-runtime-settings local-device-guide'); box.id = 'localRuntimeSettings';
-    box.append(el('h3', 'router-label', t('Runtime settings')));
-    const saved = row('Saved configuration', settingsText(status.settings)); saved.id = 'localSettingsSaved';
-    const activeText = settingsText(status.effectiveSettings);
-    const active = row('Active configuration', status.pid && status.healthy ? activeText : t('Not loaded; target configuration: {settings}', { settings: activeText })); active.id = 'localSettingsActive';
-    box.append(saved, active);
-    if (!status.settings?.contextTokens) box.append(el('p', 'hint router-note', t('Judgment queue and inference share 5 seconds with the original defaults.')));
-    settingsDraft ||= status.settings?.contextTokens ? { ...status.settings } : longContextSettings();
-    const form = el('form', 'local-settings-form'); form.id = 'localSettingsForm';
-    const context = el('div', 'segs'); context.id = 'localContextChoices';
-    chooseButtons(context, [8192, 16384, 32768, 65536].map(tokens => [String(tokens), (tokens / 1024) + 'K']), String(settingsDraft.contextTokens), value => { settingsDraft.contextTokens = Number(value); render(); });
-    for (const button of context.querySelectorAll('button')) { button.type = 'button'; button.disabled = working; }
-    form.append(el('div', 'name', t('Context window')), context);
-    const inputs = el('div', 'local-settings-inputs');
-    for (const [key, title, maximum] of budgetFields) {
-      const label = el('label', '', t(title)), input = el('input'); input.type = 'number'; input.min = '1'; input.max = String(maximum); input.step = '1'; input.required = true; input.value = settingsDraft[key]; input.name = key; input.disabled = working; input.setAttribute('aria-label', t(title)); input.oninput = () => { settingsDraft[key] = Number(input.value); }; label.append(input); inputs.append(label);
-    }
-    form.append(inputs, el('p', 'hint router-note', t('Larger windows use more memory. Verify loading and speed on this computer.')), el('p', 'hint router-note', t('Settings changes require new capability checks before experimental routing and execution.')));
-    const buttons = el('div', 'request-choices'), preset = el('button', 'text', t('Use long context test settings')), save = el('button', 'text', t('Save and reload'));
-    preset.type = 'button'; preset.disabled = working; preset.onclick = () => { settingsDraft = longContextSettings(); render(); };
-    save.type = 'submit'; save.disabled = working; save.dataset.action = 'settings'; buttons.append(preset, save); form.append(buttons);
-    form.onsubmit = async event => {
-      event.preventDefault();
-      const local = settingsDraft.requestSeconds - settingsDraft.cloudReserveSeconds;
-      if (!budgetFields.every(([key, , max]) => Number.isSafeInteger(settingsDraft[key]) && settingsDraft[key] >= 1 && settingsDraft[key] <= max) || settingsDraft.loadSeconds > local || settingsDraft.judgmentQueueSeconds + settingsDraft.judgmentInferenceSeconds > local || settingsDraft.executionQueueSeconds + settingsDraft.executionSeconds > local) { $('#localModelError').textContent = t('Enter whole seconds within the shown limits. The request budget minus the cloud reserve must fit loading, judgment queue plus inference, and execution queue plus execution.'); return; }
-      applyingSettings = true; await action('settings', { ...settingsDraft }); applyingSettings = false;
-    };
-    box.append(form);
-    if (applyingSettings && working) { const progress = el('p', 'hint router-note', t('Waiting for active work and reloading…')); progress.setAttribute('role', 'status'); box.append(progress); }
-    return box;
-  }
   function deviceGuide() {
     const guide = el('section', 'local-device-guide'); guide.id = 'localDeviceGuide';
     guide.setAttribute('aria-labelledby', 'localDeviceTitle');
@@ -276,13 +246,15 @@
     const catalogModels = data?.catalog?.models || [];
     const candidates = data?.models || [];
     const selectedId = String(status?.intent?.selected || '').toLowerCase();
+    const installingId = String(status?.installingModel || '').toLowerCase();
     return catalogModels.filter(model => {
       const id = String(model.id || '').toLowerCase();
-      if (id === selectedId && status?.installation && status.installation !== 'unknown') {
+      const cand = candidates.find(item => String(item.id || '').toLowerCase() === id);
+      if (cand?.installed) return true;
+      if (id === selectedId && (!installingId || installingId === selectedId) && status?.installation && status.installation !== 'unknown') {
         return status.installation === 'installed';
       }
-      const cand = candidates.find(item => String(item.id || '').toLowerCase() === id);
-      return Boolean(cand?.installed);
+      return false;
     });
   }
   function installedModelsSection(status, dependencies) {
@@ -295,8 +267,9 @@
     for (const model of installed) {
       const isSelected = String(status.intent?.selected || '').toLowerCase() === String(model.id || '').toLowerCase();
       const runtimeState = isSelected ? status.runtime : 'unloaded';
-      const isLoaded = isSelected && Boolean(status.intent?.enabled) && ['ready', 'loading', 'busy', 'idle'].includes(status.runtime);
-      const item = el('div', 'row provider local-provider' + (isLoaded ? '' : ' off'));
+      const isEnabled = isSelected && Boolean(status.intent?.enabled);
+      const isLoaded = isEnabled && ['ready', 'loading', 'busy', 'idle'].includes(status.runtime);
+      const item = el('div', 'row provider local-provider' + (isEnabled ? '' : ' off'));
       item.dataset.localModel = model.id;
       item.dataset.selector = 'local/' + String(model.id || '').toLowerCase();
       const icon = el('span', 'ic'), img = el('img');
@@ -307,16 +280,16 @@
       const stateBadge = el('span', 'router-state' + (isLoaded ? ' ok' : ''), label(runtimeState));
       stateBadge.dataset.status = runtimeState;
       const actionsWrap = el('div', 'ag-actions');
-      const sw = el('button', 'lib-switch ag-conn' + (isLoaded ? ' on' : ''));
+      const sw = el('button', 'lib-switch ag-conn' + (isEnabled ? ' on' : ''));
       sw.type = 'button';
       sw.dataset.action = 'toggle-model';
       sw.dataset.model = model.id;
       sw.setAttribute('role', 'switch');
-      sw.setAttribute('aria-checked', String(isLoaded));
+      sw.setAttribute('aria-checked', String(isEnabled));
       sw.setAttribute('aria-label', name);
-      sw.disabled = working || status.installation === 'downloading' || (!isLoaded && isSelected && !['ready', 'not_required'].includes(dependencies.state));
+      sw.disabled = working || status.installation === 'downloading' || (!isEnabled && isSelected && !['ready', 'not_required'].includes(dependencies.state));
       sw.append(el('i'));
-      sw.onclick = event => { event.stopPropagation(); toggleModel(model.id, isLoaded); };
+      sw.onclick = event => { event.stopPropagation(); toggleModel(model.id, isEnabled); };
       actionsWrap.append(sw);
       item.append(icon, who, stateBadge, actionsWrap);
       installedList.append(item);
@@ -328,23 +301,34 @@
     const root = $('#localModelContent');
     root.replaceChildren();
     $('#localModelNote').textContent = t('Opening this page does not enable or download a model. Closing the page keeps Router running.');
-    $('#localModelLifecycle').textContent = t('Enabled models unload after 15 idle minutes. Disabling keeps them off and preserves application redaction settings.');
+    $('#localModelLifecycle').textContent = t('Enabled models stay loaded while Router runs. Your on/off choice is remembered at the next startup.');
     if (!managementToken) { root.append(el('p', 'hint', t('Management token required'))); return; }
     if (!data) { root.append(el('p', 'hint', t('Connection unavailable'))); return; }
     const status = data.status;
     const dependencies = status.dependencies || { state: 'unknown' };
+    const choiceModelId = currentChoiceModelId(status);
+    const choiceInstallation = choiceInstallationState(status, choiceModelId);
     const installedWrap = installedModelsSection(status, dependencies);
     if (installedWrap) root.append(installedWrap);
     root.append(deviceGuide());
     const choices = el('div', 'segs router-language'); choices.id = 'localModelChoices';
-    chooseButtons(choices, data.catalog.models.map(model => [model.id, modelName(model.tier) || model.id]), status.intent.selected, async id => { await selectModel(id); });
+    chooseButtons(choices, data.catalog.models.map(model => [model.id, modelName(model.tier) || model.id]), choiceModelId, async id => { await selectModel(id); });
     for (const button of choices.querySelectorAll('button')) button.disabled = working || status.installation === 'downloading';
     root.append(el('h3', 'router-label', t('Select a model')), choices);
     const list = el('div', 'list prefs');
-    list.append(row('User intent', t(status.intent.enabled ? 'Enabled' : 'Disabled')), row('Installation', label(status.installation)), row('Runtime state', label(status.runtime)), row('Queue occupancy', `${status.active} / ${status.waiting} (${status.queueLimit})`));
+    list.append(row('User intent', t(status.intent.enabled ? 'Enabled' : 'Disabled')), row('Installation', label(choiceInstallation)), row('Runtime state', label(status.runtime)), row('Queue occupancy', `${status.active} / ${status.waiting} (${status.queueLimit})`));
+    const backend = status.backend || {};
+    const verified = ['accelerated', 'hybrid'].includes(backend.state) && status.healthy && status.pid;
+    const backendLabel = verified ? t(backend.state === 'hybrid' ? 'Hybrid CPU and GPU' : 'GPU acceleration') : t(backend.state === 'cpu' && status.healthy ? 'CPU inference' : 'Acceleration not verified');
+    const backendRow = row('Inference backend', backendLabel + (verified ? ' · ' + String(backend.effective || '').toUpperCase() + ' · ' + (backend.deviceName || backend.device || '') + ' · ' + t('GPU layers: {loaded}/{total}', { loaded: backend.offloadedLayers, total: backend.totalLayers }) : ''));
+    backendRow.id = 'localModelBackend'; list.append(backendRow);
+    if (backend.fallbackReason) {
+      const hint = backend.fallbackReason === 'accelerator_install_failed' ? 'GPU components could not be installed; CPU is available' : backend.fallbackReason === 'accelerator_not_installed' ? 'GPU components need installation or repair' : backend.state === 'cpu' && status.healthy ? 'GPU unavailable; using CPU' : 'Acceleration not verified';
+      list.append(el('p', 'hint router-note', t(hint)));
+    }
     const dependencyRow = row('Runtime dependencies', t(dependencyNames[dependencies.state] || 'Unknown') + (dependencies.version ? ' · ' + dependencies.version : ''));
     dependencyRow.id = 'localModelDependencies'; list.append(dependencyRow);
-    const showDownloadRow = status.installation === 'downloading' || (status.installation === 'failed' && Boolean(status.error || status.progress?.stage || status.progress?.reason));
+    const showDownloadRow = status.installation === 'downloading' || (choiceInstallation === 'failed' && Boolean(status.error || status.progress?.stage || status.progress?.reason));
     if (showDownloadRow) {
       const downloaded = Number(status.progress?.downloaded) || 0;
       const total = Number(status.progress?.total) || 0;
@@ -371,7 +355,7 @@
     root.append(list);
     if (['missing', 'failed', 'corrupt', 'architecture', 'version', 'layout'].includes(dependencies.state)) root.append(el('p', 'hint router-note', t('Enable the local model, then use Download and install to repair runtime dependencies.')));
     const buttons = el('div', 'request-choices local-model-actions');
-    const installDisabled = !status.intent.selected || status.installation === 'downloading' || (status.installation === 'installed' && ['ready', 'not_required'].includes(dependencies.state));
+    const installDisabled = !choiceModelId || status.installation === 'downloading' || (choiceInstallation === 'installed' && ['ready', 'not_required'].includes(dependencies.state) && !['accelerator_install_failed', 'accelerator_not_installed'].includes(status.backend?.fallbackReason));
     for (const [name, endpoint, disabled, handler] of [
       ['Download and install', 'install', installDisabled, installModel],
       ['Cancel download', 'cancel', status.installation !== 'downloading', () => action('cancel')],
@@ -382,17 +366,12 @@
     }
     root.append(buttons);
     if (status.error) root.append(el('p', 'editor-error local-status-error', statusErrorMessage(status)));
-    root.append(runtimeSettings(status));
   }
   async function request(endpoint, body) {
     const response = await managementFetch('/api/local-model' + (endpoint ? '/' + endpoint : ''), { method: endpoint ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + managementToken, ...(endpoint ? { 'Content-Type': 'application/json' } : {}) }, ...(endpoint ? { body: JSON.stringify(body || {}) } : {}), cache: 'no-store', credentials: 'omit', redirect: 'error' });
     const result = await response.json();
     if (!response.ok) {
       const code = result.error?.code;
-      if (endpoint === 'settings') {
-        if (result.status && result.catalog) data = result;
-        throw new Error(code === 'invalid_runtime_settings' ? 'Enter whole seconds within the shown limits. The request budget minus the cloud reserve must fit loading, judgment queue plus inference, and execution queue plus execution.' : 'Settings could not be applied. Review the saved and active values, then retry loading.');
-      }
       if (String(code || '').startsWith('local_model_dependency_')) throw new Error(dependencyMessage(code));
       if (String(code || '').startsWith('local_model_install_')) throw new Error(statusErrorMessage({ error: code, progress: data?.status?.progress }));
       throw new Error(code === 'device_check_not_passed' ? 'Device check did not pass. Detect again and check memory, backend and free disk space.' : code === 'capability_model_unsupported' ? 'The selected model does not support this operation.' : code === 'capability_acceptance_suites_not_provided' ? 'Capability acceptance suites have not been provided.' : 'Local model operation failed. Refresh to inspect status.');
@@ -406,7 +385,9 @@
     try {
       const result = await request('');
       if (current !== connection) return;
-      data = result; render();
+      data = result;
+      if (!selectedModelId) selectedModelId = data?.status?.installingModel || data?.status?.intent?.selected || '';
+      render();
       // One local probe per authenticated page session while no selected
       // installation is verified. Refreshes never loop on a failed probe.
       const skipDetection = window.routerLocalSkipDetectionOnce === true;
@@ -430,14 +411,20 @@
     finally { if (current === connection) { working = false; detecting = false; render(); } }
   }
   async function selectModel(id) {
-    if (working || data?.status?.intent?.selected === id) return;
+    if (working || currentChoiceModelId(data?.status) === id) return;
+    selectedModelId = id;
+    $('#localModelError').textContent = '';
+    if (data?.status?.intent?.enabled) {
+      render();
+      return;
+    }
+    if (data?.status?.intent?.selected === id) {
+      render();
+      return;
+    }
     const current = connection;
-    working = true; render(); $('#localModelError').textContent = '';
+    working = true; render();
     try {
-      if (data?.status?.intent?.enabled) {
-        const disRes = await request('disable', {});
-        if (disRes?.status) data.status = disRes.status;
-      }
       await request('select', { model: id });
     } catch (error) {
       if (current === connection) $('#localModelError').textContent = t(error.message);
@@ -448,13 +435,18 @@
   async function installModel() {
     if (working) return;
     const current = connection;
+    const choiceModelId = currentChoiceModelId(data?.status);
     working = true; render(); $('#localModelError').textContent = '';
     try {
-      if (!data?.status?.intent?.enabled) {
-        const enRes = await request('enable', {});
-        if (enRes?.status) data.status = enRes.status;
+      if (!choiceModelId || String(choiceModelId).toLowerCase() === String(data?.status?.intent?.selected || '').toLowerCase()) {
+        if (!data?.status?.intent?.enabled) {
+          const enRes = await request('enable', {});
+          if (enRes?.status) data.status = enRes.status;
+        }
+        await request('install', {});
+      } else {
+        await request('install', { model: choiceModelId });
       }
-      await request('install', {});
     } catch (error) {
       if (current === connection) $('#localModelError').textContent = t(error.message);
     } finally {
@@ -478,6 +470,7 @@
           const selRes = await request('select', { model: modelId });
           if (selRes?.status) data.status = selRes.status;
         }
+        selectedModelId = modelId;
         if (!data?.status?.intent?.enabled) {
           const enRes = await request('enable', {});
           if (enRes?.status) data.status = enRes.status;
@@ -512,12 +505,12 @@
     if (working) return;
     const current = connection;
     working = true; render(); $('#localModelError').textContent = '';
-    try { const result = await request(endpoint, body); if (endpoint === 'settings' && current === connection) { data = result; settingsDraft = null; } }
+    try { await request(endpoint, body); }
     catch (error) { if (current === connection) $('#localModelError').textContent = t(error.message); }
     finally { if (current === connection) { working = false; await open(); } }
   }
   window.routerLocalOpen = open;
   window.routerLocalRender = render;
-  window.routerLocalDisconnected = () => { clearTimeout(timer); connection++; data = null; device = null; settingsDraft = null; applyingSettings = false; working = false; detectionAttempted = false; detecting = false; detectionFailed = false; render(); };
+  window.routerLocalDisconnected = () => { clearTimeout(timer); connection++; data = null; device = null; working = false; detectionAttempted = false; detecting = false; detectionFailed = false; selectedModelId = ''; render(); };
   render();
 })();

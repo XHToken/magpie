@@ -520,7 +520,7 @@ func planLevel(g provider.Group, ms []provider.Member, depth int, from provider.
 			return out
 		}
 		routing := g.Routing
-		if routing == provider.Manual {
+		if routing == provider.Manual || routing == provider.EdgeCloud {
 			routing = "" // the member picked, its keys or accounts weighed smartly
 		}
 		weighedHeads, wg := weigh(provider.Provider{ID: provider.GroupPrefix + g.ID, Routing: routing}, heads, "", from)

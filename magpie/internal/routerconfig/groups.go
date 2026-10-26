@@ -81,32 +81,33 @@ func GroupError(err error) (string, int) {
 // Group combines multiple provider/model entries under one model name.
 // JSON tags are 100% compatible with internal/provider/group.go and plugins/routing/client.js.
 type Group struct {
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	Members       []string          `json:"members"`            // "providerID/model[:effort]", "local/model", or "group/<id>"
-	Match         []string          `json:"match,omitempty"`    // glob/re patterns against "provider/model" or "model"
-	Matched       []string          `json:"matched,omitempty"`  // view-only: members pulled in by Match (cleared on save)
-	Routing       string            `json:"routing,omitempty"`  // ""|"order"|"ordered"|"weight"|"weighted"|"manual"|"smart_split"|"rules"|"rotate"|"usage"|"least"|"pace"
-	Affinity      string            `json:"affinity,omitempty"` // ""="auto", "session", "turn", "off", "strict", "pin"
-	Stickiness    int               `json:"stickiness,omitempty"`
-	Sink          bool              `json:"sink,omitempty"`
-	FirstToken    int               `json:"firstToken,omitempty"`
-	Patience      int               `json:"patience,omitempty"`
-	Off           []string          `json:"off,omitempty"`
-	Pick          string            `json:"pick,omitempty"`
-	Rules         []Rule            `json:"rules,omitempty"`
-	Classifier    string            `json:"classifier,omitempty"`
-	Effort        string            `json:"effort,omitempty"`
-	MemberEfforts map[string]string `json:"memberEfforts,omitempty"`
-	Context       int               `json:"context,omitempty"`
-	Levels        []string          `json:"levels,omitempty"`
-	Fast          []string          `json:"fast,omitempty"`
-	Weights       map[string]int    `json:"weights,omitempty"`
-	Family        string            `json:"family,omitempty"`
-	Unlists       bool              `json:"unlists,omitempty"`
-	Auto          bool              `json:"auto,omitempty"`   // runtime-derived marker (cleared on save)
-	Hidden        bool              `json:"hidden,omitempty"` // tombstone for user-dismissed auto group
-	Disabled      bool              `json:"disabled,omitempty"`
+	ID             string            `json:"id"`
+	Name           string            `json:"name"`
+	Members        []string          `json:"members"`            // "providerID/model[:effort]", "local/model", or "group/<id>"
+	Match          []string          `json:"match,omitempty"`    // glob/re patterns against "provider/model" or "model"
+	Matched        []string          `json:"matched,omitempty"`  // view-only: members pulled in by Match (cleared on save)
+	Routing        string            `json:"routing,omitempty"`  // ""|"order"|"ordered"|"weight"|"weighted"|"manual"|"smart_split"|"rules"|"rotate"|"usage"|"least"|"pace"
+	Affinity       string            `json:"affinity,omitempty"` // ""="auto", "session", "turn", "off", "strict", "pin"
+	Stickiness     int               `json:"stickiness,omitempty"`
+	Sink           bool              `json:"sink,omitempty"`
+	FirstToken     int               `json:"firstToken,omitempty"`
+	Patience       int               `json:"patience,omitempty"`
+	Off            []string          `json:"off,omitempty"`
+	Pick           string            `json:"pick,omitempty"`
+	Rules          []Rule            `json:"rules,omitempty"`
+	Classifier     string            `json:"classifier,omitempty"`
+	Effort         string            `json:"effort,omitempty"`
+	MemberEfforts  map[string]string `json:"memberEfforts,omitempty"`
+	Context        int               `json:"context,omitempty"`
+	Levels         []string          `json:"levels,omitempty"`
+	Fast           []string          `json:"fast,omitempty"`
+	Weights        map[string]int    `json:"weights,omitempty"`
+	Family         string            `json:"family,omitempty"`
+	Unlists        bool              `json:"unlists,omitempty"`
+	Auto           bool              `json:"auto,omitempty"`   // runtime-derived marker (cleared on save)
+	Hidden         bool              `json:"hidden,omitempty"` // tombstone for user-dismissed auto group
+	Disabled       bool              `json:"disabled,omitempty"`
+	LocalRedaction bool              `json:"localRedaction,omitempty"`
 }
 
 // Rule is a single condition -> member mapping within a Group.

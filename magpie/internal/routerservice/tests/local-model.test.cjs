@@ -79,11 +79,13 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       const external = []; page.on('request', req => { if (new URL(req.url()).origin !== base) external.push(req.url()); });
       const initialActions = [];
       page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname.startsWith('/api/local-model/')) initialActions.push(new URL(request.url()).pathname); });
+      let backendFixture = null;
       const installation = ['not_installed', 'canceled', 'failed'][pageIndex++ % 3];
       const emptyModelStatus = async route => {
         const response = await route.fetch();
         const result = await response.json();
         result.status.installation = installation;
+        if (backendFixture) { result.status.backend = backendFixture; result.status.healthy = backendFixture.testHealthy; result.status.pid = backendFixture.testHealthy ? 4242 : 0; }
         result.status.progress = { artifact: 'dep', downloaded: 3313422, total: 3313422 };
         await route.fulfill({ response, json: result });
       };
@@ -136,6 +138,7 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
         throw error;
       }
       const recommendation = async model => page.evaluate(({ key, model }) => t(key).replace('{model}', model), { key: recommendationKey, model });
+      assert.equal(await page.locator('#localModelLifecycle').textContent(), await page.evaluate(() => t('Enabled models stay loaded while Router runs. Your on/off choice is remembered at the next startup.')), 'lifecycle copy explains residency and restart persistence');
       await page.waitForFunction(key => document.querySelector('#localDeviceMessage')?.textContent === t(key).replace('{model}', 'Spark-X2.5-1.7B'), recommendationKey);
       await page.waitForFunction(() => !document.querySelector('#localDeviceGuide [data-action=detect]').disabled);
       assert.equal(await page.evaluate(() => [...document.querySelectorAll('#localModelContent .row b')].some(el => el.textContent === t('Downloading'))), false, `${installation} never renders a stale Downloading progress row`);
@@ -145,6 +148,18 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       assert.equal(await page.locator('#localModelContent [data-action=detect]').count(), 1, 'one detection control is shown at the top');
       assert.equal(await page.evaluate(() => !!(document.querySelector('#localDeviceGuide').compareDocumentPosition(document.querySelector('#localModelChoices')) & Node.DOCUMENT_POSITION_FOLLOWING)), true, 'device guidance precedes model selection');
       if (language === 'zh') assert.equal(await page.locator('#localDeviceMessage').textContent(), '根据检测，您的电脑配置适合 Spark-X2.5-1.7B。');
+      assert.ok((await page.locator('#localModelBackend').textContent()).includes(await page.evaluate(() => t('Acceleration not verified'))));
+      backendFixture = { mode: 'auto', state: 'hybrid', effective: 'vulkan', deviceName: 'Intel Arc GPU', offloadedLayers: 20, totalLayers: 30, testHealthy: true };
+      await page.evaluate(() => window.routerLocalOpen());
+      assert.ok((await page.locator('#localModelBackend').textContent()).includes(await page.evaluate(() => t('Hybrid CPU and GPU'))));
+      assert.ok((await page.locator('#localModelBackend').textContent()).includes('20/30'));
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'backend information fits mobile and desktop');
+      backendFixture.testHealthy = false;
+      await page.evaluate(() => window.routerLocalOpen());
+      assert.ok((await page.locator('#localModelBackend').textContent()).includes(await page.evaluate(() => t('Acceleration not verified'))), 'a stale GPU name never proves acceleration');
+      backendFixture = null;
+      await page.evaluate(() => window.routerLocalOpen());
+
       await page.locator('#localModelContent [data-action=refresh]').click();
       await page.evaluate(() => window.routerLocalOpen());
       assert.equal(detections, 1, 'manual and repeated refresh do not repeat automatic detection');
@@ -203,28 +218,10 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       assert.equal(await page.evaluate(() => [...document.querySelectorAll('#localModelContent .list.prefs .name')].some(el => [t('Judgment'), t('Execution'), t('Redaction')].includes(el.textContent))), false, 'capability rows are removed from status list');
       assert.deepEqual(external, []);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
-      assert.equal(await page.locator('#localRuntimeSettings select').count(), 0, 'context choices use the app controls');
-      assert.deepEqual(await page.locator('#localContextChoices button').allTextContents(), ['8K', '16K', '32K', '64K']);
-      const preset = page.locator('#localSettingsForm button[type=button]').last();
-      await preset.click();
-      assert.equal(await page.locator('#localSettingsForm input[name=judgmentInferenceSeconds]').inputValue(), '30');
-      await page.locator('#localSettingsForm input[name=requestSeconds]').fill('300');
-      const beforeInvalidSettings = initialActions.length;
-      await page.locator('#localSettingsForm [data-action=settings]').click();
-      await page.waitForFunction(() => document.querySelector('#localModelError').textContent === t('Enter whole seconds within the shown limits. The request budget minus the cloud reserve must fit loading, judgment queue plus inference, and execution queue plus execution.'));
-      assert.equal(initialActions.length, beforeInvalidSettings, 'inconsistent stage budgets never reach the service');
-      await preset.click();
-      await page.locator('#localContextChoices button').nth(2).click();
-      await page.locator('#localSettingsForm input[name=judgmentInferenceSeconds]').fill('34');
-      await page.locator('#localSettingsForm [data-action=settings]').click();
-      await page.waitForFunction(() => !document.querySelector('#localSettingsForm [data-action=settings]').disabled);
-      assert.equal((await status()).settings.contextTokens, 32768, 'the displayed context choice is persisted');
-      assert.equal((await status()).settings.judgmentInferenceSeconds, 34, 'the edited inference budget is persisted');
-      assert.equal((await status()).intent.enabled, false, 'saving settings does not enable a disabled model');
-      assert.ok((await page.locator('#localSettingsSaved').textContent()).includes(await page.evaluate(() => (32768).toLocaleString(intlLang()))));
-      assert.equal(await page.locator('#localSettingsForm input[name=requestSeconds]').inputValue(), '600');
-      assert.ok((await page.locator('#localRuntimeSettings').textContent()).includes(await page.evaluate(() => t('Settings changes require new capability checks before experimental routing and execution.'))));
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'runtime settings fit the viewport');
+      assert.equal(await page.locator('#localRuntimeSettings, #localSettingsForm, #localContextChoices').count(), 0, 'the local model page has no runtime configuration panel');
+      assert.equal(await page.locator('#localModelContent input[type=number], #localModelContent [data-action=settings]').count(), 0, 'users never edit runtime budgets');
+      assert.deepEqual((await status()).settings, { contextTokens: 65536, judgmentQueueSeconds: 15, judgmentInferenceSeconds: 30, executionQueueSeconds: 30, executionSeconds: 300, loadSeconds: 90, requestSeconds: 600, cloudReserveSeconds: 60 }, 'a fresh service applies the standard 64K policy without a settings action');
+      assert.equal(initialActions.includes('/api/local-model/settings'), false, 'opening the page never submits runtime settings');
       if (process.env.ARTIFACT_DIR && ['zh', 'en'].includes(language)) {
         await fs.mkdir(process.env.ARTIFACT_DIR, { recursive: true });
         await page.screenshot({ path: path.join(process.env.ARTIFACT_DIR, `local-model-${language}-${width}.png`), fullPage: true });
@@ -245,15 +242,15 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
             ...result.status,
             installation: trialFixture.downloading ? 'downloading' : 'installed',
             progress: trialFixture.downloading ? { artifact: 'model', downloaded: 52428800, total: 104857600 } : result.status.progress,
-            runtime: trialFixture.loaded ? 'ready' : 'unloaded',
+            runtime: trialFixture.runtime || (trialFixture.loaded ? 'ready' : 'unloaded'),
             pid: trialFixture.loaded ? 4242 : 0,
             dependencies: { state: 'ready', version: '14.50.35717.0' },
-            intent: { ...result.status.intent, enabled: trialFixture.loaded, trial: { judgment: trialFixture.enabled, execution: trialFixture.enabled } },
+            intent: { ...result.status.intent, selected: trialFixture.selected || result.status.intent.selected, enabled: trialFixture.loaded, trial: { judgment: trialFixture.enabled, execution: trialFixture.enabled } },
             capabilities: { ...result.status.capabilities, judgment: capability(trialFixture.enabled), execution: capability(trialFixture.enabled) },
           };
           result.models = [
-            { id: 'spark-x2.5-1.7B', selector: 'local/spark-x2.5-1.7b', name: 'Spark-X2.5-1.7B', tier: '1.7B', installed: true },
-            { id: 'spark-x2.5-4B', selector: 'local/spark-x2.5-4b', name: 'Spark-X2.5-4B', tier: '4B', installed: true },
+            { id: 'spark-x2.5-1.7B', selector: 'local/spark-x2.5-1.7b', name: 'Spark-X2.5-1.7B', tier: '1.7B', installed: trialFixture.oneSevenInstalled ?? true },
+            { id: 'spark-x2.5-4B', selector: 'local/spark-x2.5-4b', name: 'Spark-X2.5-4B', tier: '4B', installed: trialFixture.fourBInstalled ?? true },
           ];
         }
         await route.fulfill({ response, json: result });
@@ -294,9 +291,14 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
         await page.waitForFunction(() => document.querySelector('#localInstalledModels [data-action="toggle-model"]')?.getAttribute('aria-checked') === 'true');
         assert.equal(trialFixture.loads, 1);
         assert.equal(trialFixture.enables, 1);
+        trialFixture.runtime = 'fault';
+        await page.evaluate(() => window.routerLocalOpen());
+        assert.equal(await firstSwitch.getAttribute('aria-checked'), 'true', 'a runtime fault does not change the saved on/off choice');
         await firstSwitch.click();
         await page.waitForFunction(() => document.querySelector('#localInstalledModels [data-action="toggle-model"]')?.getAttribute('aria-checked') === 'false');
         assert.equal(trialFixture.disables, 1);
+        assert.equal(trialFixture.loads, 1, 'turning off a faulted runtime disables it instead of loading it again');
+        trialFixture.runtime = null;
         trialFixture.unavailable = true;
         await firstSwitch.click();
         await page.waitForFunction(() => document.querySelector('#localModelError')?.textContent === t('Capability acceptance suites have not been provided.'));
@@ -305,6 +307,37 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
         await page.evaluate(() => window.routerLocalOpen());
         assert.equal(await page.locator('#localDownloadProgress progress.local-progress-bar').getAttribute('value'), '50');
         assert.ok((await page.locator('#localDownloadProgress').textContent()).includes('50.0 / 100.0 MiB (50%)'));
+
+        // Regression check: when Spark-X2.5-4B is enabled/running in #localInstalledModels,
+        // clicking Spark-X2.5-1.7B in #localModelChoices is for download/installation and must NOT disable Spark-X2.5-4B.
+        trialFixture.selected = 'spark-x2.5-4B';
+        trialFixture.downloading = false;
+        trialFixture.loaded = true;
+        trialFixture.oneSevenInstalled = false;
+        trialFixture.fourBInstalled = true;
+        actions.length = 0;
+        await page.evaluate(() => window.routerLocalOpen());
+        await page.locator('#localModelChoices button').last().click();
+        assert.equal(await page.locator('#localInstalledModels [data-action="toggle-model"]').first().getAttribute('aria-checked'), 'true');
+        await page.locator('#localModelChoices button').first().click();
+        assert.equal(await page.locator('#localModelChoices button').first().getAttribute('aria-pressed'), 'true', '1.7B is selected in download choices');
+        assert.equal(await page.locator('#localInstalledModels [data-action="toggle-model"]').first().getAttribute('aria-checked'), 'true', 'clicking 1.7B in download choices keeps 4B enabled');
+        assert.equal(trialFixture.loaded, true, '4B runtime was not disabled');
+        assert.equal(actions.includes('/api/local-model/disable'), false, 'selecting a download model never calls disable');
+        assert.equal(await page.locator('#localModelContent [data-action=install]').isEnabled(), true, 'uninstalled choice enables Download and install while 4B runs');
+        let installedTargetModel = null;
+        const installOtherRoute = async route => {
+          installedTargetModel = route.request().postDataJSON();
+          trialFixture.oneSevenInstalled = true;
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 1, status: { installation: 'installed', intent: { selected: 'spark-x2.5-4B', enabled: true } } }) });
+        };
+        await page.route('**/api/local-model/install', installOtherRoute);
+        await page.locator('#localModelContent [data-action=install]').click();
+        await page.waitForFunction(() => document.querySelectorAll('#localInstalledModels .row.local-provider').length === 2);
+        assert.deepEqual(installedTargetModel, { model: 'spark-x2.5-1.7B' }, 'installing another model sends explicit target model ID');
+        assert.equal(await page.locator('#localInstalledModels [data-action="toggle-model"]').last().getAttribute('aria-checked'), 'true', '4B remains enabled after installing 1.7B');
+        await page.unroute('**/api/local-model/install', installOtherRoute);
+
         trialFixture = null;
         await page.unroute('**/api/local-model/enable');
         await page.unroute('**/api/local-model/load');
@@ -325,7 +358,7 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
         await page.evaluate(() => window.routerLocalOpen());
         const expected = await page.evaluate(key => t(key), message);
         assert.ok((await page.locator('#localModelDependencies').textContent()).includes(expected), `${language}/${state}`);
-        assert.equal(await page.locator('#localInstalledModels [data-action="toggle-model"]').first().isEnabled(), ['ready', 'not_required'].includes(state));
+        assert.equal(await page.locator('#localInstalledModels [data-action="toggle-model"]').first().isEnabled(), true, 'users can turn off an enabled model even when its dependencies are unhealthy');
       }
       assert.deepEqual(actions, [], 'reading dependency states never installs or loads');
       dependency = { ...dependency, state: 'corrupt', error: 'local_model_dependency_corrupt' };
@@ -360,6 +393,8 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       assert.deepEqual(actions, ['/api/local-model/install', '/api/local-model/install'], 'download failure is shown only after a second explicit repair');
       assert.equal((await status()).intent.enabled, false, 'render fixtures do not enable the real runtime');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+      await page.evaluate(() => window.routerLocalDisconnected());
+      await page.unrouteAll({ behavior: 'wait' });
       await page.close();
       assert.equal((await fetch(base + '/healthz')).status, 200, 'closing page keeps Router alive');
     }
@@ -385,6 +420,8 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
   await installedPage.locator('#localDeviceGuide [data-action=detect]').click();
   await installedPage.waitForFunction(() => !document.querySelector('#localDeviceGuide [data-action=detect]').disabled);
   assert.equal(installedDetections, 1, 'installed models still allow explicit device detection');
+  await installedPage.evaluate(() => window.routerLocalDisconnected());
+  await installedPage.unrouteAll({ behavior: 'wait' });
   await installedPage.close();
   assert.equal(expectedInstallFailures.length, 20, 'both controlled HTTP failures are verified for every language and viewport');
   t.diagnostic(`Verified ${expectedInstallFailures.length} injected install HTTP 409 responses; observed ${expectedInstallFailures.reduce((count, failure) => count + failure.consoleErrors.length, 0)} matching resource-error console messages.`);

@@ -117,7 +117,7 @@
       const badge = el('span', 'router-state ok', t(isReady ? 'Ready' : 'Installed')); badge.dataset.status = statusNorm || 'installed';
       const jump = el('button', 'text', t('Local model')); jump.type = 'button'; jump.dataset.action = 'open-local-model';
       jump.onclick = () => { if (typeof show === 'function') show('local-model'); else $('#nav [data-view="local-model"]')?.click(); };
-      row.append(iconFor('spark'), who, badge, jump); box.append(row);
+      row.append(iconFor('spark-color'), who, badge, jump); box.append(row);
     }
   }
   function renderProviders() {

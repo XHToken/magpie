@@ -162,13 +162,29 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     assert.equal(await loomySwitch.getAttribute('aria-checked'), 'false');
     const loomyConnectResp = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/hosts/auto');
     await loomySwitch.click();
-    assert.equal((await loomyConnectResp).status(), 200);
+    const loomyConnected = await loomyConnectResp;
+    assert.equal(loomyConnected.status(), 200, await loomyConnected.text());
     await page.waitForFunction(() => document.querySelector('#agents [data-app="loomy"] .lib-switch.ag-conn').getAttribute('aria-checked') === 'true');
     assert.equal(generationRequests, 0, 'connecting Loomy must not trigger upstream generation probe');
 
     const loomyCfg = JSON.parse(await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8'));
     assert.equal(loomyCfg.model, 'wefto/group/coding-hybrid');
     assert.deepEqual(Object.keys(loomyCfg.provider.wefto.models).sort(), ['group/coding-hybrid', 'local/spark-x2.5-1.7b', 'openai/gpt-4o']);
+
+    // A failed clear must retain the connected selection and configuration.
+    await page.route('**/api/hosts/auto', async route => {
+      if (route.request().method() === 'POST') await route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: { code: 'host_operation_failed', message: 'fixture save failure' } }) });
+      else await route.continue();
+    });
+    await loomyMenuBtn.click();
+    const failedClear = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/hosts/auto');
+    await page.locator('.am-foot button').filter({ hasText: '清空已选' }).click();
+    assert.equal((await failedClear).status(), 409);
+    await page.waitForFunction(() => document.querySelector('#agents [data-app="loomy"] .field.ag-menu').textContent.includes('coding-hybrid'));
+    assert.equal(await loomySwitch.getAttribute('aria-checked'), 'true');
+    assert.deepEqual(JSON.parse(await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8')), loomyCfg);
+    await page.keyboard.press('Escape');
+    await page.unroute('**/api/hosts/auto');
 
     // Turn OFF Loomy switch -> restores original opencode.json & preserves selected models in UI
     const loomyDisconnectResp = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/hosts/auto');
@@ -235,6 +251,25 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     await page.waitForFunction(() => /未检测到宿主配置目录|Host configuration directory was not found/.test(document.querySelector('#appStatus').textContent));
     assert.equal(await wbSwitch.getAttribute('aria-checked'), 'false');
     await page.unroute('**/api/hosts/auto');
+
+    // Reproduce Loomy's stale model menu after its Router Profile was cleared.
+    await loomySwitch.click();
+    await page.waitForFunction(() => document.querySelector('#agents [data-app="loomy"] .lib-switch.ag-conn').getAttribute('aria-checked') === 'true');
+    const authHeaders = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
+    const appList = await (await fetch(`http://${address}/api/apps`, { headers: authHeaders })).json();
+    const savedLoomy = appList.apps.find(a => a.id === 'loomy');
+    const cleared = await fetch(`http://${address}/api/apps`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ id: 'loomy', revision: savedLoomy.revision, enabled: false, models: [], cloud: { providerId: '', model: '' } }) });
+    assert.equal(cleared.status, 200);
+    const orphanedConfig = await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8');
+    for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) {
+      await page.goto(`http://${address}/?locale=${language}&view=agents`);
+      await page.waitForFunction(() => !!managementToken && !!serviceInfo);
+      await page.evaluate(() => window.routerAppsOpen());
+      assert.equal(await page.locator('#agents [data-app="loomy"] .lib-switch.ag-conn').getAttribute('aria-checked'), 'false');
+      assert.equal(await page.locator('#agents [data-app="loomy"] .router-state').textContent(), await page.evaluate(() => t('Reconnect required')));
+      assert.equal(await page.locator('#agents [data-app="loomy"] .field.ag-menu').getAttribute('title'), await page.evaluate(() => t('Choose models')));
+      assert.equal(await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8'), orphanedConfig, 'inspection must not rewrite the host');
+    }
 
     assert.deepEqual(errors, []);
     await page.close();

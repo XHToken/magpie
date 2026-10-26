@@ -79,7 +79,9 @@ func (c loomyChecker) Check(ctx context.Context, o Options) (result error) {
 	if err := validateAppProjection(apps, o); err != nil {
 		return fmt.Errorf("Loomy requires an exact stored provider/model binding; dynamic session configuration must be verified from the real host: %w", err)
 	}
-	body, _ := json.Marshal(map[string]any{"model": o.Model, "stream": false, "max_tokens": 128,
+	// Preserve the installed host's top-level $comment semantics so
+	// incompatible cross-protocol targets fail before writing.
+	body, _ := json.Marshal(map[string]any{"model": o.Model, "stream": false, "max_tokens": 128, "$comment": "connection-check",
 		"messages": []map[string]string{{"role": "user", "content": "Reply with OK."}}})
 	response, err := request(http.MethodPost, "/app/loomy/v1/chat/completions", body, false)
 	if err != nil {

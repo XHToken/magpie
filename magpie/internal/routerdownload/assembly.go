@@ -25,6 +25,12 @@ type Assembly struct {
 	Base, Overlay                   routermanifest.Artifact
 	BaseDirectory, OverlayDirectory string
 	OverlayPrefix                   string
+	Extra                           []AssemblyOverlay
+}
+
+type AssemblyOverlay struct {
+	Artifact  routermanifest.Artifact
+	Directory string
 }
 
 type assemblyReceipt struct {
@@ -39,7 +45,8 @@ func (a Assembly) identity() string {
 	b, _ := json.Marshal(struct {
 		Base, Overlay routermanifest.Artifact
 		Prefix        string
-	}{a.Base, a.Overlay, a.OverlayPrefix})
+		Extra         []AssemblyOverlay `json:"extra,omitempty"`
+	}{a.Base, a.Overlay, a.OverlayPrefix, a.Extra})
 	h := sha256.Sum256(b)
 	return hex.EncodeToString(h[:])
 }
@@ -66,7 +73,7 @@ func readExtractionReceipt(root string) (receipt, error) {
 // receipt from the output can redefine the expected files or source identities.
 func (a Assembly) inputs(ctx context.Context) (assemblyReceipt, map[string]string, error) {
 	r := assemblyReceipt{Version: 2, Identity: a.identity(), BaseSHA256: a.Base.SHA256, OverlaySHA256: a.Overlay.SHA256}
-	if a.Base.ExpandedBytes <= 0 || a.Overlay.ExpandedBytes <= 0 || a.Base.ExpandedBytes > math.MaxInt64-a.Overlay.ExpandedBytes {
+	if _, err := a.budget(); err != nil {
 		return r, nil, errors.New("invalid assembly expanded-byte budget")
 	}
 	if a.OverlayPrefix != "" {
@@ -79,6 +86,11 @@ func (a Assembly) inputs(ctx context.Context) (assemblyReceipt, map[string]strin
 		root     string
 	}{{a.Base, a.BaseDirectory}, {a.Overlay, a.OverlayDirectory}} {
 		if err := VerifyDirectory(ctx, source.artifact, source.root); err != nil {
+			return r, nil, err
+		}
+	}
+	for _, source := range a.Extra {
+		if err := VerifyDirectory(ctx, source.Artifact, source.Directory); err != nil {
 			return r, nil, err
 		}
 	}
@@ -95,7 +107,26 @@ func (a Assembly) inputs(ctx context.Context) (assemblyReceipt, map[string]strin
 		key := strings.ToLower(f.Path)
 		files[key], sources[key] = f, filepath.Join(a.BaseDirectory, filepath.FromSlash(f.Path))
 	}
+	overlayFiles := append([]extractedFile(nil), overlay.Files...)
+	overlaySources := map[string]string{}
 	for _, f := range overlay.Files {
+		overlaySources[strings.ToLower(f.Path)] = filepath.Join(a.OverlayDirectory, f.Path)
+	}
+	for _, source := range a.Extra {
+		receipt, err := readExtractionReceipt(source.Directory)
+		if err != nil {
+			return r, nil, err
+		}
+		for _, f := range receipt.Files {
+			key := strings.ToLower(f.Path)
+			if _, exists := overlaySources[key]; exists {
+				return r, nil, errors.New("dependency sets overlap")
+			}
+			overlaySources[key] = filepath.Join(source.Directory, f.Path)
+			overlayFiles = append(overlayFiles, f)
+		}
+	}
+	for _, f := range overlayFiles {
 		if path.Base(f.Path) != f.Path {
 			return r, nil, errors.New("dependency extraction must be flat")
 		}
@@ -108,7 +139,7 @@ func (a Assembly) inputs(ctx context.Context) (assemblyReceipt, map[string]strin
 			return r, nil, errors.New("assembly case collision")
 		}
 		f.Path = target
-		files[key], sources[key] = f, filepath.Join(a.OverlayDirectory, filepath.Base(target))
+		files[key], sources[key] = f, overlaySources[strings.ToLower(filepath.Base(target))]
 	}
 	if len(files) == 0 || len(files) > maxEntries {
 		return r, nil, ErrIntegrity
@@ -153,7 +184,11 @@ func (a Assembly) Verify(ctx context.Context, destination string) error {
 	if len(b) > maxReceiptBytes || json.Unmarshal(b, &got) != nil || !reflect.DeepEqual(got, expected) {
 		return ErrIntegrity
 	}
-	return verifyTree(ctx, destination, expected.Files, a.Base.ExpandedBytes+a.Overlay.ExpandedBytes)
+	budget, err := a.budget()
+	if err != nil {
+		return err
+	}
+	return verifyTree(ctx, destination, expected.Files, budget)
 }
 
 func (a Assembly) Install(ctx context.Context, destination string) error {
@@ -178,7 +213,11 @@ func (a Assembly) Install(ctx context.Context, destination string) error {
 	if err != nil {
 		return err
 	}
-	if uint64(a.Base.ExpandedBytes+a.Overlay.ExpandedBytes) > available {
+	budget, err := a.budget()
+	if err != nil {
+		return err
+	}
+	if uint64(budget) > available {
 		return ErrDiskSpace
 	}
 	stage, err := os.MkdirTemp(filepath.Dir(destination), "."+filepath.Base(destination)+".assemble-")
@@ -242,7 +281,11 @@ func (a Assembly) Install(ctx context.Context, destination string) error {
 }
 
 func (a Assembly) disjoint(destination string) error {
-	for _, input := range []string{a.BaseDirectory, a.OverlayDirectory} {
+	inputs := []string{a.BaseDirectory, a.OverlayDirectory}
+	for _, source := range a.Extra {
+		inputs = append(inputs, source.Directory)
+	}
+	for _, input := range inputs {
 		if !filepath.IsAbs(input) || !filepath.IsAbs(destination) {
 			return errors.New("assembly directories must be absolute")
 		}
@@ -254,4 +297,25 @@ func (a Assembly) disjoint(destination string) error {
 		}
 	}
 	return nil
+}
+
+func (a Assembly) budget() (int64, error) {
+	if len(a.Extra) > 4 {
+		return 0, errors.New("too many dependency sets")
+	}
+	budget := a.Base.ExpandedBytes
+	if budget <= 0 {
+		return 0, errors.New("invalid base budget")
+	}
+	artifacts := []routermanifest.Artifact{a.Overlay}
+	for _, source := range a.Extra {
+		artifacts = append(artifacts, source.Artifact)
+	}
+	for _, artifact := range artifacts {
+		if artifact.ExpandedBytes <= 0 || budget > math.MaxInt64-artifact.ExpandedBytes {
+			return 0, errors.New("invalid overlay budget")
+		}
+		budget += artifact.ExpandedBytes
+	}
+	return budget, nil
 }

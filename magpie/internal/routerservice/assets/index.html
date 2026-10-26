@@ -140,6 +140,7 @@
     <div class="segs" id="usageTab" role="tablist" aria-label="Usage" data-ta>
       <button class="opt" id="usageTab-usage" role="tab" data-tab="usage" data-t>Overview</button>
       <button class="opt" id="usageTab-requests" role="tab" data-tab="requests" data-t>Requests</button>
+      <button class="opt" id="usageTab-redaction" role="tab" data-tab="redaction" data-t>Redaction</button>
     </div>
     <span class="sess-pick" id="period"></span>
     <span class="grow"></span>
@@ -157,6 +158,21 @@
       <button type="submit" class="btn" id="requestApply"></button>
     </form>
     <div id="requestRecords"></div>
+  </div>
+  <div class="usage-pane" id="redactionObsPane" hidden>
+    <p class="usage-note router-note" id="redactionObsScope"></p>
+    <div id="redactionObsSummary"></div>
+    <search>
+      <form class="request-filters redaction-obs-filters" id="redactionObsFilters">
+        <div id="redactionObsHitChoices" class="request-choices"></div>
+        <label><span id="redactionObsAppLabel"></span><input id="redactionObsApp" maxlength="48"></label>
+        <label><span id="redactionObsQueryLabel"></span><input id="redactionObsQuery" type="search" maxlength="200"></label>
+        <button type="submit" class="btn" id="redactionObsApply"></button>
+        <span class="grow"></span>
+        <button type="button" class="text danger" id="redactionObsClear"></button>
+      </form>
+    </search>
+    <div id="redactionObsRecords"></div>
   </div>
 </main>
 <main class="view router-service" id="view-settings" hidden>

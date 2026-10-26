@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/yetone/magpie/internal/dirs"
@@ -28,6 +29,7 @@ type LocalModels struct {
 	Catalog       routermanifest.Catalog
 	Checks        []routerruntime.Check // Registered by W4/W5, never supplied over HTTP.
 	Observer      routerruntime.LocalCallObserver
+	AutoLoad      bool
 	dynamicChecks bool
 	checkFactory  func(routerruntime.LocalCallIdentity, string) []routerruntime.Check
 }
@@ -42,23 +44,152 @@ func newLocalModelsWithTrial(ctx context.Context, l dirs.Layout, store *routerco
 	if len(observed) > 0 {
 		onStart = observed[0]
 	}
-	manager, err := routerruntime.New(ctx, routerruntime.Options{Catalog: catalog, RuntimeID: routerruntime.PlatformRuntime(catalog, runtime.GOOS, runtime.GOARCH), Store: routerruntime.ConfigIntentStore{Store: store}, Installer: &routerruntime.FileInstaller{Layout: l, Downloader: &routerdownload.Downloader{}}, Factory: routerprocess.NativeFactory{OnStart: onStart}, ExperimentalRedaction: experimental})
+	manager, err := routerruntime.New(ctx, routerruntime.Options{AutoBackend: true, Catalog: catalog, RuntimeID: routerruntime.PlatformRuntime(catalog, runtime.GOOS, runtime.GOARCH), Store: routerruntime.ConfigIntentStore{Store: store, StandardSettings: true}, Installer: &routerruntime.FileInstaller{Layout: l, Downloader: &routerdownload.Downloader{}}, Factory: routerprocess.NativeFactory{OnStart: onStart}, ExperimentalRedaction: experimental})
 	if err != nil {
 		return nil, err
 	}
-	return &LocalModels{Manager: manager, Detector: routerdevice.Native(), Layout: l, Catalog: catalog, dynamicChecks: true, checkFactory: localCapabilityChecks}, nil
+	return &LocalModels{Manager: manager, Detector: routerdevice.Native(), Layout: l, Catalog: catalog, AutoLoad: true, dynamicChecks: true, checkFactory: localCapabilityChecks}, nil
 }
 func (l *LocalModels) detect(ctx context.Context, path string) routerdevice.Report {
 	var requirements routerdevice.Requirements
+	var runtimeBytes uint64
+	if baseline, ok := l.Catalog.Runtime(routerruntime.PlatformRuntime(l.Catalog, runtime.GOOS, runtime.GOARCH)); ok {
+		runtimeBytes = uint64(routermanifest.RuntimeInstallationBytes(baseline))
+	}
 	for _, m := range l.Catalog.Models {
 		if m.Tier == "1.7B" {
-			requirements.Tier1_7BBytes = uint64(m.InstallationBytes)
+			requirements.Tier1_7BBytes = uint64(m.InstallationBytes) + runtimeBytes
 		}
 		if m.Tier == "4B" {
-			requirements.Tier4BBytes = uint64(m.InstallationBytes)
+			requirements.Tier4BBytes = uint64(m.InstallationBytes) + runtimeBytes
 		}
 	}
-	return l.Detector.Detect(ctx, path, requirements)
+	report := l.Detector.Detect(ctx, path, requirements)
+	return routerdevice.EvaluateWithCPUFallback(report.Device, requirements)
+}
+
+func (l *LocalModels) runCapabilityChecks(ctx context.Context) (int, error) {
+	// Bind the shared server-owned contracts and their prompt to one
+	// selection/settings snapshot. HTTP cannot invent capability evidence.
+	identity, settings := l.Manager.SnapshotBinding(ctx)
+	promptVersion := localPromptVersion(settings)
+	checks := append([]routerruntime.Check(nil), l.Checks...)
+	factory := l.checkFactory
+	if factory == nil && l.dynamicChecks {
+		factory = localCapabilityChecks
+		checks = nil
+	}
+	if factory != nil {
+		checks = append(factory(identity, promptVersion), checks...)
+	}
+	if len(checks) == 0 {
+		return 0, nil
+	}
+	var err error
+	for _, check := range checks {
+		run := check.Run
+		check.Run = func(ctx context.Context, endpoint string) (string, error) {
+			// This executes inside the acquired slot. A concurrent model or
+			// settings change must not attach stale evidence to its replacement.
+			currentIdentity, currentSettings := l.Manager.SnapshotBinding(ctx)
+			if currentIdentity != identity || currentSettings != settings || run == nil {
+				return "", routerruntime.ErrCapability
+			}
+			return run(ctx, endpoint)
+		}
+		checkCtx := routerruntime.WithRuntimeSettings(ctx, settings)
+		checkCtx = routerruntime.WithLocalCallContext(checkCtx, routerruntime.LocalCallContext{Check: true, Mode: routerruntime.LocalCallDiagnostic, PromptVersion: promptVersion, Material: check.Suite})
+		material := localJudgmentMaterial
+		if check.Purpose == routerruntime.Execution {
+			material = localExecutionMaterial
+		}
+		checkCtx = withLocalCheckCallObserver(checkCtx, localCheckCallObserver{target: l.Observer, manager: l.Manager, purpose: check.Purpose, suite: check.Suite, prompt: promptVersion, material: material})
+		checkErr := l.Manager.CheckCapability(checkCtx, check)
+		err = errors.Join(err, checkErr)
+	}
+	return len(checks), err
+}
+
+// autoLoadInstalled automatically enables, loads, checks, and enables trial
+// routing/execution for an installed local model on service startup unless
+// the user explicitly disabled the local model.
+func (l *LocalModels) autoLoadInstalled(ctx context.Context) {
+	if l == nil || l.Manager == nil || l.Detector == nil {
+		return
+	}
+	status := l.Manager.Status()
+	if status.Intent.UserDisabled {
+		return
+	}
+	var installed []routermanifest.Model
+	for _, m := range l.Catalog.Models {
+		if l.Manager.IsModelInstalled(ctx, m.ID) {
+			installed = append(installed, m)
+		}
+	}
+	if len(installed) == 0 || ctx.Err() != nil {
+		return
+	}
+	report := l.detect(ctx, l.Layout.Models)
+	if report.Detection.State != routerdevice.CheckPassed || ctx.Err() != nil {
+		return
+	}
+	var target routermanifest.Model
+	for _, m := range installed {
+		if strings.EqualFold(m.ID, status.Intent.Selected) && report.Recommendation.Allows(routerdevice.Tier(m.Tier)) {
+			target = m
+			break
+		}
+	}
+	if target.ID == "" {
+		for _, m := range installed {
+			if routerdevice.Tier(m.Tier) == report.Recommendation.Tier && report.Recommendation.Allows(routerdevice.Tier(m.Tier)) {
+				target = m
+				break
+			}
+		}
+	}
+	if target.ID == "" {
+		for _, m := range installed {
+			if report.Recommendation.Allows(routerdevice.Tier(m.Tier)) {
+				target = m
+				break
+			}
+		}
+	}
+	if target.ID == "" {
+		return
+	}
+	status = l.Manager.Status()
+	if status.Intent.UserDisabled {
+		return
+	}
+	if !strings.EqualFold(status.Intent.Selected, target.ID) {
+		if status.Intent.Enabled {
+			return
+		}
+		if err := l.Manager.Select(ctx, target.ID); err != nil {
+			return
+		}
+		status = l.Manager.Status()
+	}
+	if !status.Intent.Enabled {
+		if err := l.Manager.AutoEnableSelected(ctx, status.Intent.Selected); err != nil {
+			return
+		}
+	}
+	if err := l.Manager.Load(ctx); err != nil {
+		return
+	}
+	if count, err := l.runCapabilityChecks(ctx); err != nil || count == 0 {
+		return
+	}
+	st := l.Manager.Status()
+	if st.Capabilities[routerruntime.Judgment].Trial && st.Capabilities[routerruntime.Judgment].TrialEvidence &&
+		st.Capabilities[routerruntime.Execution].Trial && st.Capabilities[routerruntime.Execution].TrialEvidence &&
+		(!st.Intent.Trial.Judgment || !st.Intent.Trial.Execution) {
+		_ = l.Manager.EnableTrial(ctx, routerruntime.Judgment, routerruntime.Execution)
+	}
 }
 
 func localModelPath(r *http.Request) bool {
@@ -69,7 +200,7 @@ func localModelPath(r *http.Request) bool {
 	return false
 }
 func localModelRead(r *http.Request) bool {
-	return r.URL.Path == "/api/local-model" || r.URL.Path == "/api/local-model/settings" && (r.Method == http.MethodGet || r.Method == http.MethodHead)
+	return r.URL.Path == "/api/local-model" || r.URL.Path == "/api/local-model/settings"
 }
 
 func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
@@ -92,34 +223,6 @@ func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
 		if r.Method != http.MethodHead {
 			_ = json.NewEncoder(w).Encode(map[string]any{"schemaVersion": 1, "status": l.Manager.Status(), "catalog": l.Catalog, "models": aggregateLocalModelCandidates(r.Context(), nil, l)})
 		}
-		return
-	}
-	if r.URL.Path == "/api/local-model/settings" {
-		settings, err := decodeLocalRuntimeSettings(w, r)
-		if err != nil {
-			fail("invalid_runtime_settings", http.StatusBadRequest)
-			return
-		}
-		ctx := r.Context()
-		if err = l.Manager.UpdateSettings(ctx, settings); err == nil {
-			status := l.Manager.Status()
-			if status.Intent.Enabled && status.Installation == "installed" {
-				err = l.Manager.Load(ctx)
-			}
-		}
-		if err != nil {
-			code, status := "local_runtime_settings_apply_failed", http.StatusConflict
-			if errors.Is(err, context.DeadlineExceeded) {
-				code, status = "local_runtime_timed_out", http.StatusGatewayTimeout
-			}
-			if errors.Is(err, context.Canceled) {
-				code, status = "local_runtime_canceled", 499
-			}
-			w.WriteHeader(status)
-			_ = json.NewEncoder(w).Encode(map[string]any{"schemaVersion": 1, "error": map[string]string{"code": code}, "status": l.Manager.Status(), "catalog": l.Catalog, "models": aggregateLocalModelCandidates(r.Context(), nil, l)})
-			return
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"schemaVersion": 1, "status": l.Manager.Status(), "catalog": l.Catalog, "models": aggregateLocalModelCandidates(r.Context(), nil, l)})
 		return
 	}
 	var input struct {
@@ -165,7 +268,15 @@ func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
 	case "/api/local-model/install":
 		// Model and runtime can be on separate volumes. Recheck both explicit
 		// destinations immediately before installation, using the T3.1 provider.
-		model, _ := l.Catalog.Model(status.Intent.Selected)
+		targetModelID := status.Intent.Selected
+		if input.Model != "" {
+			targetModelID = input.Model
+			if _, ok := l.Catalog.Model(targetModelID); !ok {
+				fail("invalid_request", 400)
+				return
+			}
+		}
+		model, _ := l.Catalog.Model(targetModelID)
 		for _, path := range []string{l.Layout.Models, l.Layout.Runtime} {
 			report := l.detect(ctx, path)
 			if report.Detection.State != routerdevice.CheckPassed || (model.Tier != "" && !report.Recommendation.Allows(routerdevice.Tier(model.Tier))) {
@@ -173,7 +284,11 @@ func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
 				return
 			}
 		}
-		err = l.Manager.Install()
+		if input.Model != "" {
+			err = l.Manager.InstallModel(input.Model)
+		} else {
+			err = l.Manager.Install()
+		}
 	case "/api/local-model/cancel":
 		err = l.Manager.CancelInstall(ctx)
 	case "/api/local-model/load":
@@ -199,43 +314,11 @@ func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
 		}
 		err = l.Manager.DisableTrial(ctx, purposes...)
 	case "/api/local-model/check":
-		// Bind the shared server-owned contracts and their prompt to one
-		// selection/settings snapshot. HTTP cannot invent capability evidence.
-		identity, settings := l.Manager.SnapshotBinding(ctx)
-		promptVersion := localPromptVersion(settings)
-		checks := append([]routerruntime.Check(nil), l.Checks...)
-		factory := l.checkFactory
-		if factory == nil && l.dynamicChecks {
-			factory = localCapabilityChecks
-			checks = nil
-		}
-		if factory != nil {
-			checks = append(factory(identity, promptVersion), checks...)
-		}
-		if len(checks) == 0 {
+		var count int
+		count, err = l.runCapabilityChecks(ctx)
+		if count == 0 {
 			fail("capability_acceptance_suites_not_provided", http.StatusConflict)
 			return
-		}
-		for _, check := range checks {
-			run := check.Run
-			check.Run = func(ctx context.Context, endpoint string) (string, error) {
-				// This executes inside the acquired slot. A concurrent model or
-				// settings change must not attach stale evidence to its replacement.
-				currentIdentity, currentSettings := l.Manager.SnapshotBinding(ctx)
-				if currentIdentity != identity || currentSettings != settings || run == nil {
-					return "", routerruntime.ErrCapability
-				}
-				return run(ctx, endpoint)
-			}
-			checkCtx := routerruntime.WithRuntimeSettings(ctx, settings)
-			checkCtx = routerruntime.WithLocalCallContext(checkCtx, routerruntime.LocalCallContext{Check: true, Mode: routerruntime.LocalCallDiagnostic, PromptVersion: promptVersion, Material: check.Suite})
-			material := localJudgmentMaterial
-			if check.Purpose == routerruntime.Execution {
-				material = localExecutionMaterial
-			}
-			checkCtx = withLocalCheckCallObserver(checkCtx, localCheckCallObserver{target: l.Observer, manager: l.Manager, purpose: check.Purpose, suite: check.Suite, prompt: promptVersion, material: material})
-			checkErr := l.Manager.CheckCapability(checkCtx, check)
-			err = errors.Join(err, checkErr)
 		}
 	}
 	if err != nil {
@@ -260,48 +343,6 @@ func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
 		return
 	}
 	_ = json.NewEncoder(w).Encode(map[string]any{"schemaVersion": 1, "status": l.Manager.Status(), "models": aggregateLocalModelCandidates(r.Context(), nil, l)})
-}
-
-// Settings updates are complete, integer-only objects. Reject duplicate keys,
-// nulls, missing fields and trailing JSON before changing saved or active state.
-func decodeLocalRuntimeSettings(w http.ResponseWriter, r *http.Request) (routerconfig.RuntimeSettings, error) {
-	var settings routerconfig.RuntimeSettings
-	if r.Body == nil {
-		return settings, errors.New("runtime settings body required")
-	}
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
-	start, err := decoder.Token()
-	if err != nil || start != json.Delim('{') {
-		return settings, errors.New("invalid runtime settings")
-	}
-	fields := map[string]*int{
-		"contextTokens": &settings.ContextTokens, "judgmentQueueSeconds": &settings.JudgmentQueueSeconds,
-		"judgmentInferenceSeconds": &settings.JudgmentInferenceSeconds, "executionQueueSeconds": &settings.ExecutionQueueSeconds,
-		"executionSeconds": &settings.ExecutionSeconds, "loadSeconds": &settings.LoadSeconds,
-		"requestSeconds": &settings.RequestSeconds, "cloudReserveSeconds": &settings.CloudReserveSeconds,
-	}
-	seen := map[string]bool{}
-	for decoder.More() {
-		key, err := decoder.Token()
-		name, ok := key.(string)
-		field := fields[name]
-		if err != nil || !ok || field == nil || seen[name] {
-			return settings, errors.New("invalid runtime settings field")
-		}
-		var value *int
-		if decoder.Decode(&value) != nil || value == nil || *value <= 0 {
-			return settings, errors.New("runtime setting must be a positive integer")
-		}
-		*field, seen[name] = *value, true
-	}
-	if _, err := decoder.Token(); err != nil || len(seen) != len(fields) {
-		return settings, errors.New("incomplete runtime settings")
-	}
-	var extra any
-	if decoder.Decode(&extra) != io.EOF {
-		return settings, errors.New("trailing runtime settings")
-	}
-	return settings, settings.Validate()
 }
 
 func localTrialPurposes(judgment, execution *bool, names []string) ([]routerruntime.Purpose, error) {
@@ -340,24 +381,6 @@ func localTrialPurposes(judgment, execution *bool, names []string) ([]routerrunt
 		return nil, errors.New("trial purpose required")
 	}
 	return out, nil
-}
-
-// A single ticker checks only idle release; it never enables, downloads or
-// starts a model. The service owns and joins it before releasing the manager.
-func localIdleLoop(ctx context.Context, l *LocalModels, done chan<- struct{}) {
-	defer close(done)
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			stop, cancel := context.WithTimeout(ctx, 5*time.Second)
-			_ = l.Manager.Sweep(stop)
-			cancel()
-		}
-	}
 }
 
 //go:embed assets/local-model.js

@@ -117,6 +117,8 @@ test('default gate retains all product packages and every product page, includin
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/redaction.test.cjs'));
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/loomy-host.test.cjs'));
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/local-model.test.cjs'));
+    assert.ok(summary.browserFiles.includes('internal/routerservice/tests/agents.test.cjs'));
+    assert.ok(summary.browserFiles.includes('internal/routerservice/tests/routing-groups.test.cjs'));
     assert.deepEqual(call.args.filter(arg => arg.endsWith('.test.cjs')), summary.browserFiles);
     assert.ok(call.args.includes('--test-concurrency=1'));
     assert.ok(path.isAbsolute(call.env.WEFTO_BINARY));

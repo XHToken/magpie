@@ -12,6 +12,7 @@ import (
 
 	"github.com/yetone/magpie/internal/routerconfig"
 	"github.com/yetone/magpie/internal/routermanifest"
+	"github.com/yetone/magpie/internal/routerruntime"
 )
 
 const (
@@ -32,6 +33,8 @@ const (
 // It neither selects nor starts a runtime, and makes no acceptance assertion.
 type ModelBinding struct {
 	ModelID, RuntimeID string
+	// ExecutionPlan is supplied only by the service-owned runtime Manager.
+	ExecutionPlan string
 	// ContextTokens is supplied only by the trusted runtime Manager. Zero keeps
 	// the fixed catalog's original serving cap; it changes no privacy policy.
 	ContextTokens int
@@ -93,6 +96,13 @@ func newPrivacySpecification(binding ModelBinding, experimental bool) (*PrivacyS
 	if !modelOK || !runtimeOK || (experimental && model.ID != "spark-x2.5-1.7B" && model.ID != "spark-x2.5-4B") {
 		return nil, fail("redaction_unavailable")
 	}
+	if binding.ExecutionPlan != "" {
+		plan, err := hex.DecodeString(binding.ExecutionPlan)
+		if err != nil || len(plan) != 32 {
+			return nil, fail("redaction_unavailable")
+		}
+		runtime.Execution = binding.ExecutionPlan
+	}
 	if binding.ContextTokens != 0 {
 		if routerconfig.ValidateContextTokens(binding.ContextTokens) != nil || model.NativeContextTokens <= 0 || binding.ContextTokens > model.NativeContextTokens {
 			return nil, fail("redaction_unavailable")
@@ -113,28 +123,28 @@ func newPrivacySpecification(binding ModelBinding, experimental bool) (*PrivacyS
 	// Keep every engineering choice in this canonical versioned policy. Any
 	// change invalidates cache identity and requires a new quality evaluation.
 	policy := map[string]any{
-		"revision": "privacy-go-v5", "source": PrivacySourceCommit,
+		"revision": "privacy-go-v6", "source": PrivacySourceCommit,
 		"responseFormat": "llama-b10828-json-object-schema-v1", "fieldCoverage": "exact-local-count",
 		"positionGuide":     "unicode-complete-block-index-v2",
 		"positionFullRunes": PrivacyPositionFullRunes, "positionBlockRunes": PrivacyPositionBlockRunes,
 		"generationRepresentation": "strict-complete-objects-v1",
 		"labels":                   labels, "actions": "mask-all-returned-labels", "amountGeneralization": false,
-		"coordinateRecovery": false, "confidenceFiltering": false, "fieldSplitting": false,
+		"coordinateRecovery": true, "coordinateRecoveryPolicy": "unique-exact-substring-valid-coordinates-v1",
+		"confidenceFiltering": false, "fieldSplitting": false,
 		"maxFields": PrivacyMaxFields, "maxFieldRunes": PrivacyMaxFieldRunes,
 		"maxBatchFields": PrivacyMaxBatchFields, "maxBatchRunes": PrivacyMaxBatchRunes,
 		"maxTotalRunes": PrivacyMaxTotalRunes, "maxInputBytes": PrivacyMaxInputBytes,
 		"maxBatches": PrivacyMaxBatches, "maxOutputBytes": 1 << 20,
 		"maxOutputTokens": PrivacyMaxOutputTokens, "temperature": 0,
-		"stream": false, "enableThinking": false, "queueAndExecutionSeconds": 15,
+		"stream": false, "enableThinking": false, "queueAndExecutionSeconds": int(routerruntime.DefaultRedactionBudget / time.Second),
 		"maxEntities": maxEntities, "maxEntityBytes": maxEntityBytes,
 	}
-	suitePrefix := "privacy-go-v5:"
+	suitePrefix := "privacy-go-v6:"
 	if experimental {
-		policy["revision"] = "privacy-trial-v1"
+		policy["revision"] = "privacy-trial-v2"
 		policy["experimental"] = true
 		policy["qualityAccepted"] = false
-		policy["queueAndExecutionSeconds"] = 30
-		suitePrefix = "privacy-trial-v1:"
+		suitePrefix = "privacy-trial-v2:"
 	}
 	config, _ := json.Marshal(policy)
 	promptSchema, _ := json.Marshal([]string{PrivacyPrompt(), PrivacySchema()})
@@ -169,10 +179,7 @@ func (s *PrivacySpecification) Budget() time.Duration {
 	if s == nil {
 		return 0
 	}
-	if s.experimental {
-		return 30 * time.Second
-	}
-	return 15 * time.Second
+	return routerruntime.DefaultRedactionBudget
 }
 
 func (s *PrivacySpecification) RoutingVersions() PrivacyRoutingVersions {

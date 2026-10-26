@@ -107,6 +107,7 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 		isProvider := r.URL.Path == "/api/cloud-providers" || r.URL.Path == "/api/cloud-providers/models"
 		isGroup := r.URL.Path == "/api/routing-groups" || r.URL.Path == "/api/routing-groups/switch"
 		isRedaction := r.URL.Path == "/api/redaction"
+		isRedactionObs := r.URL.Path == "/api/redaction/observations"
 		allowed, methods := r.Method == http.MethodGet || r.Method == http.MethodHead, "GET, HEAD"
 		if r.URL.Path == "/api/cloud-providers" || r.URL.Path == "/api/routing-groups" || isApp {
 			allowed = allowed || r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete
@@ -115,16 +116,20 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 		if r.URL.Path == "/api/cloud-providers/models" || r.URL.Path == "/api/routing-groups/switch" || r.URL.Path == "/api/apps/check" || isLoomy || (isLocal && !localModelRead(r)) || isControl {
 			allowed, methods = r.Method == http.MethodPost, "POST"
 		}
-		if r.URL.Path == "/api/local-model/settings" || isRedaction || isHostAuto {
+		if isRedaction || isHostAuto {
 			allowed = r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodPost
 			methods = "GET, HEAD, POST"
+		}
+		if isRedactionObs {
+			allowed = r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodPost || r.Method == http.MethodDelete
+			methods = "GET, HEAD, POST, DELETE"
 		}
 		if !allowed {
 			w.Header().Set("Allow", methods)
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if (r.URL.Path == "/api/service" || isControl || isProvider || isGroup || isApp || isRequest || isLoomy || isHostAuto || isLocal || isRedaction) && subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
+		if (r.URL.Path == "/api/service" || isControl || isProvider || isGroup || isApp || isRequest || isLoomy || isHostAuto || isLocal || isRedaction || isRedactionObs) && subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, "management token required", http.StatusUnauthorized)
 			return
@@ -138,7 +143,11 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 			return
 		}
 		if isHostAuto {
-			hostAutoAPI(w, r, info, token, store, options.HostStateDir)
+			hostAutoAPI(w, r, info, token, store, options.HostStateDir, options.LocalRuntime)
+			return
+		}
+		if isRedactionObs {
+			redactionObservationsAPI(w, r, options.RedactionObservations)
 			return
 		}
 		if isRedaction {
@@ -248,7 +257,7 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 
 func allowedAPIPath(path string) bool {
 	switch path {
-	case "/api/service", "/api/cloud-providers", "/api/cloud-providers/models", "/api/routing-groups", "/api/routing-groups/switch", "/api/apps", "/api/apps/check", "/api/hosts/loomy", "/api/hosts/auto", "/api/redaction", "/api/service/stop", "/api/service/restart", "/api/service/autostart":
+	case "/api/service", "/api/cloud-providers", "/api/cloud-providers/models", "/api/routing-groups", "/api/routing-groups/switch", "/api/apps", "/api/apps/check", "/api/hosts/loomy", "/api/hosts/auto", "/api/redaction", "/api/redaction/observations", "/api/service/stop", "/api/service/restart", "/api/service/autostart":
 		return true
 	}
 	return false

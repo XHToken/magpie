@@ -118,7 +118,13 @@ func (e Engine) Restore(p *Plan) error {
 		}
 	}
 	j.Status = "restored"
-	return e.saveJournal(j)
+	if err := e.saveJournal(j); err != nil {
+		return err
+	}
+	if p.Host == "loomy" {
+		refreshLoomyRuntime(p.options.ConfigRoot, p.files)
+	}
+	return nil
 }
 
 func (e Engine) retireModels(ctx context.Context, o Options) error {

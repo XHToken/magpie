@@ -45,7 +45,9 @@ func PrivacyParseDiagnosticCode(err error) string {
 
 // Parse accepts one complete local-model batch. Coordinates in the pinned
 // privacy prompt count Unicode code points; Entity coordinates count UTF-8
-// bytes. No search, coordinate repair or silent finding removal is permitted.
+// bytes. Valid but mismatched coordinates may be recovered only from a unique
+// exact source substring with valid ASCII boundaries. Invalid bounds, ambiguous
+// matches and invalid findings are rejected; no finding is silently removed.
 func (s *PrivacySpecification) Parse(ctx context.Context, in Extraction, raw []byte) (Result, error) {
 	if err := contextError(ctx); err != nil {
 		return Result{}, err
@@ -130,10 +132,10 @@ func (s *PrivacySpecification) Parse(ctx context.Context, in Extraction, raw []b
 				return Result{}, privacyInvalid("label")
 			}
 			limit := len(boundaries[index]) - 1
-			start, startOK := privacyInteger(finding["start"], limit)
-			end, endOK := privacyInteger(finding["end"], limit)
+			start, startOK := privacyInteger(finding["start"], PrivacyMaxFieldRunes)
+			end, endOK := privacyInteger(finding["end"], PrivacyMaxFieldRunes)
 			text, textOK := finding["text"].(string)
-			if !startOK || !endOK || start >= end {
+			if !startOK || !endOK || start >= end || end > limit {
 				return Result{}, privacyInvalid("span_bounds")
 			}
 			if !textOK || text == "" || len(text) > maxEntityBytes {
@@ -142,9 +144,16 @@ func (s *PrivacySpecification) Parse(ctx context.Context, in Extraction, raw []b
 			if !privacyConfidence(finding["confidence"]) {
 				return Result{}, privacyInvalid("confidence")
 			}
-			byteStart, byteEnd := boundaries[index][start], boundaries[index][end]
-			if in.Texts[index][byteStart:byteEnd] != text {
-				return Result{}, privacyInvalid("span_text")
+			var byteStart, byteEnd int
+			if in.Texts[index][boundaries[index][start]:boundaries[index][end]] == text {
+				byteStart, byteEnd = boundaries[index][start], boundaries[index][end]
+			} else {
+				firstIdx := strings.Index(in.Texts[index], text)
+				// A second occurrence can overlap the first (for example 田田 in 田田田).
+				if firstIdx < 0 || strings.Index(in.Texts[index][firstIdx+1:], text) >= 0 || !validLLMASCIISpanBoundary(in.Texts[index], text, firstIdx, firstIdx+len(text)) {
+					return Result{}, privacyInvalid("span_text")
+				}
+				byteStart, byteEnd = firstIdx, firstIdx+len(text)
 			}
 			entity := Entity{Field: index, Start: byteStart, End: byteEnd, Text: strings.Clone(text), Category: category}
 			if seenEntities[entity] {

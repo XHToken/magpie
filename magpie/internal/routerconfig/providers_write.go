@@ -26,12 +26,15 @@ func activeProviderCredentialRefs(providers map[string]json.RawMessage, excludeI
 	return refs
 }
 
-func pruneOrphanSecrets(f *providerFiles, retainedRefs map[string]bool) {
+func pruneOrphanSecrets(f *providerFiles, retainedRefs map[string]bool) bool {
+	pruned := false
 	for ref := range f.secrets {
 		if !retainedRefs[ref] {
 			delete(f.secrets, ref)
+			pruned = true
 		}
 	}
+	return pruned
 }
 
 func (s *Store) DeleteCloudProvider(id string, revision int) error {
@@ -101,8 +104,34 @@ func (s *Store) DeleteCloudProviderContext(ctx context.Context, id string, revis
 		}
 	}
 	delete(f.providers, id)
-	pruneOrphanSecrets(&f, activeProviderCredentialRefs(f.providers, id))
-	return s.writeProviders(ctx, f, true)
+	if err := s.writeProviders(ctx, f, false); err != nil {
+		return err
+	}
+	if pruneOrphanSecrets(&f, activeProviderCredentialRefs(f.providers, id)) {
+		return s.writeCredentials(ctx, f, true)
+	}
+	return nil
+}
+
+func (s *Store) writeCredentials(ctx context.Context, f providerFiles, writeBackup bool) error {
+	var err error
+	f.credentials["providers"], err = json.Marshal(f.secrets)
+	if err != nil {
+		return err
+	}
+	b, err := json.MarshalIndent(f.credentials, "", "  ")
+	if err != nil {
+		return err
+	}
+	if writeBackup && len(f.credentialBytes) > 0 {
+		if err := steady.WriteFileContext(ctx, s.layout.CredentialsFile()+".bak", f.credentialBytes, 0o600); err != nil {
+			return err
+		}
+	}
+	// Credentials are append-only immutable references before config replacement.
+	// A failed config write leaves an unused reference; the current config and its
+	// backup still refer to their original complete credential records.
+	return steady.WriteFileContext(ctx, s.layout.CredentialsFile(), append(b, '\n'), 0o600)
 }
 
 func (s *Store) writeProviders(ctx context.Context, f providerFiles, credentialsChanged bool) error {
@@ -116,23 +145,7 @@ func (s *Store) writeProviders(ctx context.Context, f providerFiles, credentials
 		return err
 	}
 	if credentialsChanged {
-		f.credentials["providers"], err = json.Marshal(f.secrets)
-		if err != nil {
-			return err
-		}
-		b, err := json.MarshalIndent(f.credentials, "", "  ")
-		if err != nil {
-			return err
-		}
-		if len(f.credentialBytes) > 0 {
-			if err := steady.WriteFileContext(ctx, s.layout.CredentialsFile()+".bak", f.credentialBytes, 0o600); err != nil {
-				return err
-			}
-		}
-		// Credentials are append-only immutable references. A failed config
-		// write leaves an unused reference; the current config and its backup
-		// still refer to their original complete credential records.
-		if err := steady.WriteFileContext(ctx, s.layout.CredentialsFile(), append(b, '\n'), 0o600); err != nil {
+		if err := s.writeCredentials(ctx, f, true); err != nil {
 			return err
 		}
 	}

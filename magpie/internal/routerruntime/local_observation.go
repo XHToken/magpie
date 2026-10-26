@@ -248,6 +248,7 @@ func observationMaterialVersion(p Purpose, material string) string {
 // LocalCallIdentity is derived only from the Manager's fixed catalog. It is
 // useful to service adapters that need to attach safe identity to a completion.
 type LocalCallIdentity struct {
+	ExecutionPlan      string
 	ModelID            string
 	ModelFingerprint   string
 	RuntimeID          string

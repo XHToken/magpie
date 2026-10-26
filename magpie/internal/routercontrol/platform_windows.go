@@ -19,6 +19,21 @@ import (
 func hide(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW | windows.CREATE_NEW_PROCESS_GROUP}
 }
+
+func startHidden(makeCmd func() *exec.Cmd) (*exec.Cmd, error) {
+	cmd := makeCmd()
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: windows.CREATE_NO_WINDOW | windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_BREAKAWAY_FROM_JOB,
+	}
+	err := cmd.Start()
+	if err == nil || !errors.Is(err, windows.ERROR_ACCESS_DENIED) {
+		return cmd, err
+	}
+	cmd = makeCmd()
+	hide(cmd)
+	return cmd, cmd.Start()
+}
 func reparse(fi os.FileInfo) bool {
 	d, ok := fi.Sys().(*syscall.Win32FileAttributeData)
 	return ok && d.FileAttributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0

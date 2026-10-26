@@ -22,9 +22,17 @@ Service operations use `X-Wefto-Instance`; legacy `X-API-Router-Instance` remain
 
 Principal management routes are `/api/service`, `/api/service/{stop,restart,autostart}`, `/api/cloud-providers`, `/api/apps`, `/api/routing-groups`, `/api/hosts/auto`, `/api/hosts/loomy`, `/api/local-models`, `/api/redaction` and request ledger APIs. Exact allowlists/methods live in `http.go` and each handler. Model traffic uses `/app/<host>/v1/...` and its application's provider credentials; management tokens are never model credentials. See [cloud execution](wefto-cloud.md) and [applications](wefto-apps.md).
 
+`GET`/`DELETE /api/redaction/observations` queries or explicitly clears bounded,
+privacy-safe redaction observations. Group pipelines retain their request binding
+and cloud fallback attempts are recorded once under their business request.
+
 ## Embedded UI
 
 [`assets/index.html`](../../internal/routerservice/assets/index.html) and product scripts expose application, provider, routing, local-model and usage pages. Titles and header show Wefto / Wefto 织流 with a W favicon. Copy and tutorial translations cover Simplified/Traditional Chinese, English, Japanese and German. Retained Magpie assets provide shared styles/icons without starting its lifecycle.
+
+Usage destinations, cloud savings, internal calls, diagnostics and retention use
+the same responsive cards and detailed usage tables. Missing usage remains
+unknown and explicit zero remains zero; timing details expand independently.
 
 The initial authenticated refresh waits for `DOMContentLoaded`, after the static view scripts register their connection hooks. A fast local service must still populate the selected page when a view script loads slowly; no second navigation or manual refresh is required. Later refreshes use the same registered hooks.
 

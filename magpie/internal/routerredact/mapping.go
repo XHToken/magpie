@@ -140,7 +140,19 @@ func validateEntities(texts []string, r Result) ([]Entity, error) {
 	return out, nil
 }
 
-func applyEntities(texts []string, entities []Entity, mapping map[string]string, categories map[string]string, reserved []string) ([]string, error) {
+type ReplacementMeta struct {
+	Placeholder string `json:"placeholder"`
+	Category    string `json:"category"`
+	Original    string `json:"original"`
+}
+
+type ObservationMeta struct {
+	CacheHit     bool              `json:"cacheHit"`
+	DurationMS   int64             `json:"durationMs"`
+	Replacements []ReplacementMeta `json:"replacements"`
+}
+
+func applyEntities(texts []string, entities []Entity, mapping map[string]string, categories map[string]string, reserved []string, generalized ...map[string]string) ([]string, error) {
 	byEntity := make(map[string]string, len(mapping))
 	next := map[string]int{}
 	for token, value := range mapping {
@@ -151,6 +163,9 @@ func applyEntities(texts []string, entities []Entity, mapping map[string]string,
 		if e.Category == "AMOUNT" {
 			if gen, ok := GeneralizeAmountValue(e.Text); ok {
 				generalizedByIndex[idx] = gen
+				if len(generalized) > 0 && generalized[0] != nil {
+					generalized[0][strings.Clone(gen)] = strings.Clone(e.Text)
+				}
 				continue
 			}
 		}

@@ -51,12 +51,24 @@ func startupPortTargets(ctx context.Context, store *routerconfig.Store, stateDir
 	}
 	var targets []routerhost.PortTarget
 	for _, app := range apps {
-		if (app.ID != "workbuddy" && app.ID != "loomy") || !app.Configured || app.CredentialMode != routerconfig.StoredCredential {
+		if (app.ID != "workbuddy" && app.ID != "loomy") || app.CredentialMode != routerconfig.StoredCredential {
 			continue
 		}
 		roots, err := routerhost.ConnectedRoots(stateDir, app.ID)
 		if err != nil {
 			return nil, err
+		}
+		if !app.Configured {
+			for _, root := range roots {
+				if connected, live := inspectHostLiveFiles(app.ID, root); connected && len(live) > 0 {
+					targets = append(targets, routerhost.PortTarget{Host: app.ID, ConfigRoot: filepath.Clean(root), Model: live[0]})
+				} else if app.ID == "loomy" {
+					if m := loomyPortSyncModel(root); m != "" {
+						targets = append(targets, routerhost.PortTarget{Host: app.ID, ConfigRoot: filepath.Clean(root), Model: m})
+					}
+				}
+			}
+			continue
 		}
 		root, discoverErr := autoHostConfigRoot(app.ID)
 		if discoverErr == nil {
@@ -73,13 +85,35 @@ func startupPortTargets(ctx context.Context, store *routerconfig.Store, stateDir
 		}
 		for _, root := range roots {
 			targetModel := model
-			if connected, live := inspectHostLiveFiles(app.ID, root); connected && len(live) > 0 && (live[0] == app.Cloud.Model || (len(app.Models) > 0 && live[0] == app.Models[0])) {
+			if connected, live := inspectHostLiveFiles(app.ID, root); connected && len(live) > 0 && (targetModel == "" || app.ID == "loomy" || live[0] == app.Cloud.Model || (len(app.Models) > 0 && live[0] == app.Models[0])) {
 				targetModel = live[0]
 			}
 			targets = append(targets, routerhost.PortTarget{Host: app.ID, ConfigRoot: filepath.Clean(root), Model: targetModel})
 		}
 	}
 	return targets, nil
+}
+
+func loomyPortSyncModel(root string) string {
+	raw, err := os.ReadFile(filepath.Join(root, "opencode.json"))
+	var doc map[string]any
+	if err != nil || json.Unmarshal(raw, &doc) != nil {
+		return ""
+	}
+	prov, _ := doc["provider"].(map[string]any)
+	ar, _ := prov["api_router"].(map[string]any)
+	opts, _ := ar["options"].(map[string]any)
+	if opts["apiKey"] != routerhost.PlaceholderAPIKey {
+		return ""
+	}
+	if mMap, ok := ar["models"].(map[string]any); ok {
+		for k := range mMap {
+			if strings.TrimSpace(k) != "" {
+				return k
+			}
+		}
+	}
+	return "spark-x2.5"
 }
 
 func synchronizeStartupPort(ctx context.Context, store *routerconfig.Store, stateDir string, original routerconfig.Document, oldAddress, address string) error {

@@ -4,11 +4,10 @@ import (
 	"context"
 	"net/http"
 	"strings"
-	"time"
 )
 
-const experimentalRedactionBudget = 30 * time.Second
-const experimentalRedactionSuitePrefix = "privacy-trial-v1:"
+const experimentalRedactionBudget = DefaultRedactionBudget
+const experimentalRedactionSuitePrefix = "privacy-trial-v2:"
 
 // ExperimentalRedactionInvoker permits an explicitly selected 1.7B or 4B trial while
 // preserving the Manager's actual capability samples. Its binding is immutable;

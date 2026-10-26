@@ -24,6 +24,7 @@ type Spec struct {
 	Executable, ModelPath string
 	ContextSize, Parallel int
 	Backend               string
+	GPU                   *GPUOptions
 	ExtraArgs             []string
 	Env                   []string
 	RuntimeDependencies   *DependencySpec
@@ -77,6 +78,11 @@ func (f NativeFactory) Start(ctx context.Context, spec Spec) (Process, error) {
 	cmd := proc.Command(spec.Executable, args...)
 	cmd.Dir, cmd.Env = dir, env
 	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
+	var acceleration *startupEvidence
+	if spec.GPU != nil {
+		acceleration = &startupEvidence{device: spec.GPU.Device}
+		cmd.Stdout, cmd.Stderr = acceleration, acceleration
+	}
 	// llama-server cannot inherit a listener. A bind race becomes a failed
 	// child/health check, never permission to adopt another process.
 	if err := listener.Close(); err != nil {
@@ -87,7 +93,7 @@ func (f NativeFactory) Start(ctx context.Context, spec Spec) (Process, error) {
 		return nil, fmt.Errorf("start owned llama-server: %w", err)
 	}
 	p := &nativeProcess{endpoint: "http://127.0.0.1:" + strconv.Itoa(port), pid: cmd.Process.Pid,
-		owner: owner, done: make(chan struct{}), client: NewHTTPClient()}
+		owner: owner, done: make(chan struct{}), client: NewHTTPClient(), acceleration: acceleration}
 	go func() {
 		err := owner.wait()
 		p.mu.Lock()
@@ -120,6 +126,9 @@ func validate(s Spec) error {
 	if s.ContextSize < 0 || s.Parallel < 0 || s.Parallel > 1 {
 		return errors.New("context must be nonnegative and llama-server has exactly one slot")
 	}
+	if err := validateGPU(s); err != nil {
+		return err
+	}
 	switch s.Backend {
 	case "", "cpu", "cuda", "vulkan", "metal":
 	default:
@@ -132,8 +141,12 @@ func validate(s Spec) error {
 		switch key {
 		case "--host", "--port", "-m", "--model", "-c", "--ctx-size", "-np", "--parallel",
 			"--cache-reuse", "--cache-prompt", "--no-cache-prompt", "--jinja", "--no-jinja",
-			"-ngl", "--gpu-layers", "--n-gpu-layers", "--model-url", "-mu", "--hf-repo", "-hf":
+			"-ngl", "--gpu-layers", "--n-gpu-layers", "--model-url", "-mu", "--hf-repo", "-hf",
+			"--device", "-dev", "--split-mode", "-sm", "--fit", "-fit", "--fit-target", "-fitt", "--fit-ctx", "-fitc",
+			"--tensor-split", "-ts", "--main-gpu", "-mg", "--rpc", "--override-tensor", "-ot":
 			return fmt.Errorf("extra argument %s overrides the fixed process contract", key)
+		case "--log-verbosity", "--verbosity", "-lv", "--log-disable", "--log-file", "--log-jsonl", "--log-prompts-dir", "--log-colors", "--verbose", "--log-verbose", "-v":
+			return fmt.Errorf("extra argument %s overrides the private startup diagnostics", key)
 		}
 	}
 	return nil
@@ -150,20 +163,23 @@ func arguments(s Spec, port int) []string {
 	args := []string{"--host", "127.0.0.1", "--port", strconv.Itoa(port), "--model", s.ModelPath,
 		"--ctx-size", strconv.Itoa(contextSize), "--parallel", "1", "--cache-reuse", "256", "--jinja"}
 	if s.Backend == "" || s.Backend == "cpu" {
-		args = append(args, "--n-gpu-layers", "0")
+		args = append(args, "--n-gpu-layers", "0", "--device", "none")
+	} else if s.GPU != nil {
+		args = append(args, gpuArguments(s.GPU)...)
 	}
 	return append(args, s.ExtraArgs...)
 }
 
 type nativeProcess struct {
-	endpoint string
-	pid      int
-	owner    ownedProcess
-	done     chan struct{}
-	client   *http.Client
-	mu       sync.Mutex
-	err      error
-	stop     sync.Once
+	endpoint     string
+	pid          int
+	owner        ownedProcess
+	done         chan struct{}
+	client       *http.Client
+	mu           sync.Mutex
+	err          error
+	stop         sync.Once
+	acceleration *startupEvidence
 }
 
 func (p *nativeProcess) Endpoint() string      { return p.endpoint }
@@ -202,6 +218,9 @@ func (p *nativeProcess) Health(ctx context.Context) error {
 	}
 	if err := json.Unmarshal(body, &health); err != nil || health.Status != "ok" {
 		return errors.New("llama-server health status is not ok")
+	}
+	if p.acceleration != nil {
+		p.acceleration.snapshot(true)
 	}
 	select {
 	case <-p.done:

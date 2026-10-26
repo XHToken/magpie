@@ -65,11 +65,55 @@ Redaction settings live under `redaction` in `config.json`:
 - **Streaming SSE (`StreamRestorer`, `WrapSSEStream`)**: Buffers only the minimal
   trailing prefix needed when a `[` placeholder spans multiple SSE chunks,
   emitting restored text deltas in real time without breaking SSE framing.
+  Responses reasoning summaries use separate `summary_index` channels; closing
+  one summary must not close another, and synthesized flush events retain that
+  summary's index.
 
 ## Invariants
 
-- Original sensitive plaintext values exist only in the per-request in-memory
-  `Session` during active request execution and are never persisted to disk,
-  `routerobs`, or `routerusage`.
+### Local model preparation budget and policy identity
+
+The local-model preparation path uses
+[`Pipeline.Prepare`](../../internal/routerredact/pipeline.go),
+[`RuntimeExtractor.Extract`](../../internal/routerredact/runtime.go) and the
+service-owned runtime Manager. Their default redaction deadline is 30 seconds,
+defined by `routerruntime.DefaultRedactionBudget`. The deadline covers request
+preparation, runtime queueing and every chunk/batch; batching does not renew it.
+A shorter caller deadline or cancellation still wins. Invalid model results
+and incomplete preparation block cloud dispatch.
+Rule matching is part of that complete scan: an initial or subsequent matcher
+failure, including a regular-expression timeout, returns the fixed safe code
+`redaction_extraction_failed` and blocks dispatch. Matcher diagnostics containing
+source text are not propagated to clients or observations. The management API
+reports the Manager's actual preparation budget for both formal and trial paths.
+
+[`PrivacySpecification`](../../internal/routerredact/privacy_specification.go)
+versions the strict parsing policy as `privacy-go-v6` (explicit trials use
+`privacy-trial-v2`). Its configuration hash includes the 30-second budget and
+`coordinateRecoveryPolicy=unique-exact-substring-valid-coordinates-v1`.
+[`Parse`](../../internal/routerredact/privacy_parse.go) requires valid supplied
+coordinate bounds, but may recover a mismatched span from one unique exact
+source substring with valid ASCII boundaries. Uniqueness includes overlapping
+matches, including multibyte and non-BMP text. Missing or ambiguous matches,
+invalid bounds, duplicates and other invalid findings still reject the result.
+This declaration records existing parser behavior; it adds no new recovery.
+
+The configuration and suite identities change with this policy, so prior
+acceptance/cache identities cannot substitute for new policy evidence. Model,
+runtime artifact, prompt and schema identities remain tied to their own inputs;
+the policy update does not require new weights or grant capability acceptance.
+
+### Plaintext lifetime
+
+- Mapping/session caches are held in memory. The separate service-owned
+  `routerledger.RedactionObservationStore` persists the latest user input,
+  redacted input and replacement values in the private
+  `<state>/redaction_observations.sqlite` database for the authenticated
+  management view. Its default retention is seven days and 500 request IDs.
+  Queries exclude expired records; physical pruning (with `PRAGMA secure_delete=ON`)
+  runs on database open, record writes, queries, and periodic background expiration.
+  Repeated observations for one request update that record without evicting
+  another request at capacity. The management clear operation deletes the
+  stored observations. Business request/usage ledgers remain separate.
 - Local engine executions (`local/*`) stay on-device and do not send data to
   external cloud endpoints.

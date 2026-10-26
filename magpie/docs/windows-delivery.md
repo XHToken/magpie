@@ -4,7 +4,7 @@
 
 本包包含已编译的产品 EXE 和内嵌网页。使用产品无需 Go、Node、Python 或源码，不需要管理员服务。预览包支持 Windows x64，由个人仓库 [xyzane54/magpie 的 Releases](https://github.com/xyzane54/magpie/releases) 发布，标签使用 `wefto-v` 前缀，与上游 Magpie 版本分别管理。当前未进行发布者代码签名，也没有自动更新功能。SHA256 校验用于核对文件完整性，不能证明 manifest 的发布者身份。
 
-旧版 API-router 升级请先阅读[更名升级说明](https://github.com/xyzane54/magpie/blob/wefto-v0.1.0-beta.2/magpie/docs/wefto-upgrade.md)，由旧 EXE 停止旧服务并处理旧登录自启；Wefto 会复用检测到的完整旧数据布局。
+旧版 Wefto 升级请先阅读[更名升级说明](https://github.com/xyzane54/magpie/blob/wefto-v0.1.0-beta.2/magpie/docs/wefto-upgrade.md)，由旧 EXE 停止旧服务并处理旧登录自启；Wefto 会复用检测到的完整旧数据布局。
 
 ## 安装固定版本
 

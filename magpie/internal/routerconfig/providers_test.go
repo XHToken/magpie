@@ -236,3 +236,35 @@ func TestProviderDeleteAndReferences(t *testing.T) {
 		t.Fatalf("deleted provider API key remained in credentials.json: %s", credBytes)
 	}
 }
+
+func TestProviderFailedDeleteKeepsCurrentCredentials(t *testing.T) {
+	s := providerSetup(t)
+	p, err := s.SaveCloudProvider(providerDraft())
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeConfig, _ := os.ReadFile(s.layout.ConfigFile())
+	beforeCreds, _ := os.ReadFile(s.layout.CredentialsFile())
+	sync := steady.Sync
+	t.Cleanup(func() { steady.Sync = sync })
+	steady.Sync = func(f *os.File) error {
+		if strings.Contains(f.Name(), ".config.json.") {
+			return errors.New("injected config flush failure during provider delete")
+		}
+		return f.Sync()
+	}
+	if err := s.DeleteCloudProvider(p.ID, p.Revision); err == nil {
+		t.Fatal("DeleteCloudProvider succeeded despite injected config write failure")
+	}
+	afterConfig, _ := os.ReadFile(s.layout.ConfigFile())
+	afterCreds, _ := os.ReadFile(s.layout.CredentialsFile())
+	if !bytes.Equal(beforeConfig, afterConfig) {
+		t.Fatal("failed delete changed config.json")
+	}
+	if !bytes.Equal(beforeCreds, afterCreds) {
+		t.Fatal("failed delete pruned credentials.json before config.json succeeded")
+	}
+	if list, err := s.CloudProviders(); err != nil || len(list) != 1 {
+		t.Fatalf("CloudProviders after failed delete: %+v %v", list, err)
+	}
+}

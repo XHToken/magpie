@@ -424,6 +424,7 @@ function routingPage(part) {
     // editor's routing options say them (app.js ROUTINGS), so every
     // language is already spoken
     weight: ["By weight", "Requests spread over the keys by the weight set beside each: a key weighing 3 takes three requests for every one a key weighing 1 takes, evenly over a few requests. One that fails is passed over while it rests, and the others share its requests; a conversation stays with its key as Stays says."],
+    "edge-cloud": ["Edge-cloud", "Edge-cloud: short simple text requests go to the local model first with cloud models as fallback; busy local runtime, images, tool calls, long context (> 2048 tokens), or complex tasks go straight to the cloud."],
   };
   const GROUP_ORDER = "In order: member by member, the first model the group names until it can't answer, each over its own accounts or keys as its provider routes them.";
   // a group routed by weight (#1910): its members, not its keys
@@ -3296,6 +3297,7 @@ function routingPage(part) {
   // user picks on its card (provider.Manual, #317) — a provider's keys can't
   // and by its members' weights, as a provider's keys are (#1910)
   const GROUP_ROUTE_OPTS = [...ROUTE_OPTS, ["weight", "By weight"], ["manual", "Manual"]];
+  const EDGE_CLOUD_ROUTE_OPT = ["edge-cloud", "Edge-cloud"];
   const AFF_OPTS = [["", "Auto"], ["session", "Session"], ["turn", "Within a turn"], ["off", "Off"], ["strict", "Strict"]];
   // what one rate limited with quota left does then (provider.Sink), as in
   // a provider's editor (app.js SINKS)
@@ -3337,6 +3339,7 @@ function routingPage(part) {
     pace: "Weekly pace: the account with the most of its week left per hour until it renews goes first, so less of each member's week is lost at its reset — an account with five hours and no week (Claude Enterprise) by what its five hours have left per hour until they renew, so almost always first; a key by the tokens magpie sent it lately.",
     weight: GROUP_WEIGHT,
     manual: "Manual: every request goes to the model you pick on the group's card, over its own accounts or keys; the others, and the rules, wait until you pick another — none takes over when it fails.",
+    "edge-cloud": "Edge-cloud: short simple text requests go to the local model first with cloud models as fallback; when the local runtime is busy or unavailable, or the request has images, tools, > 2048 tokens, or complex reasoning, it goes straight to the cloud.",
   };
   // a group in the group, and a provider set to route other than Smart, is
   // routed by its own routing, whatever this one's (planLevel, #576,
@@ -4254,6 +4257,8 @@ function routingPage(part) {
       };
       return b;
     };
+    const hasLocalMember = (ms = d.members) => Array.isArray(ms) && ms.some((m) => String(m || "").startsWith("local/"));
+    let syncRoutingOpts = () => {};
     const draw = () => {
       list.replaceChildren();
       d.members.forEach((id, i) => {
@@ -4376,6 +4381,7 @@ function routingPage(part) {
         list.append(row);
       });
       addBtn.querySelector("span").textContent = t(d.members.length ? "Add another model" : "Add a model");
+      syncRoutingOpts();
     };
     // the picker stays open for as many models as are wanted, each ticked
     // once in, and says which other groups a model is in already (PAMI on
@@ -4425,6 +4431,7 @@ function routingPage(part) {
       d.rules = d.rules.filter((r) => d.members.includes(r.use));
       d.fast = d.fast.filter((x) => d.members.includes(x));
       d.off = d.off.filter((x) => d.members.includes(x));
+      syncRoutingOpts();
     }
     const pbox = el("div", "fallback rt-pats");
     const plist = el("div", "fbl");
@@ -4470,14 +4477,35 @@ function routingPage(part) {
     listW.append(listPick, listHint);
     ed.append(el("label", "", t("Model lists")), listW);
 
+    let drawSink = () => {};
     const rHint = el("div", "hint", t(GROUP_HINT[d.routing] || GROUP_HINT[""]));
+    const rSegsWrap = el("div");
     const rw = el("div");
-    rw.append(routingSegs(GROUP_ROUTE_OPTS.map(([id, n]) => [id, t(n)]), d.routing, (v) => { d.routing = v; rHint.textContent = t(GROUP_HINT[v] || GROUP_HINT[""]); draw(); drawRules(); drawSink(); }), rHint);
+    syncRoutingOpts = () => {
+      const localPresent = hasLocalMember();
+      if (!localPresent && d.routing === "edge-cloud") {
+        d.routing = "";
+        rHint.textContent = t(GROUP_HINT[""]);
+        drawSink();
+      }
+      const opts = localPresent ? [...GROUP_ROUTE_OPTS, EDGE_CLOUD_ROUTE_OPT] : GROUP_ROUTE_OPTS;
+      rSegsWrap.replaceChildren(
+        routingSegs(opts.map(([id, n]) => [id, t(n)]), d.routing, (v) => {
+          d.routing = v;
+          rHint.textContent = t(GROUP_HINT[v] || GROUP_HINT[""]);
+          draw();
+          drawRules();
+          drawSink();
+        })
+      );
+    };
+    syncRoutingOpts();
+    rw.append(rSegsWrap, rHint);
     rw.append(el("div", "hint", t(GROUP_NEST)));
     ed.append(el("label", "", t("Routing")), rw);
     // one rate limited with quota left: its place, or the back
     const kHint = el("div", "hint"), kw = el("div", "sink-wrap"), kLab = el("label", "", t("Rate limited"));
-    const drawSink = () => {
+    drawSink = () => {
       kHint.textContent = t(SINK_HINT[d.sink ? "sink" : ""]);
       kLab.hidden = kw.hidden = !sinkable(d.routing);
     };

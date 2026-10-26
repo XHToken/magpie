@@ -96,7 +96,13 @@ func (e Engine) commitHostGroups(ctx context.Context, groups []portGroup, persis
 		return err
 	}
 	release()
-	return os.Remove(hostPath(e.StateDir, portTransactionFile))
+	err = os.Remove(hostPath(e.StateDir, portTransactionFile))
+	for _, group := range groups {
+		if group.Host == "loomy" {
+			refreshLoomyRuntime(group.Root, group.Files)
+		}
+	}
+	return err
 }
 
 // RecoverPortSync restores only bytes written by an interrupted host transaction.

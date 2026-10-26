@@ -74,9 +74,22 @@ func checkJournalContract(j *journal, c AdapterContract) error {
 		legacy := legacyV1Contract(j.Host)
 		stored = &legacy
 	}
-	compatibleLegacy := stored.ID == "loomy" && sameContract(*stored, legacyLoomyContract()) && sameContract(c, (LoomyAdapter{}).Contract()) || stored.ID == "codex" && sameContract(*stored, legacyV1Contract("codex")) && sameContract(c, (builtinAdapter{"codex"}).Contract())
-	if !sameContract(*stored, c) && !compatibleLegacy {
-		return fmt.Errorf("recovery adapter version or contract conflict; use the matching adapter to restore")
+	if !sameContract(*stored, c) {
+		switch {
+		case j.Host == "loomy" && sameContract(c, (LoomyAdapter{}).Contract()) &&
+			(sameContract(*stored, legacyLoomyContract()) || sameContract(*stored, expandedContract(legacyLoomyContract()))) &&
+			len(j.Files) == 1 && j.Files[0].Name == "opencode.json":
+			// V1 never owned this filename. An absent snapshot makes an existing
+			// file a conflict, preserving it rather than claiming ownership.
+			j.Adapter = &c
+			j.Files = append(j.Files, snapshot{FilePlan: FilePlan{Name: loomyTitleFile, After: []byte{}}, Mode: 0o600})
+		case j.Host == "loomy" && sameContract(c, (LoomyAdapter{}).Contract()) && sameContract(*stored, legacyLoomyTitleContract()):
+			j.Adapter = &c
+		case j.Host == "codex" && sameContract(*stored, legacyV1Contract("codex")) && sameContract(c, (builtinAdapter{"codex"}).Contract()):
+			// The renamed Codex adapter retains the exact frozen v1 file set.
+		default:
+			return fmt.Errorf("recovery adapter version or contract conflict; use the matching adapter to restore")
+		}
 	}
 	if len(j.Files) != len(c.Files) {
 		return fmt.Errorf("recovery file set does not match adapter contract")

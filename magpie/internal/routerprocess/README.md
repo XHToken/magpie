@@ -9,7 +9,7 @@ searched for or killed.
 
 The fixed contract is llama.cpp **b10828**: loopback host, an allocated port,
 one model path, explicit context, one execution slot, Jinja and
-`--cache-reuse 256`; CPU explicitly uses zero GPU layers. Extra arguments cannot
+`--cache-reuse 256`; CPU uses zero GPU layers and `--device none`. Extra arguments cannot
 override these flags. Runtime artifact and model verification belong to the
 installer. These flags were checked against the tag's [server
 documentation](https://raw.githubusercontent.com/ggml-org/llama.cpp/b10828/tools/server/README.md)
@@ -25,8 +25,10 @@ source and composition receipts; a local receipt cannot replace these catalog
 pins. `ValidateDependencies` rechecks the files before launch: unique DLL names
 directly beside the executable, regular files without hard links, symlinks or
 ancestor reparse points, exact size/hash, AMD64 PE32+ DLL headers and fixed PE
-file versions matching the dependency set. The list is bounded to 32 files and
-each DLL to 64 MiB. PE metadata is read as bytes, so validation also runs on
+file versions matching their individual catalog pins. VC files must also match
+the dependency set version. A trusted CUDA composition explicitly permits mixed
+versions and up to 512 MiB per DLL; ordinary plans retain the 64 MiB bound.
+The list is bounded to 32 files. PE metadata is read as bytes, so validation also runs on
 non-Windows fixture hosts without loading a library.
 
 Dependency failures expose `DependencyError.Code`:
@@ -55,6 +57,26 @@ caller supplies the time budget. Cancellation terminates the owned process and
 joins its waiter before returning. The caller supplies an already verified
 runtime/model spec; the probe does not install artifacts or establish model
 capabilities.
+
+`GPUOptions` is trusted in-process configuration: an explicit device, layer
+count (`-1` means automatic fitting) and memory reserve. GPU launches use
+`--split-mode none`, fitting/reserve flags, `--log-verbosity 4` and disabled log
+colors. Pinned b10828's default verbosity omits offload evidence. A bounded
+startup parser consumes stdout/stderr and retains only layer counts and whether
+the exact device has a nonzero model buffer. First successful health freezes
+this evidence and discards subsequent logs; no model text is stored.
+
+`ProbeDevices` runs only `--list-devices` with the same verification, environment
+and process ownership as launch, bounds output and rejects malformed/duplicate
+devices. Cancellation terminates and joins its owned probe. The manager also
+uses `ValidateAcceleration` for fixed short nonthinking JSON generation. This
+checks execution availability, not model quality. Extra arguments cannot
+override device/fitting/offload or redirect logs.
+
+All launches use the verified executable directory and remove inherited
+inference/dynamic-loader overrides, including `DYLD_*`, `LD_LIBRARY_PATH`, `LD_PRELOAD` and CUDA/Vulkan
+loader keys; explicit overrides are rejected. This allows the no-cgo macOS
+application to validate Metal through its owned native engine.
 
 `NativeFactory.OnStart` is an optional synchronous observer supplied by trusted
 Go code. It receives the same owned `Process` and `Spec` returned to the manager,

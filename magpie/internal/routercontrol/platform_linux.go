@@ -10,7 +10,13 @@ import (
 	"github.com/yetone/magpie/internal/dirs"
 )
 
-func hide(cmd *exec.Cmd)          {}
+func hide(cmd *exec.Cmd) {}
+
+func startHidden(makeCmd func() *exec.Cmd) (*exec.Cmd, error) {
+	cmd := makeCmd()
+	hide(cmd)
+	return cmd, cmd.Start()
+}
 func reparse(fi os.FileInfo) bool { return false }
 func processIdentity(pid int) (string, string, error) {
 	exe, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))

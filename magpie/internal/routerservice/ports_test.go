@@ -160,3 +160,56 @@ func TestPortSynchronizationFailureDoesNotReportReadyOrPersistNewAddress(t *test
 		t.Fatal("failed synchronization leaked the service lock", err)
 	}
 }
+
+func TestOccupiedPortSynchronizesConnectedUnconfiguredLoomyWithClearedModels(t *testing.T) {
+	l, address := fixture(t)
+	loomyRoot := filepath.Join(t.TempDir(), "loomy")
+	t.Setenv("LOOMY_CONFIG_DIR", loomyRoot)
+	if err := os.MkdirAll(loomyRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	opencodePath := filepath.Join(loomyRoot, "opencode.json")
+	if err := os.WriteFile(opencodePath, []byte(`{"model":"imodel/default","small_model":"imodel/qwen3.8-flash"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	e := routerhost.Engine{
+		StateDir: filepath.Join(l.State, "host-config"),
+		Adapter:  routerhost.LoomyAdapter{},
+		Checker:  noopChecker{},
+	}
+	// Connect Loomy while service is at old address, then simulate Loomy runtime clearing models and unconfigured app store.
+	occupied, err := net.Listen("tcp", address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer occupied.Close()
+	p, err := e.Preview(routerhost.Options{
+		Host: "loomy", ConfigRoot: loomyRoot, RouterURL: "http://" + address, Models: []string{"group/111"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Apply(context.Background(), p); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate Loomy runtime clearing provider.api_router.models to {} and switching model to imodel/spark-x2.6-preview.
+	raw := []byte(fmt.Sprintf(`{"model":"imodel/spark-x2.6-preview","small_model":"imodel/qwen3.8-flash","provider":{"api_router":{"models":{},"name":"API Router","npm":"@ai-sdk/openai-compatible","options":{"apiKey":%q,"baseURL":%q,"useSessionAuth":false}}}}`,
+		routerhost.PlaceholderAPIKey, "http://"+address+"/app/loomy/v1"))
+	if err := os.WriteFile(opencodePath, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	info, stop, done := start(t, l)
+	defer func() {
+		stop()
+		_ = <-done
+	}()
+	after, err := os.ReadFile(opencodePath)
+	if err != nil || !bytes.Contains(after, []byte("http://"+info.Address+"/app/loomy/v1")) {
+		t.Fatalf("unconfigured connected Loomy with cleared models was not synchronized to new port: %s (err=%v)", after, err)
+	}
+}
+
+type noopChecker struct{}
+
+func (noopChecker) Check(context.Context, routerhost.Options) error { return nil }

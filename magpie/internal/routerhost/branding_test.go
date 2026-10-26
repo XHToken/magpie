@@ -36,6 +36,17 @@ func legacyConnection(t *testing.T, host string) (Engine, Options) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if host == "loomy" {
+		// A released v1 backup predates the managed title extension.
+		if err := os.Remove(hostPath(o.ConfigRoot, loomyTitleFile)); err != nil {
+			t.Fatal(err)
+		}
+		j.Files = j.Files[:1]
+		j.Files[0].After, err = deleteJSONField(j.Files[0].After, "plugin")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 	for i := range j.Files {
 		raw := strings.ReplaceAll(string(j.Files[i].After), "wefto-local-placeholder", "api-router-local-placeholder")
 		raw = strings.ReplaceAll(strings.ReplaceAll(raw, "Wefto", "API Router"), "wefto", "api_router")
@@ -120,8 +131,8 @@ func TestLegacyConnectionRebrandsAndKeepsRecovery(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for i, file := range updated.Files {
-				if !bytes.Equal(file.Before, original.Files[i].Before) {
+			for i, file := range original.Files {
+				if !bytes.Equal(updated.Files[i].Before, file.Before) {
 					t.Fatal("replaced the original recovery snapshot")
 				}
 			}

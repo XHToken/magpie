@@ -86,6 +86,48 @@ func TestWindowsDependenciesUnselectedStartupReportsRequiredWithoutSideEffects(t
 	}
 }
 
+func TestWindowsDependenciesSelectionAndRefreshPreserveFailureCodes(t *testing.T) {
+	for _, automatic := range []bool{false, true} {
+		for _, operation := range []string{"select", "refresh"} {
+			t.Run(fmt.Sprintf("automatic=%t/%s", automatic, operation), func(t *testing.T) {
+				f := newWindowsDependencyFixture(t, nil)
+				f.legacyInstall(t)
+				before := f.totalCalls()
+				factory := &fixtureFactory{}
+				m, err := New(context.Background(), Options{Catalog: routermanifest.Catalog{Models: []routermanifest.Model{f.model}, Runtimes: []routermanifest.Runtime{f.runtime}}, RuntimeID: f.runtime.ID,
+					AutoBackend: automatic, BackendHints: func(context.Context) []string { return nil },
+					Store: &memoryIntent{i: Intent{Selected: f.model.ID}}, Installer: f.installer, Factory: factory})
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					if err := m.Close(context.Background()); err != nil {
+						t.Error(err)
+					}
+				})
+				if operation == "select" {
+					err = m.Select(context.Background(), f.model.ID)
+				} else {
+					err = m.RefreshInstallation(context.Background())
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if s := m.Status(); s.Installation != "not_installed" || s.Dependencies.State != "missing" || s.Dependencies.Error != routerprocess.DependencyMissingCode {
+					t.Fatalf("%s erased the exact dependency failure: %+v", operation, s)
+				}
+				if err := m.Enable(context.Background()); err != nil {
+					t.Fatal(err)
+				}
+				assertWindowsDependencyError(t, m.Load(context.Background()), routerprocess.DependencyMissingCode)
+				if factory.count.Load() != 0 || f.totalCalls() != before {
+					t.Fatal("selection or refresh started a process or downloaded dependencies")
+				}
+			})
+		}
+	}
+}
+
 func windowsDependencyZIP(t *testing.T, name string, data []byte, padding ...int) []byte {
 	t.Helper()
 	var archive bytes.Buffer
