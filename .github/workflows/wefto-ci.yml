@@ -15,6 +15,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  portable:
+    if: github.ref == 'refs/heads/codex/unix-startup-packages'
+    uses: ./.github/workflows/wefto-packages.yml
+
   product:
     name: Product (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}

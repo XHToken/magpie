@@ -1,8 +1,7 @@
 name: Wefto portable packages
 
 on:
-  push:
-    branches: [codex/unix-startup-packages]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
