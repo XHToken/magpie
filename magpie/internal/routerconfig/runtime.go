@@ -24,9 +24,18 @@ type RuntimeSettings struct {
 
 func (s RuntimeSettings) IsZero() bool { return s == (RuntimeSettings{}) }
 
-func LongContextRuntimeSettings() RuntimeSettings {
-	return RuntimeSettings{65536, 15, 30, 30, 300, 90, 600, 60}
+// StandardRuntimeSettings is the product policy for both fixed local models.
+// These are limits, not measurements of the current computer's performance.
+func StandardRuntimeSettings() RuntimeSettings {
+	return RuntimeSettings{
+		ContextTokens: 65536, JudgmentQueueSeconds: 15, JudgmentInferenceSeconds: 30,
+		ExecutionQueueSeconds: 30, ExecutionSeconds: 300, LoadSeconds: 90,
+		RequestSeconds: 600, CloudReserveSeconds: 60,
+	}
 }
+
+// LongContextRuntimeSettings retains the trusted diagnostic preset name.
+func LongContextRuntimeSettings() RuntimeSettings { return StandardRuntimeSettings() }
 
 func (s RuntimeSettings) Effective() RuntimeSettings {
 	if s.IsZero() {

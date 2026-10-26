@@ -101,7 +101,7 @@ configuration model:
 `routerconfig/apps*.go` persists per-application routing profiles under
 `apps[id]` in `config.json`:
 
-- `AppProfile` includes `Enabled bool` (defaulting to `true` when omitted in
+- `AppProfile` includes `Enabled bool` (defaulting to `false` when omitted in
   stored JSON) and `Models []string` (ordered list of bound targets supporting
   `<providerId>/<model>`, `local/<id>`, and `group/<id>`).
 - `normalizeAndSyncAppModels` deduplicates `Models`, synchronizes the first

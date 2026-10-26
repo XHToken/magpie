@@ -2,6 +2,7 @@ package routerservice
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -201,6 +202,11 @@ func TestHostAutoAPIMultiModelConnectInspectAndDisconnectRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	models := []string{"group/coding-hybrid", prov.ID + "/gpt-4o", "local/qwen2.5-coder-7b"}
+	for _, id := range []string{"coding-hybrid", "111"} {
+		if _, err := store.SaveGroup(routerconfig.Group{ID: id, Name: id, Members: []string{prov.ID + "/gpt-4o"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if w := callJSON(http.MethodPost, "/api/apps", map[string]any{
 		"id": "loomy", "enabled": true, "models": models,
 	}); w.Code != http.StatusOK {
@@ -265,5 +271,72 @@ func TestHostAutoAPIMultiModelConnectInspectAndDisconnectRestore(t *testing.T) {
 	gotWB, _ := os.ReadFile(filepath.Join(wbRoot, "settings.json"))
 	if !bytes.Equal(gotWB, origWBSettings) {
 		t.Fatalf("workbuddy settings.json not restored:\ngot: %s\nwant: %s", gotWB, origWBSettings)
+	}
+
+	// Reconnect Loomy, simulate Loomy runtime clearing provider.api_router.models to {} and changing model,
+	// then verify reconnecting and disconnecting via /api/hosts/auto both succeed.
+	if w := callJSON(http.MethodPost, "/api/hosts/auto", map[string]any{
+		"host": "loomy", "enabled": true, "models": []string{"group/111"},
+	}); w.Code != http.StatusOK {
+		t.Fatalf("reconnect loomy failed: %d %s", w.Code, w.Body.String())
+	}
+	loomyRuntimeRaw := []byte(`{"model":"api_router/` + prov.ID + `/deepseek-flash","small_model":"imodel/qwen3.8-flash","provider":{"api_router":{"models":{},"name":"API Router","npm":"@ai-sdk/openai-compatible","options":{"apiKey":"api-router-local-placeholder","baseURL":"http://` + address + `/app/loomy/v1","useSessionAuth":false}}}}`)
+	if err := os.WriteFile(filepath.Join(loomyRoot, "opencode.json"), loomyRuntimeRaw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if w := callJSON(http.MethodPost, "/api/hosts/auto", map[string]any{
+		"host": "loomy", "enabled": true, "models": []string{prov.ID + "/deepseek-flash"},
+	}); w.Code != http.StatusOK {
+		t.Fatalf("connect loomy after runtime cleared models failed: %d %s", w.Code, w.Body.String())
+	}
+	// Verify a genuine restore conflict returns 409 on disconnect instead of silently reporting disconnected.
+	conflictRaw := bytes.Replace(loomyRuntimeRaw, []byte(`"useSessionAuth":false`), []byte(`"useSessionAuth":true`), 1)
+	if err := os.WriteFile(filepath.Join(loomyRoot, "opencode.json"), conflictRaw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if dw := callJSON(http.MethodPost, "/api/hosts/auto", map[string]any{
+		"host": "loomy", "enabled": false,
+	}); dw.Code != http.StatusConflict {
+		t.Fatalf("expected 409 on conflicting disconnect, got %d %s", dw.Code, dw.Body.String())
+	}
+	// Restore non-conflicting runtime state and verify disconnect restores original opencode.json.
+	if err := os.WriteFile(filepath.Join(loomyRoot, "opencode.json"), loomyRuntimeRaw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if dw := callJSON(http.MethodPost, "/api/hosts/auto", map[string]any{
+		"host": "loomy", "enabled": false,
+	}); dw.Code != http.StatusOK {
+		t.Fatalf("disconnect loomy after runtime cleared models failed: %d %s", dw.Code, dw.Body.String())
+	}
+
+	// Verify switching WorkBuddy between cloud models updates Cloud binding and reports store save errors.
+	prov2, err := store.SaveCloudProvider(providerInputFor("http://127.0.0.1:1/v1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := callJSON(http.MethodPost, "/api/hosts/auto", map[string]any{
+		"host": "workbuddy", "enabled": true, "models": []string{prov.ID + "/model-a"},
+	}); w.Code != http.StatusOK {
+		t.Fatalf("connect workbuddy model-a failed: %d %s", w.Code, w.Body.String())
+	}
+	if w := callJSON(http.MethodPost, "/api/hosts/auto", map[string]any{
+		"host": "workbuddy", "enabled": true, "models": []string{prov2.ID + "/model-b"},
+	}); w.Code != http.StatusOK {
+		t.Fatalf("connect workbuddy model-b failed: %d %s", w.Code, w.Body.String())
+	}
+	savedWB := findSavedApp(context.Background(), store, "workbuddy")
+	if savedWB == nil || savedWB.Cloud.ProviderID != prov2.ID || savedWB.Cloud.Model != "model-b" {
+		t.Fatalf("expected workbuddy Cloud to update to %s/model-b, got %+v", prov2.ID, savedWB)
+	}
+	backupPath := layout.ConfigFile() + ".bak"
+	_ = os.RemoveAll(backupPath)
+	if err := os.MkdirAll(backupPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.RemoveAll(backupPath) }()
+	if dw := callJSON(http.MethodPost, "/api/hosts/auto", map[string]any{
+		"host": "workbuddy", "enabled": false, "action": "disconnect",
+	}); dw.Code < 400 {
+		t.Fatalf("expected profile sync failure on disconnect to return >=400, got %d %s", dw.Code, dw.Body.String())
 	}
 }

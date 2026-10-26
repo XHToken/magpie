@@ -34,7 +34,7 @@ func TestPrivacyBuildSendsStrictSchemaForAllCompleteFields(t *testing.T) {
 	if !reflect.DeepEqual(request.ResponseFormat.Schema, want) {
 		t.Fatal("generation schema omitted or weakened validation/complete field coverage")
 	}
-	if spec.CapabilitySuite()[:14] != "privacy-go-v5:" {
+	if !strings.HasPrefix(spec.CapabilitySuite(), "privacy-go-v6:") {
 		t.Fatal("changed generation policy inherited an old capability suite")
 	}
 }

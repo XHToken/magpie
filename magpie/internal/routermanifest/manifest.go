@@ -51,17 +51,20 @@ type Model struct {
 	InstallationBytes   int64    `json:"installationBytes"` // Conservative peak reservation.
 }
 type Runtime struct {
-	ID           string        `json:"id"`
-	Version      string        `json:"version"`
-	Commit       string        `json:"commit"`
-	Platform     string        `json:"platform"`
-	Architecture string        `json:"architecture"`
-	Backend      string        `json:"backend"`
-	License      string        `json:"license"`
-	Executable   string        `json:"executable"`
-	Artifact     Artifact      `json:"artifact"`
-	Validation   string        `json:"validation"`
-	Dependencies *Dependencies `json:"dependencies,omitempty"`
+	ID                      string        `json:"id"`
+	Version                 string        `json:"version"`
+	Commit                  string        `json:"commit"`
+	Platform                string        `json:"platform"`
+	Architecture            string        `json:"architecture"`
+	Backend                 string        `json:"backend"`
+	License                 string        `json:"license"`
+	Executable              string        `json:"executable"`
+	Artifact                Artifact      `json:"artifact"`
+	Validation              string        `json:"validation"`
+	Dependencies            *Dependencies `json:"dependencies,omitempty"`
+	AcceleratorDependencies *Dependencies `json:"acceleratorDependencies,omitempty"`
+	// Execution is the server-owned effective plan, empty in the fixed catalog.
+	Execution string `json:"execution,omitempty"`
 }
 
 func (m Model) Fingerprint(r Runtime) string {
@@ -119,7 +122,7 @@ func Fixed() Catalog {
 		file := name + "-Q4_K_M.gguf"
 		c.Models = append(c.Models, Model{ID: "spark-x2.5-" + v.tier, Tier: v.tier, Revision: v.rev, Quantization: "Q4_K_M", License: "Apache-2.0", Purpose: "public_execution_validation_only", ContextTokens: 8192, NativeContextTokens: 1048576,
 			Artifact: Artifact{ID: name + "-" + v.rev, URL: "https://hf-mirror.com/XHToken/" + name + "-GGUF/resolve/" + v.rev + "/" + file, FileName: file, SHA256: v.hash, Size: v.size, Format: "file"},
-			Template: Artifact{ID: name + "-template-" + v.base, URL: "https://hf-mirror.com/XHToken/" + name + "/resolve/" + v.base + "/chat_template.jinja", FileName: "chat_template.jinja", SHA256: "705345721970da40e6aa56db548a46ecd1d8d94a5418808fa180ac19ee77a9ba", Size: 4648, Format: "file"}, TemplateRevision: v.base,
+			Template: Artifact{ID: name + "-template-" + v.base, URL: "https://hf-mirror.com/XHToken/" + name + "/resolve/" + v.base + "/chat_template.jinja", FileName: "chat_template.jinja", SHA256: "3e7e0b73ae9b306e60cca614366ef03c2c879a2245f2e0389f2d4a0979c568e3", Size: 4648, Format: "file"}, TemplateRevision: v.base,
 			// Two model copies permit interrupted replacement; 512MiB reserves
 			// archive/extraction and 64MiB filesystem/metadata margin.
 			InstallationBytes: 2*v.size + (576 << 20),
@@ -142,5 +145,6 @@ func Fixed() Catalog {
 			c.Runtimes[len(c.Runtimes)-1].Dependencies = windowsDependencies()
 		}
 	}
+	c.Runtimes = append(c.Runtimes, acceleratedRuntimes()...)
 	return c
 }

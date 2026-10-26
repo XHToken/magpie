@@ -130,7 +130,7 @@ func runPrivacyRoundtripCaseWith(parent context.Context, generate privacyRoundtr
 		return report, fail("roundtrip_capability_state")
 	}
 	// One deadline covers capture, all model batches and replay preparation.
-	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
+	ctx, cancel := context.WithTimeout(parent, spec.Budget())
 	defer cancel()
 	messages := []any{map[string]any{"role": "user", "content": scenario.text}}
 	if report.ToolCheckApplicable {

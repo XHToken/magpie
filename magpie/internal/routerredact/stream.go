@@ -362,14 +362,18 @@ func (r *streamRestore) transform(m map[string]any) ([]map[string]any, bool, boo
 				return nil, false, false, fail("stream_invalid_channel")
 			}
 			kind := strings.TrimSuffix(strings.TrimSuffix(typ, ".delta"), ".done")
-			key := "r:" + id + ":" + kind + ":" + streamIndex(m["content_index"])
+			partIndex := streamIndex(m["content_index"])
+			if strings.HasPrefix(typ, "response.reasoning_summary_text.") {
+				partIndex = streamIndex(m["summary_index"])
+			}
+			key := "r:" + id + ":" + kind + ":" + partIndex
 			if strings.HasSuffix(typ, ".delta") {
 				text, ok := m["delta"].(string)
 				if !ok {
 					return nil, false, false, fail("stream_invalid_event")
 				}
 				template := map[string]any{"type": typ, "delta": ""}
-				for _, name := range []string{"item_id", "output_index", "content_index", "sequence_number"} {
+				for _, name := range []string{"item_id", "output_index", "content_index", "summary_index", "sequence_number"} {
 					if v, ok := m[name]; ok {
 						template[name] = v
 					}

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/yetone/magpie/internal/routerdevice"
@@ -13,6 +15,19 @@ import (
 )
 
 const QueueLimit = 16
+
+var defaultManager atomic.Pointer[Manager]
+
+// Default returns the process-wide local runtime Manager, or nil when none has
+// been configured.Its Status() method is nil-safe.
+func Default() *Manager {
+	return defaultManager.Load()
+}
+
+// SetDefault registers m as the process-wide local runtime Manager.
+func SetDefault(m *Manager) {
+	defaultManager.Store(m)
+}
 
 type waiter struct{ occupied bool }
 
@@ -24,6 +39,8 @@ type Manager struct {
 	o                Options
 	intent           Intent
 	installation     string
+	installingModel  string
+	selectedReady    bool
 	state            RunState
 	healthy          bool
 	lastError        string
@@ -49,6 +66,10 @@ type Manager struct {
 	cancel           context.CancelFunc
 	workers          sync.WaitGroup
 	observer         LocalCallObserver
+	runtimeID        string
+	executionPlan    string
+	backend          BackendStatus
+	backendFailures  map[string]time.Time
 }
 
 func New(ctx context.Context, o Options) (*Manager, error) {
@@ -57,9 +78,6 @@ func New(ctx context.Context, o Options) (*Manager, error) {
 	}
 	if o.LoadTimeout <= 0 {
 		o.LoadTimeout = 60 * time.Second
-	}
-	if o.IdleTimeout <= 0 {
-		o.IdleTimeout = 15 * time.Minute
 	}
 	if o.JudgmentBudget <= 0 {
 		o.JudgmentBudget = 5 * time.Second
@@ -71,7 +89,7 @@ func New(ctx context.Context, o Options) (*Manager, error) {
 		o.ExecutionBudget = 120 * time.Second
 	}
 	if o.RedactionBudget <= 0 {
-		o.RedactionBudget = 15 * time.Second
+		o.RedactionBudget = DefaultRedactionBudget
 		if o.ExperimentalRedaction {
 			o.RedactionBudget = experimentalRedactionBudget
 		}
@@ -87,6 +105,9 @@ func New(ctx context.Context, o Options) (*Manager, error) {
 	}
 	if o.After == nil {
 		o.After = time.After
+	}
+	if o.BackendHints == nil {
+		o.BackendHints = routerprocess.BackendHints
 	}
 	i, err := o.Store.Load(ctx)
 	if err != nil {
@@ -107,7 +128,10 @@ func New(ctx context.Context, o Options) (*Manager, error) {
 		return nil, errors.New("context exceeds model native limit")
 	}
 	life, cancel := context.WithCancel(context.Background())
-	m := &Manager{o: o, intent: i, installation: "not_installed", state: Unloaded, changed: make(chan struct{}), ctx: life, cancel: cancel, observer: o.LocalObserver}
+	m := &Manager{o: o, intent: i, installation: "not_installed", state: Unloaded, changed: make(chan struct{}), ctx: life, cancel: cancel, observer: o.LocalObserver, runtimeID: o.RuntimeID, backend: BackendStatus{Mode: "fixed", State: "unloaded"}}
+	if o.AutoBackend {
+		m.backend.Mode = "auto"
+	}
 	m.resetCapabilitiesLocked()
 	m.dependencies = DependencyStatus{State: "not_required"}
 	if rt, ok := o.Catalog.Runtime(o.RuntimeID); ok {
@@ -121,9 +145,14 @@ func New(ctx context.Context, o Options) (*Manager, error) {
 		}
 		if err == nil {
 			m.installation = "installed"
+			m.selectedReady = true
 		}
 		m.updateDependenciesLocked(rt, err)
+		if o.AutoBackend && err != nil && m.IsModelInstalled(ctx, i.Selected) {
+			m.installation, m.selectedReady = "installed", true
+		}
 	}
+	SetDefault(m)
 	return m, nil
 }
 
@@ -147,10 +176,11 @@ func (m *Manager) resources() (routermanifest.Model, routermanifest.Runtime, err
 	if !m.intent.Settings.IsZero() {
 		model.ContextTokens = m.intent.Settings.ContextTokens
 	}
-	rt, ok := m.o.Catalog.Runtime(m.o.RuntimeID)
+	rt, ok := m.o.Catalog.Runtime(m.runtimeID)
 	if !ok {
 		return model, rt, errors.New("runtime artifact unavailable on this platform")
 	}
+	rt.Execution = m.executionPlan
 	return model, rt, nil
 }
 func (m *Manager) fingerprintLocked() string {
@@ -159,6 +189,15 @@ func (m *Manager) fingerprintLocked() string {
 		return ""
 	}
 	return model.Fingerprint(rt)
+}
+func (m *Manager) selectedInstalledLocked() bool {
+	if m.installation == "installed" && (m.installingModel == "" || strings.EqualFold(m.installingModel, m.intent.Selected)) {
+		return true
+	}
+	if m.installingModel != "" && !strings.EqualFold(m.installingModel, m.intent.Selected) {
+		return m.selectedReady || m.proc != nil
+	}
+	return false
 }
 func (m *Manager) resetCapabilitiesLocked() {
 	fp := m.fingerprintLocked()
@@ -169,20 +208,25 @@ func (m *Manager) resetCapabilitiesLocked() {
 }
 func (m *Manager) notifyLocked() { close(m.changed); m.changed = make(chan struct{}) }
 func (m *Manager) Status() Status {
+	if m == nil {
+		return Status{Runtime: Unloaded, Healthy: false}
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	fp := m.fingerprintLocked()
-	s := Status{MemoryBeforeLoad: m.memoryBeforeLoad, MemoryAfterLoad: m.memoryAfterLoad, Settings: m.intent.Settings, EffectiveSettings: m.effectiveSettingsLocked(), Intent: m.intent, Installation: m.installation, Runtime: m.state, Healthy: m.healthy, Waiting: len(m.waiters), QueueLimit: QueueLimit, ExecutionSlots: 1, Progress: m.progress, Error: m.lastError, LastUsed: m.lastUsed, Capabilities: make(map[Purpose]Capability), Dependencies: m.dependencies}
+	selectedInstalled := m.selectedInstalledLocked()
+	s := Status{MemoryBeforeLoad: m.memoryBeforeLoad, MemoryAfterLoad: m.memoryAfterLoad, Settings: m.intent.Settings, EffectiveSettings: m.effectiveSettingsLocked(), Intent: m.intent, Installation: m.installation, InstallingModel: m.installingModel, Runtime: m.state, Healthy: m.healthy, Waiting: len(m.waiters), QueueLimit: QueueLimit, ExecutionSlots: 1, Progress: m.progress, Error: m.lastError, LastUsed: m.lastUsed, Capabilities: make(map[Purpose]Capability), Dependencies: m.dependencies}
 	if m.active {
 		s.Active = 1
 	}
+	s.Backend = m.backend
 	if m.proc != nil {
 		s.PID = m.proc.PID()
 	}
 	for p, c := range m.capabilities {
-		c.Ready = m.intent.Enabled && !m.stopping && !m.closed && m.installation == "installed" && m.state != Fault && c.State == "available" && c.Fingerprint == fp
+		c.Ready = m.intent.Enabled && !m.stopping && !m.closed && selectedInstalled && m.state != Fault && c.State == "available" && c.Fingerprint == fp
 		c.TrialEnabled = trialEnabled(m.intent.Trial, p)
-		c.TrialReady = c.TrialEnabled && c.TrialEvidence && m.intent.Enabled && !m.stopping && !m.closed && m.installation == "installed" && m.state != Fault && c.Fingerprint == fp
+		c.TrialReady = c.TrialEnabled && c.TrialEvidence && m.intent.Enabled && !m.stopping && !m.closed && selectedInstalled && m.state != Fault && c.Fingerprint == fp
 		s.Capabilities[p] = c
 	}
 	return s
@@ -198,7 +242,17 @@ func (m *Manager) Identity() LocalCallIdentity {
 	if err != nil {
 		return LocalCallIdentity{}
 	}
-	return LocalCallIdentity{ModelID: model.ID, ModelFingerprint: model.Fingerprint(runtime), RuntimeID: runtime.ID, RuntimeFingerprint: RuntimeFingerprint(runtime)}
+	return LocalCallIdentity{ExecutionPlan: runtime.Execution, ModelID: model.ID, ModelFingerprint: model.Fingerprint(runtime), RuntimeID: runtime.ID, RuntimeFingerprint: RuntimeFingerprint(runtime)}
+}
+
+// RedactionBudget returns the configured per-call redaction budget owned by the Manager.
+func (m *Manager) RedactionBudget() time.Duration {
+	if m == nil {
+		return 0
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.o.RedactionBudget
 }
 
 // Select changes one fixed catalog tier only while no model is enabled.
@@ -213,7 +267,7 @@ func (m *Manager) Select(ctx context.Context, id string) error {
 		m.mu.Unlock()
 		return ErrBusy
 	}
-	i := Intent{Selected: id, Settings: m.intent.Settings}
+	i := Intent{Selected: id, UserDisabled: m.intent.UserDisabled, Settings: m.intent.Settings}
 	m.mu.Unlock()
 	if err := m.o.Store.Save(ctx, i); err != nil {
 		return err
@@ -221,6 +275,10 @@ func (m *Manager) Select(ctx context.Context, id string) error {
 	m.mu.Lock()
 	m.intent = i
 	m.installation = "not_installed"
+	m.runtimeID, m.executionPlan = m.o.RuntimeID, ""
+	m.backend.State = "unloaded"
+	m.installingModel = ""
+	m.selectedReady = false
 	m.lastError = ""
 	m.progress = Progress{}
 	m.resetCapabilitiesLocked()
@@ -236,7 +294,7 @@ func (m *Manager) EnableTrial(ctx context.Context, purposes ...Purpose) error {
 	m.op.Lock()
 	defer m.op.Unlock()
 	m.mu.Lock()
-	if m.closed || m.stopping || !m.intent.Enabled || m.installation != "installed" {
+	if m.closed || m.stopping || !m.intent.Enabled || !m.selectedInstalledLocked() {
 		m.mu.Unlock()
 		return ErrDisabled
 	}
@@ -329,6 +387,16 @@ func (m *Manager) Enable(ctx context.Context) error {
 // EnableSelected binds a potentially slow device check to the same selection.
 // An intervening selection edit fails instead of enabling unchecked resources.
 func (m *Manager) EnableSelected(ctx context.Context, expected string) error {
+	return m.enableSelected(ctx, expected, false)
+}
+
+// AutoEnableSelected restores startup intent without undoing an explicit user
+// disable that completed while device/installation checks were in progress.
+func (m *Manager) AutoEnableSelected(ctx context.Context, expected string) error {
+	return m.enableSelected(ctx, expected, true)
+}
+
+func (m *Manager) enableSelected(ctx context.Context, expected string, startup bool) error {
 	m.op.Lock()
 	defer m.op.Unlock()
 	m.mu.Lock()
@@ -337,6 +405,10 @@ func (m *Manager) EnableSelected(ctx context.Context, expected string) error {
 		return ErrDisabled
 	}
 	i := m.intent
+	if startup && i.UserDisabled {
+		m.mu.Unlock()
+		return ErrDisabled
+	}
 	if expected != "" && i.Selected != expected {
 		m.mu.Unlock()
 		return ErrBusy
@@ -346,6 +418,7 @@ func (m *Manager) EnableSelected(ctx context.Context, expected string) error {
 		return ErrNotInstalled
 	}
 	i.Enabled = true
+	i.UserDisabled = false
 	m.mu.Unlock()
 	if err := m.o.Store.Save(ctx, i); err != nil {
 		return err
@@ -355,6 +428,19 @@ func (m *Manager) EnableSelected(ctx context.Context, expected string) error {
 	m.notifyLocked()
 	m.mu.Unlock()
 	return nil
+}
+
+// IsModelInstalled verifies whether a fixed catalog model and the platform
+// runtime are physically installed without starting a process or mutating state.
+func (m *Manager) IsModelInstalled(ctx context.Context, modelID string) bool {
+	if m == nil {
+		return false
+	}
+	model, ok := m.o.Catalog.Model(modelID)
+	if !ok {
+		return false
+	}
+	return m.verifyAnyInstallation(ctx, model) == nil
 }
 
 func (m *Manager) RefreshInstallation(ctx context.Context) error {
@@ -367,16 +453,19 @@ func (m *Manager) RefreshInstallation(ctx context.Context) error {
 	id := m.intent.Selected
 	m.mu.Unlock()
 	if err == nil {
-		_, err = m.o.Installer.Verify(ctx, model, rt)
+		err = m.verifyAnyInstallation(ctx, model)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.intent.Selected == id && m.installDone == nil && m.loading == nil && m.proc == nil {
 		m.updateDependenciesLocked(rt, err)
+		m.installingModel = ""
 		if err == nil {
 			m.installation = "installed"
+			m.selectedReady = true
 		} else {
 			m.installation = "not_installed"
+			m.selectedReady = false
 		}
 		m.notifyLocked()
 	}
@@ -387,26 +476,61 @@ func (m *Manager) RefreshInstallation(ctx context.Context) error {
 // Install returns after starting an owned job. Request disconnect does not
 // abandon that job; CancelInstall, Disable and Close synchronously join it.
 func (m *Manager) Install() error {
+	return m.installTarget("")
+}
+
+// InstallModel starts an owned installation job for a specific catalog model,
+// allowing another catalog model to be downloaded without disabling or stopping
+// a currently enabled/running model.
+func (m *Manager) InstallModel(modelID string) error {
+	return m.installTarget(modelID)
+}
+
+func (m *Manager) installTarget(targetModelID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if !m.intent.Enabled || m.closed || m.stopping {
+	if m.closed || m.stopping {
+		return ErrDisabled
+	}
+	if targetModelID == "" && !m.intent.Enabled {
 		return ErrDisabled
 	}
 	if m.installDone != nil {
 		return nil
 	}
-	if m.proc != nil || m.loading != nil {
-		return ErrBusy
-	}
-	model, rt, err := m.resources()
-	if err != nil {
-		return err
+	var (
+		model routermanifest.Model
+		rt    routermanifest.Runtime
+		err   error
+	)
+	if targetModelID == "" {
+		if m.proc != nil || m.loading != nil {
+			return ErrBusy
+		}
+		model, rt, err = m.resources()
+		if err != nil {
+			return err
+		}
+	} else {
+		var ok bool
+		model, ok = m.o.Catalog.Model(targetModelID)
+		if !ok {
+			return ErrNotInstalled
+		}
+		if (m.proc != nil || m.loading != nil) && strings.EqualFold(model.ID, m.intent.Selected) {
+			return ErrBusy
+		}
+		rt, ok = m.o.Catalog.Runtime(m.o.RuntimeID)
+		if !ok {
+			return errors.New("runtime artifact unavailable on this platform")
+		}
 	}
 	ctx, cancel := context.WithCancel(m.ctx)
 	done := make(chan struct{})
 	m.installDone, m.installCancel = done, cancel
+	m.installingModel = model.ID
 	m.installation, m.lastError, m.progress = "downloading", "", Progress{}
-	if rt.Dependencies != nil {
+	if rt.Dependencies != nil && m.dependencies.State != "ready" {
 		m.dependencies = DependencyStatus{State: "preparing", ID: rt.Dependencies.ID, Version: rt.Dependencies.Version}
 	}
 	m.notifyLocked()
@@ -414,7 +538,12 @@ func (m *Manager) Install() error {
 	go func() {
 		defer m.workers.Done()
 		defer cancel()
-		_, err := m.o.Installer.Install(ctx, model, rt, func(p Progress) {
+		if m.o.AutoBackend {
+			// Explicit installs prepare the fallback runtime, independent of the
+			// backend currently serving another selected model.
+			rt, _ = m.o.Catalog.Runtime(m.o.RuntimeID)
+		}
+		err := m.installBackendPackages(ctx, model, rt, func(p Progress) {
 			m.mu.Lock()
 			m.progress = p
 			if rt.Dependencies != nil && m.dependencies.State == "preparing" && p.Stage != "" && p.Stage != "dependency" {
@@ -434,6 +563,9 @@ func (m *Manager) Install() error {
 		}
 		if err == nil {
 			m.installation, m.progress = "installed", Progress{}
+			if strings.EqualFold(model.ID, m.intent.Selected) {
+				m.selectedReady = true
+			}
 		} else if errors.Is(err, context.Canceled) {
 			m.installation = "canceled"
 		} else {
@@ -543,47 +675,58 @@ func (m *Manager) load(ctx context.Context, cancel context.CancelFunc, done chan
 		m.memoryBeforeLoad = routerdevice.Known(before)
 	}
 	m.mu.Unlock()
-	spec, err := m.o.Installer.Verify(ctx, model, rt)
-	if err == nil {
-		spec.ContextSize = model.ContextTokens
-	}
-	verificationFailed := err != nil && ctx.Err() == nil
+	var spec routerprocess.Spec
+	var err error
 	var p routerprocess.Process
-	if err == nil {
-		for attempt := 0; attempt < 2; attempt++ {
-			p, err = m.o.Factory.Start(ctx, spec)
-			if err != nil {
-				break
-			}
-			exitedBeforeReady := false
-			for {
-				if err = ctx.Err(); err != nil {
+	var backend BackendStatus
+	verificationFailed := false
+	if m.o.AutoBackend {
+		bounded, end := context.WithTimeout(ctx, loadTimeout)
+		p, rt, backend, err = m.startBackend(bounded, model)
+		end()
+		verificationFailed = errors.Is(err, ErrNotInstalled) && ctx.Err() == nil
+	} else {
+		spec, err = m.o.Installer.Verify(ctx, model, rt)
+		if err == nil {
+			spec.ContextSize = model.ContextTokens
+		}
+		verificationFailed = err != nil && ctx.Err() == nil
+		if err == nil {
+			for attempt := 0; attempt < 2; attempt++ {
+				p, err = m.o.Factory.Start(ctx, spec)
+				if err != nil {
 					break
 				}
-				probe, stop := context.WithTimeout(ctx, time.Second)
-				err = p.Health(probe)
-				stop()
-				if err == nil {
+				exitedBeforeReady := false
+				for {
+					if err = ctx.Err(); err != nil {
+						break
+					}
+					probe, stop := context.WithTimeout(ctx, time.Second)
+					err = p.Health(probe)
+					stop()
+					if err == nil {
+						break
+					}
+					select {
+					case <-ctx.Done():
+						err = ctx.Err()
+					case <-p.Done():
+						err = errors.Join(ErrFault, p.Err())
+						exitedBeforeReady = true
+					case <-m.o.After(50 * time.Millisecond):
+						continue
+					}
 					break
 				}
-				select {
-				case <-ctx.Done():
-					err = ctx.Err()
-				case <-p.Done():
-					err = errors.Join(ErrFault, p.Err())
-					exitedBeforeReady = true
-				case <-m.o.After(50 * time.Millisecond):
-					continue
+				if !exitedBeforeReady || attempt > 0 || dependencyCode(err) != "" || ctx.Err() != nil {
+					break
 				}
-				break
+				stop, finish := context.WithTimeout(context.Background(), 5*time.Second)
+				_ = p.Stop(stop)
+				finish()
+				p = nil
 			}
-			if !exitedBeforeReady || attempt > 0 || dependencyCode(err) != "" || ctx.Err() != nil {
-				break
-			}
-			stop, finish := context.WithTimeout(context.Background(), 5*time.Second)
-			_ = p.Stop(stop)
-			finish()
-			p = nil
 		}
 	}
 	after, afterErr := m.o.AvailableMemory(ctx)
@@ -595,6 +738,7 @@ func (m *Manager) load(ctx context.Context, cancel context.CancelFunc, done chan
 	}
 	if verificationFailed {
 		m.installation = "not_installed"
+		m.selectedReady = false
 	}
 	if dependencyCode(err) != "" {
 		m.installation = "not_installed"
@@ -602,6 +746,13 @@ func (m *Manager) load(ctx context.Context, cancel context.CancelFunc, done chan
 	m.updateDependenciesLocked(rt, err)
 	adopt := err == nil && ctx.Err() == nil && m.intent.Enabled && !m.closed && !m.stopping
 	if adopt {
+		if m.o.AutoBackend {
+			previous := m.fingerprintLocked()
+			m.runtimeID, m.executionPlan, m.backend = rt.ID, rt.Execution, backend
+			if previous != m.fingerprintLocked() {
+				m.resetCapabilitiesLocked()
+			}
+		}
 		m.proc, m.healthy, m.state = p, true, Ready
 		m.lastUsed = m.o.Now()
 		m.workers.Add(1)
@@ -626,6 +777,10 @@ func (m *Manager) load(ctx context.Context, cancel context.CancelFunc, done chan
 		go m.watch(p)
 	}
 	if !adopt {
+		if m.o.AutoBackend {
+			backend.State = "unavailable"
+			m.backend = backend
+		}
 		m.healthy = false
 		if m.intent.Enabled && !m.stopping && !m.closed {
 			m.state, m.lastError = Fault, operationCode(err, "load_failed_or_timed_out")
@@ -650,6 +805,11 @@ func (m *Manager) watch(p routerprocess.Process) {
 		m.proc, m.healthy = nil, false
 		if m.stopRequested != p {
 			m.state = Fault
+			if m.o.AutoBackend && m.backend.Effective != "cpu" {
+				m.coolBackendLocked(m.runtimeID)
+				m.backend.State, m.backend.FallbackReason = "unavailable", "accelerator_process_exited"
+				m.resetCapabilitiesLocked()
+			}
 			if m.lastError == "" {
 				m.lastError = "process_exited"
 			}
@@ -842,6 +1002,101 @@ func (m *Manager) removeWaiter(w *waiter) {
 	}
 }
 
+// AcquireSlot acquires the single execution slot on the local runtime Manager
+// and returns a release function and the execution timeout budget. When m is
+// nil, it returns a no-op release and 0 timeout.
+func (m *Manager) AcquireSlot(ctx context.Context) (func(), time.Duration, error) {
+	if m == nil {
+		return func() {}, 0, nil
+	}
+	w := &waiter{}
+	m.mu.Lock()
+	if !m.intent.Enabled || m.closed || m.stopping {
+		m.mu.Unlock()
+		return nil, 0, ErrDisabled
+	}
+	if len(m.waiters) >= QueueLimit {
+		m.mu.Unlock()
+		return nil, 0, ErrQueueFull
+	}
+	epoch := m.epoch
+	m.waiters = append(m.waiters, w)
+	m.notifyLocked()
+	budget := m.o.ExecutionQueueBudget
+	if !m.intent.Settings.IsZero() && m.intent.Settings.ExecutionQueueSeconds > 0 {
+		budget = time.Duration(m.intent.Settings.ExecutionQueueSeconds) * time.Second
+	}
+	m.mu.Unlock()
+
+	if err := m.ensure(ctx, epoch); err != nil {
+		m.removeWaiter(w)
+		return nil, 0, err
+	}
+	stage, stageCancel := context.WithTimeout(ctx, budget)
+	defer stageCancel()
+	for {
+		m.mu.Lock()
+		if !m.intent.Enabled || m.closed || m.stopping || epoch != m.epoch {
+			m.mu.Unlock()
+			m.removeWaiter(w)
+			return nil, 0, ErrDisabled
+		}
+		if m.proc == nil || !m.healthy {
+			m.mu.Unlock()
+			m.removeWaiter(w)
+			return nil, 0, ErrFault
+		}
+		if err := stage.Err(); err != nil {
+			m.mu.Unlock()
+			m.removeWaiter(w)
+			if errors.Is(err, context.DeadlineExceeded) {
+				return nil, 0, purposeTimeout(ctx, Execution, true)
+			}
+			return nil, 0, err
+		}
+		if !m.active && len(m.waiters) > 0 && m.waiters[0] == w {
+			m.waiters = m.waiters[1:]
+			execBudget := m.o.ExecutionBudget
+			if !m.intent.Settings.IsZero() && m.intent.Settings.ExecutionSeconds > 0 {
+				execBudget = time.Duration(m.intent.Settings.ExecutionSeconds) * time.Second
+			}
+			m.active, m.state = true, Busy
+			process := m.proc
+			m.notifyLocked()
+			m.mu.Unlock()
+			var once sync.Once
+			release := func() {
+				once.Do(func() {
+					m.mu.Lock()
+					m.active, m.activeCancel = false, nil
+					m.lastUsed = m.o.Now()
+					if m.proc == process {
+						if m.stopping {
+							m.state = Unloading
+						} else {
+							m.state = Idle
+						}
+					}
+					m.notifyLocked()
+					m.mu.Unlock()
+				})
+			}
+			return release, execBudget, nil
+		}
+		changed := m.changed
+		m.mu.Unlock()
+		select {
+		case <-stage.Done():
+			m.removeWaiter(w)
+			if errors.Is(stage.Err(), context.DeadlineExceeded) {
+				return nil, 0, purposeTimeout(ctx, Execution, true)
+			}
+			return nil, 0, stage.Err()
+		case <-changed:
+		}
+	}
+}
+
 // CheckCapability records only versioned sample evidence and never infers
 // judgment/redaction from a healthy process or a normal execution answer.
 func (m *Manager) CheckCapability(ctx context.Context, c Check) error {
@@ -860,6 +1115,11 @@ func (m *Manager) CheckCapability(ctx context.Context, c Check) error {
 	}
 	var evidence string
 	err := m.Use(ctx, c.Purpose, func(ctx context.Context, endpoint string) error {
+		// Automatic cold loading may choose a different verified runtime.
+		// Bind the sample to the process that actually receives it.
+		m.mu.Lock()
+		fingerprint = m.fingerprintLocked()
+		m.mu.Unlock()
 		var err error
 		evidence, err = c.Run(ctx, endpoint)
 		return err
@@ -906,13 +1166,13 @@ func (m *Manager) Require(p Purpose) error {
 	return nil
 }
 
-// Sweep is the controlled-time idle check. A service ticker invokes it; tests
-// advance Now directly. No model is loaded by the ticker.
+// Sweep supports trusted callers that explicitly configure an idle timeout.
+// The product keeps enabled models resident and does not schedule this check.
 func (m *Manager) Sweep(ctx context.Context) error {
 	m.op.Lock()
 	defer m.op.Unlock()
 	m.mu.Lock()
-	if !m.intent.Enabled || m.closed || m.stopping || m.active || len(m.waiters) > 0 || m.loading != nil || m.proc == nil || m.o.Now().Sub(m.lastUsed) < m.o.IdleTimeout {
+	if m.o.IdleTimeout <= 0 || !m.intent.Enabled || m.closed || m.stopping || m.active || len(m.waiters) > 0 || m.loading != nil || m.proc == nil || m.o.Now().Sub(m.lastUsed) < m.o.IdleTimeout {
 		m.mu.Unlock()
 		return nil
 	}
@@ -929,6 +1189,7 @@ func (m *Manager) Sweep(ctx context.Context) error {
 			m.proc = nil
 		}
 		m.state = Unloaded
+		m.backend.State = "unloaded"
 	} else {
 		m.state, m.lastError = Fault, "unload_failed"
 	}
@@ -943,6 +1204,7 @@ func (m *Manager) Disable(ctx context.Context) error {
 	m.mu.Lock()
 	i := m.intent
 	i.Enabled = false
+	i.UserDisabled = true
 	m.intent = i
 	m.stopping = true
 	m.state = Unloading
@@ -1007,6 +1269,7 @@ func (m *Manager) stop(ctx context.Context, closing bool) error {
 	m.mu.Lock()
 	m.stopping = m.updating
 	m.state = Unloaded
+	m.backend.State = "unloaded"
 	if err != nil {
 		m.state, m.lastError = Fault, "unload_failed"
 	} else if m.proc == p {

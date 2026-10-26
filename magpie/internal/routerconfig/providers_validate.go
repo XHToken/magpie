@@ -68,9 +68,8 @@ func resolveEdit(f providerFiles, in ProviderEdit) (ResolvedProvider, map[string
 		}) >= 0 || strings.ContainsAny(value, "\r\n\x00") {
 			return p, nil, invalidProvider("invalid custom request header")
 		}
-		switch strings.ToLower(name) {
-		case "host", "content-length", "connection", "transfer-encoding", "upgrade", "proxy-authorization", "proxy-connection", "cookie", "set-cookie", "trailer", "te":
-			return p, nil, invalidProvider("transport and browser headers cannot be overridden")
+		if ReservedCloudHeader(name) {
+			return p, nil, invalidProvider("transport, protocol and browser headers cannot be overridden")
 		}
 		if _, exists := cleaned[name]; exists {
 			return p, nil, invalidProvider("duplicate custom request header")
@@ -82,9 +81,8 @@ func resolveEdit(f providerFiles, in ProviderEdit) (ResolvedProvider, map[string
 		p.ExtraBody = *in.ExtraBody
 	}
 	for key, value := range p.ExtraBody {
-		switch strings.TrimPrefix(key, "!") {
-		case "model", "stream", "messages", "input", "contents", "system", "systemInstruction", "system_instruction", "instructions", "tools", "previous_response_id":
-			return p, nil, invalidProvider("extra body cannot override model, stream, conversation or tools")
+		if ReservedCloudBodyField(key) || strings.HasPrefix(key, "!") {
+			return p, nil, invalidProvider("extra body cannot override conversation or target, or use forced options")
 		}
 		if !json.Valid(value) {
 			return p, nil, invalidProvider("extra body must be a JSON object")
@@ -197,9 +195,13 @@ func (s *Store) SaveCloudProviderContext(ctx context.Context, in ProviderEdit) (
 	if err != nil {
 		return CloudProvider{}, err
 	}
-	pruneOrphanSecrets(&f, retainedRefs)
 	if err := s.writeProviders(ctx, f, true); err != nil {
 		return CloudProvider{}, err
+	}
+	if pruneOrphanSecrets(&f, retainedRefs) {
+		if err := s.writeCredentials(ctx, f, false); err != nil {
+			return CloudProvider{}, err
+		}
 	}
 	resolved, _, err := f.resolved(p.Config.ID)
 	return resolved.Config, err

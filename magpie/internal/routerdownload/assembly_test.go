@@ -102,6 +102,37 @@ func TestAssemblyPublishesSeparateTreeAndReusesVerifiedInstallation(t *testing.T
 	}
 }
 
+func TestAssemblyAdditionalDependencySetCannotChangeOrOverlap(t *testing.T) {
+	a, destination := assemblyFixture(t)
+	extra, directory := assemblySource(t, filepath.Dir(destination), "cuda",
+		archiveEntry{"cudart64_12.dll", []byte("independently verified GPU runtime"), 0o600})
+	a.Extra = []AssemblyOverlay{{Artifact: extra, Directory: directory}}
+	if err := a.Install(context.Background(), destination); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Verify(context.Background(), destination); err != nil {
+		t.Fatal(err)
+	}
+	if value, err := os.ReadFile(filepath.Join(destination, "bin", "cudart64_12.dll")); err != nil || string(value) != "independently verified GPU runtime" {
+		t.Fatal(string(value), err)
+	}
+	changed := a
+	changed.Extra = nil
+	if changed.Verify(context.Background(), destination) == nil {
+		t.Fatal("CUDA assembly inherited CPU-only receipt")
+	}
+	if err := os.WriteFile(filepath.Join(directory, "cudart64_12.dll"), []byte("changed"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if a.Verify(context.Background(), destination) == nil {
+		t.Fatal("modified accelerator source accepted")
+	}
+	a.Extra = []AssemblyOverlay{{Artifact: a.Overlay, Directory: a.OverlayDirectory}}
+	if _, _, err := a.inputs(context.Background()); err == nil {
+		t.Fatal("overlapping dependency sets accepted")
+	}
+}
+
 func TestAssemblyRejectsTamperedOutputAndReceipt(t *testing.T) {
 	for _, kind := range []string{"extra", "changed", "missing", "bad-receipt", "rewritten-hash", "changed-identity", "changed-version", "removed-plan-entry", "linked-file", "linked-directory"} {
 		t.Run(kind, func(t *testing.T) {

@@ -117,17 +117,25 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       };
       await skipTutorial(page); await page.goto(origin + `/?locale=${language}&view=agents`);
       await page.waitForFunction(() => !!managementToken && !!serviceInfo && !!document.querySelector('#agents [data-app=loomy] .field.ag-menu'));
+      // Rows first render with empty defaults. Read the saved Profile before
+      // deciding to add a model, or a late initial load can select it before
+      // the click and turn that click into an unintended deselection.
+      await page.evaluate(() => window.routerAppsOpen());
       await noHostWrites(); assert.equal(hostRequests.length, 0);
       if (!(await page.locator('#agents [data-app=loomy] .field.ag-menu').textContent()).includes(model)) {
         const beforeSaveCalls = calls.length;
         await page.locator('#agents [data-app=loomy] .field.ag-menu').click();
         await page.waitForSelector(`.pop.am-pop .am-mr[data-model="${provider.id}/${model}"]`);
+        assert.equal(await page.locator(`.pop.am-pop .am-mr[data-model="${provider.id}/${model}"]`).getAttribute('aria-selected'), 'false');
         const saved = page.waitForResponse(r => new URL(r.url()).pathname === '/api/apps' && r.request().method() === 'POST');
         await page.locator(`.pop.am-pop .am-mr[data-model="${provider.id}/${model}"]`).click();
-        await saved;
+        const savedResponse = await saved;
+        assert.equal(savedResponse.status(), 200);
+        assert.deepEqual((await savedResponse.json()).app.models, [`${provider.id}/${model}`]);
         await page.keyboard.press('Escape');
         assert.equal(calls.length, beforeSaveCalls, 'Agent model selection must not probe upstream');
       }
+      await page.waitForFunction(expected => document.querySelector('#agents [data-app=loomy] .field.ag-menu')?.title === expected, `${provider.id}/${model}`);
       await noHostWrites(); assert.equal(hostRequests.length, 0);
       const details = page.locator('#agents [data-app=loomy] .ag-link');
       await details.click();

@@ -1,6 +1,7 @@
 package routerredact
 
 import (
+	"context"
 	_ "embed"
 	"strconv"
 	"strings"
@@ -397,23 +398,40 @@ func compileRuleDefinition(def RuleDefinition) (*compiledRule, error) {
 	}, nil
 }
 
-// Detect 在文本中运行全部正则规则，返回 UTF-8 字节偏移量对齐的候选实体列表。
+// Detect is a convenience scan for inspection callers that cannot report
+// errors. Outbound preparation must use DetectContext to reject partial scans.
 func (d *RuleDetector) Detect(text string) []DetectedSpan {
+	spans, _ := d.DetectContext(context.Background(), text)
+	return spans
+}
+
+// DetectContext runs every rule and rejects matcher failures without retaining
+// the regexp error, which can contain the sensitive source text.
+func (d *RuleDetector) DetectContext(ctx context.Context, text string) ([]DetectedSpan, error) {
+	if err := contextError(ctx); err != nil {
+		return nil, err
+	}
 	if d == nil || text == "" {
-		return nil
+		return nil, nil
 	}
 	runes, runeToByte := buildRuneToByteIndex(text)
 	if len(runes) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	var out []DetectedSpan
 	for _, rule := range d.rules {
+		if err := contextError(ctx); err != nil {
+			return nil, err
+		}
 		if AllowedPassThroughLabels[rule.canonicalLabel] {
 			continue
 		}
 		match, err := rule.re.FindRunesMatch(runes)
 		for err == nil && match != nil {
+			if err := contextError(ctx); err != nil {
+				return nil, err
+			}
 			targetGroup := selectMatchGroup(match, rule.redactGroupNum, rule.redactGroupName)
 			if targetGroup != nil && targetGroup.Length > 0 {
 				runeStart := targetGroup.Index
@@ -440,8 +458,17 @@ func (d *RuleDetector) Detect(text string) []DetectedSpan {
 			}
 			match, err = rule.re.FindNextMatch(match)
 		}
+		if err != nil {
+			if ctxErr := contextError(ctx); ctxErr != nil {
+				return nil, ctxErr
+			}
+			return nil, fail("redaction_extraction_failed")
+		}
 	}
-	return out
+	if err := contextError(ctx); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (d *RuleDetector) acceptMatch(
@@ -496,6 +523,11 @@ func (d *RuleDetector) acceptMatch(
 	}
 	if rule.validator != nil && !rule.validator(trimmedVal) {
 		return false
+	}
+	if rule.canonicalLabel == "BIRTH_DATE" || rule.canonicalLabel == "DATE" {
+		if runeStart > 0 && (runes[runeStart-1] == 'v' || runes[runeStart-1] == 'V') {
+			return false
+		}
 	}
 	if rule.canonicalLabel == "AMOUNT" {
 		if monetarySpanContinues(runes, runeEnd) {
@@ -570,9 +602,31 @@ func resolveValidator(name string) func(string) bool {
 		return validateLuhn
 	case "uscc_checksum":
 		return validateUSCC
+	case "date", "calendar_date":
+		return validateCalendarDate
 	default:
 		return nil
 	}
+}
+
+var calendarDateLayouts = []string{
+	"2006-1-2",
+	"2006/1/2",
+	"2006.1.2",
+	"2-1-2006",
+	"2/1/2006",
+	"2.1.2006",
+}
+
+func validateCalendarDate(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	for _, layout := range calendarDateLayouts {
+		if t, err := time.Parse(layout, trimmed); err == nil {
+			y := t.Year()
+			return y >= 1900 && y <= 2100
+		}
+	}
+	return false
 }
 
 var idCardWeights = [17]int{7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2}

@@ -160,6 +160,33 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       assert.deepEqual(Object.keys(await state(page)).sort(), ['app', 'completed', 'dismissed', 'route', 'step', 'version']);
     });
 
+    await t.test('manual pointer entry restores its invoker when pointer activation does not focus buttons', async t => {
+      for (const opener of ['tutorialOpen', 'tutorialContinue', 'tutorialSettings']) await t.test(opener, async t => {
+        const page = await openCase(t);
+        await visible(page);
+        await page.keyboard.press('Escape');
+        await page.locator(modal).waitFor({ state: 'hidden' });
+        if (opener === 'tutorialSettings') await page.locator('#prefs').click();
+        await page.locator('#sync').focus();
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'sync');
+        // WebKit mouse activation need not focus buttons. Suppress that
+        // default on every engine so the regression never depends on it.
+        await page.locator('#' + opener).evaluate(node => node.addEventListener('mousedown', event => event.preventDefault(), { once: true }));
+        await page.locator('#' + opener).click();
+        await visible(page);
+        await page.locator('#tutorialClose').click();
+        await page.locator(modal).waitFor({ state: 'hidden' });
+        const active = await page.evaluate(() => ({ id: document.activeElement.id, tag: document.activeElement.tagName }));
+        if (active.id !== opener && process.env.ARTIFACT_DIR) {
+          await fs.mkdir(process.env.ARTIFACT_DIR, { recursive: true });
+          const prefix = path.join(process.env.ARTIFACT_DIR, `tutorial-focus-${engine}-${opener}`);
+          await fs.writeFile(prefix + '.json', JSON.stringify({ engine, opener, active }, null, 2));
+          await page.screenshot({ path: prefix + '.png' });
+        }
+        assert.equal(active.id, opener, 'closing must return focus to the invoking control, independently of mouse-focus defaults');
+      });
+    });
+
     await t.test('keyboard focus remains in the dialog, Escape closes and manual entry restores focus', async t => {
       const page = await openCase(t);
       await visible(page);
@@ -175,14 +202,16 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       await page.reload();
       await page.waitForFunction(() => !!managementToken && !!serviceInfo);
       assert.equal(await page.locator(modal).isVisible(), false);
-      await page.locator('#tutorialOpen').click();
+      await page.locator('#tutorialOpen').focus();
+      await page.keyboard.press('Enter');
       await visible(page);
       await assertStep(page, 1);
       await page.locator('#tutorialClose').click();
       await page.locator(modal).waitFor({ state: 'hidden' });
       assert.equal(await page.evaluate(() => document.activeElement.id), 'tutorialOpen');
       await page.locator('#prefs').click();
-      await page.locator('#tutorialSettings').click();
+      await page.locator('#tutorialSettings').focus();
+      await page.keyboard.press('Enter');
       await visible(page);
       await assertStep(page, 1);
       await page.keyboard.press('Escape');

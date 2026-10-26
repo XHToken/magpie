@@ -22,11 +22,24 @@ type ContextUsage struct {
 }
 
 type contextUsageKey struct{}
+type clampOutputKey struct{}
 
 // WithContextUsage publishes one completed call's precise capacity check. Use a
 // fresh value per call and read it only after the call returns.
 func WithContextUsage(ctx context.Context, usage *ContextUsage) context.Context {
 	return context.WithValue(ctx, contextUsageKey{}, usage)
+}
+
+// WithClampOutputToWindow allows direct local execution to clamp an explicit
+// client output token limit (n_predict / max_completion_tokens / max_tokens)
+// to the remaining context window when at least 32 output tokens remain.
+func WithClampOutputToWindow(ctx context.Context) context.Context {
+	return context.WithValue(ctx, clampOutputKey{}, true)
+}
+
+func clampOutputToWindowFrom(ctx context.Context) bool {
+	v, _ := ctx.Value(clampOutputKey{}).(bool)
+	return v
 }
 
 func publishContextUsage(ctx context.Context, usage ContextUsage) {
@@ -48,6 +61,18 @@ func requestOutputReserve(request map[string]json.RawMessage) (int, error) {
 		}
 	}
 	return 0, nil
+}
+
+func clampRequestOutputReserve(request map[string]json.RawMessage, maxOut int) {
+	rawLimit, _ := json.Marshal(maxOut)
+	for _, name := range []string{"n_predict", "max_completion_tokens", "max_tokens"} {
+		if raw, ok := request[name]; ok && string(raw) != "null" {
+			var limit int
+			if json.Unmarshal(raw, &limit) == nil && limit > maxOut {
+				request[name] = rawLimit
+			}
+		}
+	}
 }
 
 // TokenCount holds the same single scheduler slot as generation. It must not be

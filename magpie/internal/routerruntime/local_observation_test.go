@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/yetone/magpie/internal/cloudcodec"
+	"github.com/yetone/magpie/internal/routerprocess"
 )
 
 func TestLocalCallObservationContractIsSafeAndNullable(t *testing.T) {
@@ -81,6 +82,32 @@ func TestManagerObserverEmitsOneSafeBusinessCompletion(t *testing.T) {
 	}
 	if factory.count.Load() != 1 {
 		t.Fatalf("unexpected process count: %d", factory.count.Load())
+	}
+}
+
+func TestManagerObserverColdAutomaticBackendUsesActualBinding(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"choices":[{"message":{"content":"ok"}}]}`)
+	}))
+	defer server.Close()
+	i := &backendInstaller{installed: map[string]bool{"windows-amd64-cpu": true, "fixture-cuda": true}}
+	f := &backendFactory{endpoint: server.URL, devices: map[string][]routerprocess.Device{"cuda": {
+		{ID: "CUDA0", Name: "fixture GPU", TotalBytes: 8 << 30, FreeBytes: 6 << 30},
+	}}}
+	m := autoBackendFixture(t, f, i, "cuda")
+	events := make(chan LocalCallObservation, 1)
+	m.SetLocalObserver(LocalCallObserverFunc(func(value LocalCallObservation) { events <- value }))
+	if err := m.Generate(context.Background(), Execution, []byte(`{"messages":[]}`), func(response *http.Response) error {
+		_, err := io.ReadAll(response.Body)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	actual := m.Identity()
+	event := <-events
+	if actual.RuntimeID != "fixture-cuda" || event.RuntimeID != actual.RuntimeID || event.RuntimeFingerprint != actual.RuntimeFingerprint || event.ModelFingerprint != actual.ModelFingerprint || !event.Attempted {
+		t.Fatal("completion recorded the pre-load runtime instead of its actual GPU binding", event, actual)
 	}
 }
 

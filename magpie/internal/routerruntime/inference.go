@@ -45,6 +45,11 @@ func (e GenerationHTTPError) DiagnosticBody() []byte { return bytes.Clone(e.body
 // text, response content, credentials or an endpoint. QueueLoadMS combines cold
 // loading and scheduler waiting; those phases are not measured separately here.
 type GenerationDiagnosticSnapshot struct {
+	// Binding identifies the process selected when this call acquired its slot.
+	// Unadmitted calls leave BindingCaptured false; completion-time state must
+	// never replace a call's binding after a later model/settings change.
+	Binding             LocalCallIdentity         `json:"-"`
+	BindingCaptured     bool                      `json:"-"`
 	InputTokens         *int                      `json:"input_tokens,omitempty"`
 	OutputReserveTokens *int                      `json:"output_reserve_tokens,omitempty"`
 	ContextTokens       int                       `json:"context_tokens,omitempty"`
@@ -273,6 +278,19 @@ func (m *Manager) generate(ctx context.Context, p Purpose, body []byte, consume 
 		}
 		kwargs["enable_thinking"] = json.RawMessage("false")
 		request["chat_template_kwargs"], _ = json.Marshal(kwargs)
+	} else if p == Execution {
+		var kwargs map[string]json.RawMessage
+		if raw, ok := request["chat_template_kwargs"]; ok && len(bytes.TrimSpace(raw)) > 0 && !bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+			if err := json.Unmarshal(raw, &kwargs); err != nil || kwargs == nil {
+				return errors.New("invalid template arguments")
+			}
+		} else {
+			kwargs = make(map[string]json.RawMessage)
+		}
+		if raw, exists := kwargs["enable_thinking"]; !exists || len(bytes.TrimSpace(raw)) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+			kwargs["enable_thinking"] = json.RawMessage("false")
+			request["chat_template_kwargs"], _ = json.Marshal(kwargs)
+		}
 	}
 	// This flag is documented in the pinned server version. Cache correctness
 	// remains server-owned; no latency/benefit claim follows from enabling it.
@@ -295,6 +313,10 @@ func (m *Manager) generate(ctx context.Context, p Purpose, body []byte, consume 
 	}
 	err = m.Use(callCtx, p, func(call context.Context, endpoint string) error {
 		admitted = true
+		// A shared cold load may have selected another verified backend. The
+		// admitted request owns this process binding until its slot is released.
+		identity, _ = m.SnapshotBinding(call)
+		measured.Binding, measured.BindingCaptured = identity, true
 		if diagnostics != nil {
 			measured.QueueLoadMS = elapsedMS(admissionStarted)
 		}
@@ -307,6 +329,17 @@ func (m *Manager) generate(ctx context.Context, p Purpose, body []byte, consume 
 			usage, err := m.countContext(call, endpoint, body, outputReserve)
 			if err != nil {
 				return err
+			}
+			if clampOutputToWindowFrom(ctx) && p == Execution && outputReserve > 0 {
+				if avail := usage.ContextTokens - usage.InputTokens; avail >= 32 && outputReserve > avail {
+					usage.OutputTokens = avail
+					outputReserve = avail
+					clampRequestOutputReserve(request, avail)
+					body, err = json.Marshal(request)
+					if err != nil {
+						return err
+					}
+				}
 			}
 			publishContextUsage(ctx, usage)
 			measured.InputTokens = &usage.InputTokens

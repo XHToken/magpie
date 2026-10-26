@@ -361,8 +361,9 @@ func TestLoomyCheckerPathsCredentialsAndStoredBoundary(t *testing.T) {
 						Model     string `json:"model"`
 						Stream    bool   `json:"stream"`
 						MaxTokens int    `json:"max_tokens"`
+						Comment   string `json:"$comment"`
 					}
-					if json.NewDecoder(r.Body).Decode(&body) != nil || body.Model != "vendor/model.v1" || body.Stream || body.MaxTokens != 128 {
+					if json.NewDecoder(r.Body).Decode(&body) != nil || body.Model != "vendor/model.v1" || body.Stream || body.MaxTokens != 128 || body.Comment != "connection-check" {
 						t.Error("incorrect installed protocol probe")
 					}
 					fmt.Fprint(w, loomyTextReply)

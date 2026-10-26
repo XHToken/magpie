@@ -26,7 +26,12 @@ func artifactHost(rawURL string) string {
 	return u.Hostname()
 }
 
-type ConfigIntentStore struct{ Store *routerconfig.Store }
+type ConfigIntentStore struct {
+	Store *routerconfig.Store
+	// StandardSettings resolves former manual values to the product policy on
+	// load. Startup stays read-only; the next intent save persists that policy.
+	StandardSettings bool
+}
 
 func (s ConfigIntentStore) Load(ctx context.Context) (Intent, error) {
 	d, err := s.Store.LoadContext(ctx)
@@ -37,7 +42,13 @@ func (s ConfigIntentStore) Load(ctx context.Context) (Intent, error) {
 	if err = json.Unmarshal(d["runtime"], &i); err != nil {
 		return i, err
 	}
-	return i, i.Settings.Validate()
+	if err := i.Settings.Validate(); err != nil {
+		return i, err
+	}
+	if s.StandardSettings {
+		i.Settings = routerconfig.StandardRuntimeSettings()
+	}
+	return i, nil
 }
 func (s ConfigIntentStore) Save(ctx context.Context, i Intent) error {
 	if err := i.Settings.Validate(); err != nil {
@@ -49,6 +60,11 @@ func (s ConfigIntentStore) Save(ctx context.Context, i Intent) error {
 			return errors.New("invalid runtime configuration")
 		}
 		r["enabled"], _ = json.Marshal(i.Enabled)
+		if i.UserDisabled && !i.Enabled {
+			r["userDisabled"], _ = json.Marshal(true)
+		} else {
+			delete(r, "userDisabled")
+		}
 		r["selected"], _ = json.Marshal(i.Selected)
 		if i.Settings.IsZero() {
 			delete(r, "settings")
@@ -134,7 +150,7 @@ func (f *FileInstaller) Verify(ctx context.Context, m routermanifest.Model, r ro
 	if err != nil || executable == "" {
 		return routerprocess.Spec{}, errors.New("verified runtime executable missing")
 	}
-	return routerprocess.Spec{Executable: executable, ModelPath: model, ContextSize: m.ContextTokens, Parallel: 1, Backend: r.Backend, ExtraArgs: []string{"--chat-template-file", template}, RuntimeDependencies: dependencies}, nil
+	return routerprocess.Spec{Executable: executable, ModelPath: model, ContextSize: m.ContextTokens, Parallel: 1, Backend: r.Backend, ExtraArgs: []string{"--chat-template-file", template, "--reasoning-budget", "0"}, RuntimeDependencies: dependencies}, nil
 }
 func (f *FileInstaller) Install(ctx context.Context, m routermanifest.Model, r routermanifest.Runtime, progress func(Progress)) (routerprocess.Spec, error) {
 	if err := m.Artifact.Validate(); err != nil {
@@ -158,6 +174,13 @@ func (f *FileInstaller) Install(ctx context.Context, m routermanifest.Model, r r
 		stepOffset = 1
 		if err := f.installWindowsDependencies(ctx, r, downloader, progress); err != nil {
 			return routerprocess.Spec{}, err
+		}
+		if r.AcceleratorDependencies != nil {
+			extra := r
+			extra.Dependencies, extra.AcceleratorDependencies = r.AcceleratorDependencies, nil
+			if err := f.installWindowsDependencies(ctx, extra, downloader, progress); err != nil {
+				return routerprocess.Spec{}, err
+			}
 		}
 	}
 	for _, v := range []struct {
@@ -270,9 +293,12 @@ func (f *FileInstaller) Install(ctx context.Context, m routermanifest.Model, r r
 
 // PlatformRuntime consumes the catalog; it makes no independent hardware rule.
 func PlatformRuntime(c routermanifest.Catalog, goos, arch string) string {
-	for _, r := range c.Runtimes {
-		if r.Platform == goos && r.Architecture == arch && (r.Backend == "cpu" || strings.EqualFold(r.Backend, "metal")) {
-			return r.ID
+	// The baseline must be stable when accelerated entries are added/reordered.
+	for _, backend := range []string{"cpu", "metal"} {
+		for _, r := range c.Runtimes {
+			if r.Platform == goos && r.Architecture == arch && strings.EqualFold(r.Backend, backend) {
+				return r.ID
+			}
 		}
 	}
 	return ""

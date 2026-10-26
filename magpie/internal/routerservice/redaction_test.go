@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yetone/magpie/internal/routerconfig"
 	"github.com/yetone/magpie/internal/routermanifest"
@@ -209,7 +210,7 @@ func TestRedactionMultiTurnSessionCacheHitAndIncrementalExtraction(t *testing.T)
 	if err := manager.Enable(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	spec, err := routerredact.NewPrivacySpecification(routerredact.ModelBinding{ModelID: modelID, RuntimeID: runtimeID})
+	spec, err := routerredact.NewPrivacySpecification(routerredact.ModelBinding{ModelID: modelID, RuntimeID: runtimeID, ContextTokens: manager.Status().Settings.ContextTokens})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,5 +314,70 @@ func TestRedactionMultiTurnSessionCacheHitAndIncrementalExtraction(t *testing.T)
 	}
 	if len(cloudBodies) != 4 || strings.Contains(cloudBodies[3], "Alice") || strings.Contains(cloudBodies[3], "Bob") {
 		t.Fatalf("expected both historical and incremental entities redacted in cross-protocol turn 2 cloud payload: %+v", cloudBodies)
+	}
+}
+
+func TestRedactionManagementAPIReportsActualBudgetInNormalAndExperimentalModes(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		experimental bool
+		budget       time.Duration
+		wantBudgetMS int64
+	}{
+		{name: "normal_default_30s", experimental: false, budget: 0, wantBudgetMS: 30000},
+		{name: "normal_custom_15s", experimental: false, budget: 15 * time.Second, wantBudgetMS: 15000},
+		{name: "normal_custom_45s", experimental: false, budget: 45 * time.Second, wantBudgetMS: 45000},
+		{name: "experimental_default_30s", experimental: true, budget: 0, wantBudgetMS: 30000},
+		{name: "experimental_custom_15s", experimental: true, budget: 15 * time.Second, wantBudgetMS: 15000},
+		{name: "experimental_clamped_45s", experimental: true, budget: 45 * time.Second, wantBudgetMS: 30000},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			layout, _ := fixture(t)
+			store := routerconfig.New(layout)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+			catalog := routermanifest.Fixed()
+			runtimeID := routerruntime.PlatformRuntime(catalog, runtime.GOOS, runtime.GOARCH)
+			mgr, err := routerruntime.New(context.Background(), routerruntime.Options{
+				Catalog:               catalog,
+				RuntimeID:             runtimeID,
+				Store:                 routerruntime.ConfigIntentStore{Store: store},
+				Installer:             integrationInstaller{},
+				Factory:               integrationFactory{endpoint: server.URL},
+				RedactionBudget:       tc.budget,
+				ExperimentalRedaction: tc.experimental,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer mgr.Close(context.Background())
+			localModels := &LocalModels{Manager: mgr, Layout: layout, Catalog: catalog}
+			redactor := newRuntimeRedactor(localModels, tc.experimental)
+			defer redactor.close()
+			const token = "redaction-budget-test-token"
+			h := handlerWithModelOptions(Info{Address: "127.0.0.1:13145"}, token, store, ModelOptions{
+				LocalRuntime:          localModels,
+				ExperimentalRedaction: tc.experimental,
+				Routing:               &RoutingOptions{Redactor: redactor},
+			})
+			w := providerRequest(t, h, http.MethodGet, "/api/redaction", token, nil)
+			if w.Code != http.StatusOK {
+				t.Fatalf("GET /api/redaction status=%d body=%s", w.Code, w.Body.String())
+			}
+			var resp struct {
+				BudgetMS     int64  `json:"budgetMs"`
+				Experimental bool   `json:"experimental"`
+				Capability   string `json:"capability"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+				t.Fatalf("unmarshal response: %v", err)
+			}
+			if resp.BudgetMS != tc.wantBudgetMS || resp.Experimental != tc.experimental {
+				t.Fatalf("got budgetMs=%d experimental=%v, want budgetMs=%d experimental=%v (body=%s)",
+					resp.BudgetMS, resp.Experimental, tc.wantBudgetMS, tc.experimental, w.Body.String())
+			}
+		})
 	}
 }

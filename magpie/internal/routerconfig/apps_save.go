@@ -41,20 +41,17 @@ func validatedAppDraft(f providerFiles, in AppEdit, redactionCapability Redactio
 		if len(normModels) > 0 {
 			provID, modelID, kind, _ := parseAppModelTarget(normModels[0])
 			if kind == "cloud" {
-				if in.Cloud.ProviderID == "" && in.Cloud.Model == "" {
-					p.Cloud = AppCloud{
-						ProviderID:   provID,
-						Model:        modelID,
-						Capabilities: in.Cloud.Capabilities,
-					}
-					if p.Cloud.Capabilities == nil && p.Cloud.ProviderID == old.Cloud.ProviderID && p.Cloud.Model == old.Cloud.Model {
-						p.Cloud.Capabilities = append([]string(nil), old.Cloud.Capabilities...)
-					}
-				} else {
-					p.Cloud = in.Cloud
-					if in.Cloud.Capabilities == nil && in.Cloud.ProviderID == old.Cloud.ProviderID && in.Cloud.Model == old.Cloud.Model {
-						p.Cloud.Capabilities = append([]string(nil), old.Cloud.Capabilities...)
-					}
+				caps := in.Cloud.Capabilities
+				if in.Cloud.ProviderID != "" && (in.Cloud.ProviderID != provID || in.Cloud.Model != modelID) {
+					caps = nil
+				}
+				if caps == nil && provID == old.Cloud.ProviderID && modelID == old.Cloud.Model {
+					caps = append([]string(nil), old.Cloud.Capabilities...)
+				}
+				p.Cloud = AppCloud{
+					ProviderID:   provID,
+					Model:        modelID,
+					Capabilities: caps,
 				}
 			} else {
 				// First target is group/<id> or local/<model>; clear any stale direct Cloud binding.

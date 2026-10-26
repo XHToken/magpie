@@ -16,15 +16,25 @@ const loomyProvider = "api_router"
 type LoomyAdapter struct{}
 
 func (LoomyAdapter) Contract() AdapterContract {
-	return AdapterContract{ID: "loomy", Version: 1, Files: []FileSpec{{
-		Name: "opencode.json",
-		Fields: []string{"model", "small_model", "provider.api_router.npm", "provider.api_router.name",
-			"provider.api_router.options.baseURL", "provider.api_router.options.apiKey",
-			"provider.api_router.options.useSessionAuth", "provider.api_router.models"},
-	}}}
+	c := loomyV1Contract()
+	c.Version = 2
+	c.Files[0].Fields = append(c.Files[0].Fields, "plugin (API-Router title entry only)")
+	c.Files = append(c.Files, FileSpec{Name: loomyTitleFile, Fields: []string{"API-Router title extension source"}})
+	return c
 }
 
 func (LoomyAdapter) Build(o Options, input []FilePlan) ([]FilePlan, error) {
+	if len(input) != 2 {
+		return nil, errors.New("invalid Loomy adapter file set")
+	}
+	files, err := buildLoomyModels(o, input[:1])
+	if err != nil {
+		return nil, err
+	}
+	return buildLoomyTitle(o, append(files, cloneFile(input[1])))
+}
+
+func buildLoomyModels(o Options, input []FilePlan) ([]FilePlan, error) {
 	if o.Host != "loomy" || len(input) != 1 || input[0].Name != "opencode.json" {
 		return nil, errors.New("invalid Loomy adapter input")
 	}
@@ -100,10 +110,14 @@ func (LoomyAdapter) Build(o Options, input []FilePlan) ([]FilePlan, error) {
 	return []FilePlan{f}, nil
 }
 
-func loomyPreservedSmallModel(doc map[string]any) bool {
-	small, ok := doc["small_model"].(string)
-	provider, model, hasSlash := strings.Cut(small, "/")
+func loomyPreservedSelector(v any) bool {
+	s, ok := v.(string)
+	provider, model, hasSlash := strings.Cut(s, "/")
 	return ok && hasSlash && provider != "" && provider != loomyProvider && loomyModelKey(model)
+}
+
+func loomyPreservedSmallModel(doc map[string]any) bool {
+	return loomyPreservedSelector(doc["small_model"])
 }
 
 func loomyKeepSmallModel(doc map[string]any) bool {
@@ -287,6 +301,9 @@ func loomyProviderEnabled(doc map[string]any) bool {
 }
 
 func (LoomyAdapter) Restore(f FilePlan, current []byte) ([]byte, error) {
+	if f.Name == loomyTitleFile {
+		return nil, errors.New("Loomy title extension was modified; preserve and reconcile it before restoring")
+	}
 	if f.Name != "opencode.json" {
 		return nil, errors.New("invalid Loomy recovery file")
 	}
@@ -356,7 +373,7 @@ func (LoomyAdapter) Restore(f FilePlan, current []byte) ([]byte, error) {
 			if len(path) == 1 && path[0] == "small_model" && loomyPreservedSmallModel(now) {
 				continue
 			}
-			if !loomyReconnectableConflict(path, aok, c) {
+			if !loomyReconnectableConflict(path, aok, cok, c, now) {
 				return nil, fmt.Errorf("Loomy managed field conflict in %s", strings.Join(path, "."))
 			}
 		}
@@ -369,26 +386,9 @@ func (LoomyAdapter) Restore(f FilePlan, current []byte) ([]byte, error) {
 			return nil, errors.New("cannot safely restore Loomy configuration")
 		}
 	}
+	out, err = restoreLoomyTitleList(out, before, after, now)
+	if err != nil {
+		return nil, err
+	}
 	return loomyCleanEmptyContainers(out, before, models)
-}
-
-func loomyExtraManagedModelPath(path []string, bok, aok, cok bool) bool {
-	return len(path) == 5 && path[0] == "provider" && path[1] == loomyProvider && path[2] == "models" && !bok && !aok && cok
-}
-
-func loomyReconnectableConflict(path []string, aok bool, current any) bool {
-	if len(path) == 1 && (path[0] == "model" || path[0] == "small_model") {
-		return loomyRouterSelection(current)
-	}
-	if len(path) == 5 && path[0] == "provider" && path[1] == loomyProvider && path[2] == "models" {
-		switch path[4] {
-		case "name":
-			s, ok := current.(string)
-			return ok && strings.TrimSpace(s) != ""
-		case "tool_call":
-			b, ok := current.(bool)
-			return !aok && ok && b
-		}
-	}
-	return false
 }

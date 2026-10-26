@@ -4,9 +4,9 @@
 
 API-router 是运行在本机的 AI 模型路由服务。在一个网页中管理云端 API、本地小模型和路由策略，再将 WorkBuddy、Loomy 接入同一服务。项目基于固定版本的 Magpie 源码改造，产品入口为 `magpie/cmd/api-router`。
 
-**[下载 Windows x64 预览版](https://github.com/xyzane54/magpie/releases/tag/api-router-v0.1.0-beta.1)** · [浏览 API-router 源码](https://github.com/xyzane54/magpie/tree/codex/api-router)
+**[下载 Windows x64 预览版](https://github.com/xyzane54/magpie/releases/tag/api-router-v0.1.0-beta.2)** · [浏览 API-router 源码](https://github.com/xyzane54/magpie/tree/codex/api-router)
 
-当前版本为 **0.1.0-beta.1**，优先适配 WorkBuddy 与 Loomy 的本机模式。预编译包适用于 Windows x64；macOS、Linux 可从源码构建。仓库中的其他预置应用和协议适配器不表示全部宿主、版本、平台或模型已经通过兼容验收。
+当前版本为 **0.1.0-beta.2**，优先适配 WorkBuddy 与 Loomy 的本机模式。预编译包适用于 Windows x64；macOS、Linux 可从源码构建。仓库中的其他预置应用和协议适配器不表示全部宿主、版本、平台或模型已经通过兼容验收。
 
 ## 下载与安装（Windows x64）
 
@@ -14,15 +14,15 @@ API-router 是运行在本机的 AI 模型路由服务。在一个网页中管�
 
 | 文件 | 用途 |
 | --- | --- |
-| `api-router-0.1.0-beta.1-windows-amd64.zip` | 程序、内嵌管理页面和安装/卸载说明 |
-| `api-router-0.1.0-beta.1-windows-amd64.manifest.json` | 安装器使用的文件大小与 SHA256 清单 |
+| `api-router-0.1.0-beta.2-windows-amd64.zip` | 程序、内嵌管理页面和安装/卸载说明 |
+| `api-router-0.1.0-beta.2-windows-amd64.manifest.json` | 安装器使用的文件大小与 SHA256 清单 |
 | `install-windows.ps1` | 独立安装脚本 |
 | `SHA256SUMS` | ZIP、manifest 和独立安装脚本的 SHA256 校验值 |
 
 在该文件夹中打开 PowerShell，执行：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -ManifestPath "$PWD\api-router-0.1.0-beta.1-windows-amd64.manifest.json" -PackagePath "$PWD\api-router-0.1.0-beta.1-windows-amd64.zip"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -ManifestPath "$PWD\api-router-0.1.0-beta.2-windows-amd64.manifest.json" -PackagePath "$PWD\api-router-0.1.0-beta.2-windows-amd64.zip"
 
 $router = Join-Path $env:LOCALAPPDATA 'Programs\API-router\api-router.exe'
 & $router service start

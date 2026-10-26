@@ -383,7 +383,7 @@ func checkSystem(f Fact[System]) (CheckState, string) {
 		return CheckUnknown, "architecture_unknown"
 	}
 	arch := *s.Architecture.Value
-	if !((s.OS == "windows" || s.OS == "linux") && arch == "amd64" || s.OS == "darwin" && arch == "arm64") {
+	if !((s.OS == "windows" || s.OS == "linux") && arch == "amd64" || s.OS == "darwin" && (arch == "arm64" || arch == "amd64")) {
 		return CheckFailed, "platform_unsupported"
 	}
 	// Linux version/distribution acceptance remains a native validation task;
@@ -445,7 +445,7 @@ func checkBackends(s Snapshot, recommendation Recommendation) CheckState {
 				continue
 			}
 		}
-		if s.System.Value != nil && s.System.Value.OS == "darwin" && b.Kind != Metal {
+		if s.System.Value != nil && s.System.Value.OS == "darwin" && b.Kind != Metal && b.Kind != CPU {
 			continue
 		}
 		if b.Kind == Metal && (s.System.Value == nil || s.System.Value.OS != "darwin") {

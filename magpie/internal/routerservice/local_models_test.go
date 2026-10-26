@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -57,85 +58,120 @@ func (f *managedFixtureFactory) Start(context.Context, routerprocess.Spec) (rout
 	return &managedFixtureProcess{done: make(chan struct{})}, nil
 }
 
-func TestLocalRuntimeSettingsAPIValidationPersistenceAndReload(t *testing.T) {
-	l, address := fixture(t)
-	store := routerconfig.New(l)
-	installer := &managedFixtureInstaller{}
-	installer.installed.Store(true)
-	factory := &managedFixtureFactory{}
-	catalog := routermanifest.Fixed()
-	manager, err := routerruntime.New(context.Background(), routerruntime.Options{Catalog: catalog, RuntimeID: "windows-amd64-cpu", Store: routerruntime.ConfigIntentStore{Store: store}, Installer: installer, Factory: factory})
+func TestLocalModelStartupUsesStandardSettingsAndPreservesIntent(t *testing.T) {
+	for _, legacy := range []routerconfig.RuntimeSettings{{}, {
+		ContextTokens: 65536, JudgmentQueueSeconds: 60, JudgmentInferenceSeconds: 60,
+		ExecutionQueueSeconds: 300, ExecutionSeconds: 1800, LoadSeconds: 180,
+		RequestSeconds: 3600, CloudReserveSeconds: 10,
+	}} {
+		t.Run(legacy.Fingerprint(), func(t *testing.T) {
+			layout, _ := fixture(t)
+			store := routerconfig.New(layout)
+			if err := store.Update(func(d routerconfig.Document) error {
+				settings, _ := json.Marshal(legacy)
+				settingsField := ""
+				if !legacy.IsZero() {
+					settingsField = `,"settings":` + string(settings[:len(settings)-1]) + `,"futureSetting":19}`
+				}
+				d["runtime"] = json.RawMessage(`{"selected":"spark-x2.5-4B","enabled":false,"userDisabled":true,"trial":{"judgment":true,"execution":true},"futureRuntime":17` + settingsField + `}`)
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.ReadFile(layout.ConfigFile())
+			if err != nil {
+				t.Fatal(err)
+			}
+			local, err := newLocalModels(context.Background(), layout, store)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer local.Manager.Close(context.Background())
+			status := local.Manager.Status()
+			if status.Settings != routerconfig.LongContextRuntimeSettings() || status.EffectiveSettings != status.Settings {
+				t.Fatalf("startup retained manual settings instead of the standard 64K policy: %+v", status.Settings)
+			}
+			if status.Intent.Enabled || !status.Intent.UserDisabled || status.Intent.Selected != "spark-x2.5-4B" || !status.Intent.Trial.Judgment || !status.Intent.Trial.Execution || status.PID != 0 {
+				t.Fatalf("standard settings changed user intent or loaded a process: %+v", status)
+			}
+			afterStartup, err := os.ReadFile(layout.ConfigFile())
+			if err != nil || string(afterStartup) != string(before) {
+				t.Fatalf("resolving the policy rewrote configuration at startup: %v", err)
+			}
+			// An explicit intent save carries the standard policy through the
+			// existing coordinator, preserving unknown runtime/settings fields.
+			if err := local.Manager.Disable(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			doc, err := store.Load()
+			if err != nil {
+				t.Fatal(err)
+			}
+			var saved struct {
+				Settings struct {
+					routerconfig.RuntimeSettings
+					Future int `json:"futureSetting"`
+				} `json:"settings"`
+				Future int `json:"futureRuntime"`
+			}
+			if err := json.Unmarshal(doc["runtime"], &saved); err != nil || saved.Settings.RuntimeSettings != status.Settings || saved.Future != 17 {
+				t.Fatalf("migration did not persist just the runtime policy: %+v %v", saved, err)
+			}
+			if !legacy.IsZero() && saved.Settings.Future != 19 {
+				t.Fatal("migration discarded an unknown settings field")
+			}
+			backup, err := os.ReadFile(layout.ConfigFile() + ".bak")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := local.Manager.Close(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			restarted, err := newLocalModels(context.Background(), layout, store)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer restarted.Manager.Close(context.Background())
+			after, err := os.ReadFile(layout.ConfigFile() + ".bak")
+			if err != nil || string(after) != string(backup) {
+				t.Fatalf("repeated startup replaced the migration backup: %v", err)
+			}
+		})
+	}
+}
+
+func TestLocalRuntimeSettingsAPIIsReadOnly(t *testing.T) {
+	layout, address := fixture(t)
+	store := routerconfig.New(layout)
+	local, err := newLocalModels(context.Background(), layout, store)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = manager.Close(context.Background()) })
-	if err := manager.Select(context.Background(), localModelID); err != nil {
-		t.Fatal(err)
-	}
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "settings-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Layout: l, Catalog: catalog}})
-	request := func(method, body, auth, origin string) *httptest.ResponseRecorder {
-		r := httptest.NewRequest(method, "http://"+address+"/api/local-model/settings", strings.NewReader(body))
+	defer local.Manager.Close(context.Background())
+	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "settings-fixture", store, ModelOptions{LocalRuntime: local})
+	request := func(method, auth string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, "http://"+address+"/api/local-model/settings", strings.NewReader("{}"))
 		r.RemoteAddr = "127.0.0.1:2345"
-		if auth != "" {
-			r.Header.Set("Authorization", auth)
-		}
-		if origin != "" {
-			r.Header.Set("Origin", origin)
-		}
+		r.Header.Set("Authorization", auth)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 		return w
 	}
-	auth := "Bearer settings-fixture"
-	settings := routerconfig.LongContextRuntimeSettings()
-	body, _ := json.Marshal(settings)
-	for _, method := range []string{"GET", "HEAD", "POST"} {
-		if w := request(method, string(body), "", ""); w.Code != 401 {
+	for _, method := range []string{"GET", "HEAD"} {
+		if w := request(method, ""); w.Code != 401 {
 			t.Fatalf("unauthenticated %s: %d", method, w.Code)
 		}
-	}
-	for _, origin := range []string{"https://foreign.example", "null"} {
-		if w := request("POST", string(body), auth, origin); w.Code != 403 {
-			t.Fatalf("foreign origin: %d", w.Code)
+		if w := request(method, "Bearer settings-fixture"); w.Code != 200 || method == "HEAD" && w.Body.Len() != 0 {
+			t.Fatalf("read settings: %d %s", w.Code, w.Body)
 		}
 	}
-	if w := request("DELETE", "", auth, ""); w.Code != 405 || w.Header().Get("Allow") != "GET, HEAD, POST" {
-		t.Fatalf("methods: %d %s", w.Code, w.Header().Get("Allow"))
-	}
-	for _, bad := range []string{"", "null", "{}", string(body) + "{}", strings.Replace(string(body), `"contextTokens":65536`, `"contextTokens":65536,"contextTokens":8192`, 1), strings.Replace(string(body), `"contextTokens":65536`, `"contextTokens":null`, 1), strings.Replace(string(body), `"contextTokens":65536`, `"contextTokens":65536.5`, 1), strings.Replace(string(body), `"contextTokens":65536`, `"contextTokens":"65536"`, 1), strings.Replace(string(body), `"contextTokens":65536`, `"contextTokens":1048576`, 1), strings.Replace(string(body), `"cloudReserveSeconds":60`, `"cloudReserveSeconds":600`, 1), strings.Replace(string(body), `"loadSeconds":90`, `"unknown":90`, 1)} {
-		if w := request("POST", bad, auth, ""); w.Code != 400 || !strings.Contains(w.Body.String(), "invalid_runtime_settings") {
-			t.Fatalf("invalid settings accepted: %d %s input=%s", w.Code, w.Body, bad)
+	for _, method := range []string{"POST", "PUT", "DELETE"} {
+		if w := request(method, "Bearer settings-fixture"); w.Code != 405 || w.Header().Get("Allow") != "GET, HEAD" {
+			t.Fatalf("manual settings mutation accepted: %s %d %s", method, w.Code, w.Body)
 		}
 	}
-	if !manager.Settings().IsZero() || factory.calls.Load() != 0 {
-		t.Fatal("invalid settings changed runtime")
-	}
-	if w := request("POST", string(body), auth, ""); w.Code != 200 {
-		t.Fatalf("save disabled: %d %s", w.Code, w.Body)
-	}
-	if manager.Settings() != settings || factory.calls.Load() != 0 || installer.calls.Load() != 0 {
-		t.Fatal("saving disabled settings enabled or downloaded resources")
-	}
-	if err := manager.EnableSelected(context.Background(), localModelID); err != nil {
-		t.Fatal(err)
-	}
-	settings.ContextTokens = 32768
-	body, _ = json.Marshal(settings)
-	if w := request("POST", string(body), auth, ""); w.Code != 200 {
-		t.Fatalf("save and reload: %d %s", w.Code, w.Body)
-	}
-	if manager.Settings() != settings || factory.calls.Load() != 1 || installer.calls.Load() != 0 {
-		t.Fatal("settings did not reload exactly once without download")
-	}
-	if w := request("GET", "", auth, ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"contextTokens":32768`) || !strings.Contains(w.Body.String(), `"effectiveSettings"`) || !strings.Contains(w.Body.String(), `"catalog"`) {
-		t.Fatalf("read settings: %d %s", w.Code, w.Body)
-	}
-	if w := request("HEAD", "", auth, ""); w.Code != 200 || w.Body.Len() != 0 {
-		t.Fatalf("head settings: %d %s", w.Code, w.Body)
-	}
-	loaded, err := (routerruntime.ConfigIntentStore{Store: store}).Load(context.Background())
-	if err != nil || loaded.Settings != settings || !loaded.Enabled {
-		t.Fatalf("settings not persisted: %+v %v", loaded, err)
+	if got := local.Manager.Status(); got.Settings != routerconfig.StandardRuntimeSettings() || got.Intent.Enabled || got.PID != 0 {
+		t.Fatalf("reading settings changed standard policy or started the model: %+v", got)
 	}
 }
 
@@ -331,5 +367,239 @@ func TestLocalModelTierEnablementBoundaries(t *testing.T) {
 	}
 	if w := request("/api/local-model/disable", `{}`); w.Code != 200 {
 		t.Fatalf("disable 1.7B: %d %s", w.Code, w.Body)
+	}
+}
+
+func TestLocalModelInstallOtherModelWhileRunning(t *testing.T) {
+	l, address := fixture(t)
+	store := routerconfig.New(l)
+	installer := &managedFixtureInstaller{}
+	installer.installed.Store(true)
+	factory := &managedFixtureFactory{}
+	catalog := routermanifest.Fixed()
+	manager, err := routerruntime.New(context.Background(), routerruntime.Options{Catalog: catalog, RuntimeID: "windows-amd64-cpu", Store: routerruntime.ConfigIntentStore{Store: store}, Installer: installer, Factory: factory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close(context.Background())
+
+	device := routerdevice.New(routerdevice.ProviderFunc(func(context.Context, string) (routerdevice.Snapshot, error) {
+		return routerdevice.Snapshot{
+			System:               routerdevice.Known(routerdevice.System{OS: "windows", Version: routerdevice.Known("10.0.26200"), Architecture: routerdevice.Known("amd64"), LogicalCPUs: routerdevice.Known(8)}),
+			MemoryBytes:          routerdevice.Known(uint64(32) * routerdevice.GiB),
+			AvailableMemoryBytes: routerdevice.Known(uint64(16) * routerdevice.GiB),
+			DiskFreeBytes:        routerdevice.Known(uint64(100) * routerdevice.GiB),
+			Backends:             routerdevice.Known([]routerdevice.Backend{{Kind: routerdevice.CPU, State: routerdevice.Available}}),
+		}, nil
+	}))
+	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "install-other-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
+	auth := "Bearer install-other-fixture"
+	request := func(path, body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("POST", "http://"+address+path, strings.NewReader(body))
+		r.RemoteAddr = "127.0.0.1:2345"
+		r.Header.Set("Authorization", auth)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w
+	}
+
+	if w := request("/api/local-model/select", `{"model":"spark-x2.5-4B"}`); w.Code != 200 {
+		t.Fatalf("select 4B: %d %s", w.Code, w.Body)
+	}
+	if w := request("/api/local-model/enable", `{}`); w.Code != 200 {
+		t.Fatalf("enable 4B: %d %s", w.Code, w.Body)
+	}
+	if w := request("/api/local-model/load", `{}`); w.Code != 200 {
+		t.Fatalf("load 4B: %d %s", w.Code, w.Body)
+	}
+	if st := manager.Status(); !st.Intent.Enabled || st.Intent.Selected != "spark-x2.5-4B" || st.Runtime != "idle" || !st.Healthy || st.PID != 123 {
+		t.Fatalf("expected 4B running: %+v", st)
+	}
+
+	// Installing the currently running model must return 409 Conflict (busy).
+	if w := request("/api/local-model/install", `{"model":"spark-x2.5-4B"}`); w.Code != 409 {
+		t.Fatalf("installing running 4B should return 409: %d %s", w.Code, w.Body)
+	}
+
+	// Installing the other catalog model (1.7B) while 4B is running must succeed without disabling or stopping 4B.
+	if w := request("/api/local-model/install", `{"model":"spark-x2.5-1.7B"}`); w.Code != 200 {
+		t.Fatalf("install 1.7B while 4B running: %d %s", w.Code, w.Body)
+	}
+	st := manager.Status()
+	if !st.Intent.Enabled || st.Intent.Selected != "spark-x2.5-4B" || st.Runtime != "idle" || !st.Healthy || st.PID != 123 {
+		t.Fatalf("installing 1.7B disturbed running 4B: %+v", st)
+	}
+	if st.Installation != "downloading" || st.InstallingModel != "spark-x2.5-1.7B" {
+		t.Fatalf("expected 1.7B downloading status: %+v", st)
+	}
+	if w := request("/api/local-model/cancel", `{}`); w.Code != 200 {
+		t.Fatalf("cancel 1.7B install: %d %s", w.Code, w.Body)
+	}
+	if st := manager.Status(); !st.Intent.Enabled || st.Intent.Selected != "spark-x2.5-4B" || st.Runtime != "idle" || !st.Healthy || st.PID != 123 {
+		t.Fatalf("canceling 1.7B install disturbed running 4B: %+v", st)
+	}
+}
+
+func TestStartupAutoLoadCannotUndoUserDisableDuringDeviceCheck(t *testing.T) {
+	layout, _ := fixture(t)
+	store := routerconfig.New(layout)
+	installer := &managedFixtureInstaller{}
+	installer.installed.Store(true)
+	factory := &managedFixtureFactory{}
+	catalog := routermanifest.Fixed()
+	manager, err := routerruntime.New(context.Background(), routerruntime.Options{Catalog: catalog, RuntimeID: "windows-amd64-cpu", Store: routerruntime.ConfigIntentStore{Store: store}, Installer: installer, Factory: factory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close(context.Background())
+	entered, release, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	device := routerdevice.New(routerdevice.ProviderFunc(func(ctx context.Context, _ string) (routerdevice.Snapshot, error) {
+		once.Do(func() { close(entered) })
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return routerdevice.Snapshot{}, ctx.Err()
+		}
+		return routerdevice.Snapshot{
+			System:      routerdevice.Known(routerdevice.System{OS: "windows", Version: routerdevice.Known("10.0.26200"), Architecture: routerdevice.Known("amd64"), LogicalCPUs: routerdevice.Known(8)}),
+			MemoryBytes: routerdevice.Known(uint64(16) * routerdevice.GiB), AvailableMemoryBytes: routerdevice.Known(uint64(8) * routerdevice.GiB),
+			DiskFreeBytes: routerdevice.Known(uint64(100) * routerdevice.GiB), Backends: routerdevice.Known([]routerdevice.Backend{{Kind: routerdevice.CPU, State: routerdevice.Available}}),
+		}, nil
+	}))
+	local := &LocalModels{Manager: manager, Detector: device, Layout: layout, Catalog: catalog}
+	go func() { defer close(done); local.autoLoadInstalled(ctx) }()
+	defer func() { cancel(); <-done }()
+	<-entered
+	if err := manager.Disable(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	close(release)
+	<-done
+	status := manager.Status()
+	if status.Intent.Enabled || !status.Intent.UserDisabled || status.PID != 0 || factory.calls.Load() != 0 {
+		t.Fatalf("startup overrode explicit user disable: %+v starts=%d", status, factory.calls.Load())
+	}
+}
+
+func TestLocalModelStartupAutoLoadAndUserDisablePersistence(t *testing.T) {
+	l, address := fixture(t)
+	store := routerconfig.New(l)
+	installer := &managedFixtureInstaller{}
+	installer.installed.Store(true)
+	factory := &managedFixtureFactory{}
+	catalog := routermanifest.Fixed()
+	device := routerdevice.New(routerdevice.ProviderFunc(func(context.Context, string) (routerdevice.Snapshot, error) {
+		return routerdevice.Snapshot{
+			System:               routerdevice.Known(routerdevice.System{OS: "windows", Version: routerdevice.Known("10.0.26200"), Architecture: routerdevice.Known("amd64"), LogicalCPUs: routerdevice.Known(8)}),
+			MemoryBytes:          routerdevice.Known(uint64(16) * routerdevice.GiB),
+			AvailableMemoryBytes: routerdevice.Known(uint64(8) * routerdevice.GiB),
+			DiskFreeBytes:        routerdevice.Known(uint64(100) * routerdevice.GiB),
+			Backends:             routerdevice.Known([]routerdevice.Backend{{Kind: routerdevice.CPU, State: routerdevice.Available}}),
+		}, nil
+	}))
+	trialChecks := []routerruntime.Check{
+		{
+			Purpose: routerruntime.Judgment,
+			Suite:   "trial-judgment-v1",
+			Trial:   true,
+			Run:     func(context.Context, string) (string, error) { return "ok", nil },
+		},
+		{
+			Purpose: routerruntime.Execution,
+			Suite:   "trial-execution-v1",
+			Trial:   true,
+			Run:     func(context.Context, string) (string, error) { return "ok", nil },
+		},
+	}
+
+	// 1. First startup with installed models and no prior userDisabled state: auto-loads recommended 1.7B and enables trial.
+	manager1, err := routerruntime.New(context.Background(), routerruntime.Options{Catalog: catalog, RuntimeID: "windows-amd64-cpu", Store: routerruntime.ConfigIntentStore{Store: store}, Installer: installer, Factory: factory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager1.Close(context.Background())
+	local1 := &LocalModels{Manager: manager1, Detector: device, Layout: l, Catalog: catalog, AutoLoad: true, Checks: trialChecks}
+	local1.autoLoadInstalled(context.Background())
+
+	st1 := manager1.Status()
+	if !st1.Intent.Enabled || st1.Intent.UserDisabled || st1.Intent.Selected != "spark-x2.5-1.7B" {
+		t.Fatalf("expected auto-enabled 1.7B intent, got %+v", st1.Intent)
+	}
+	if st1.Runtime != routerruntime.Idle || !st1.Healthy || factory.calls.Load() != 1 {
+		t.Fatalf("expected loaded healthy runtime on startup, got state=%s healthy=%v calls=%d", st1.Runtime, st1.Healthy, factory.calls.Load())
+	}
+	if !st1.Capabilities[routerruntime.Judgment].TrialReady || !st1.Capabilities[routerruntime.Execution].TrialReady {
+		t.Fatalf("expected trial capabilities ready on startup, got %+v", st1.Capabilities)
+	}
+
+	// 2. User explicitly disables local model via HTTP API.
+	h1 := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "autoload-fixture", store, ModelOptions{LocalRuntime: local1})
+	req := httptest.NewRequest("POST", "http://"+address+"/api/local-model/disable", strings.NewReader("{}"))
+	req.RemoteAddr = "127.0.0.1:2345"
+	req.Header.Set("Authorization", "Bearer autoload-fixture")
+	w := httptest.NewRecorder()
+	h1.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatalf("disable local model: %d %s", w.Code, w.Body)
+	}
+	if st := manager1.Status(); st.Intent.Enabled || !st.Intent.UserDisabled || st.Runtime != routerruntime.Unloaded {
+		t.Fatalf("expected userDisabled unloaded state after explicit disable, got %+v", st)
+	}
+
+	// 3. Second startup after explicit user disable: must respect userDisabled and stay unloaded.
+	manager2, err := routerruntime.New(context.Background(), routerruntime.Options{Catalog: catalog, RuntimeID: "windows-amd64-cpu", Store: routerruntime.ConfigIntentStore{Store: store}, Installer: installer, Factory: factory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager2.Close(context.Background())
+	local2 := &LocalModels{Manager: manager2, Detector: device, Layout: l, Catalog: catalog, AutoLoad: true, Checks: trialChecks}
+	local2.autoLoadInstalled(context.Background())
+
+	st2 := manager2.Status()
+	if st2.Intent.Enabled || !st2.Intent.UserDisabled || st2.Runtime != routerruntime.Unloaded || factory.calls.Load() != 1 {
+		t.Fatalf("expected startup to respect userDisabled and keep runtime unloaded, got %+v calls=%d", st2, factory.calls.Load())
+	}
+
+	// 4. User manually re-enables local model via HTTP API; subsequent startup auto-loads again.
+	h2 := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "autoload-fixture", store, ModelOptions{LocalRuntime: local2})
+	reqEnable := httptest.NewRequest("POST", "http://"+address+"/api/local-model/enable", strings.NewReader("{}"))
+	reqEnable.RemoteAddr = "127.0.0.1:2345"
+	reqEnable.Header.Set("Authorization", "Bearer autoload-fixture")
+	wEnable := httptest.NewRecorder()
+	h2.ServeHTTP(wEnable, reqEnable)
+	if wEnable.Code != 200 {
+		t.Fatalf("re-enable local model: %d %s", wEnable.Code, wEnable.Body)
+	}
+	if st := manager2.Status(); !st.Intent.Enabled || st.Intent.UserDisabled {
+		t.Fatalf("expected userDisabled cleared after manual enable, got %+v", st.Intent)
+	}
+
+	manager3, err := routerruntime.New(context.Background(), routerruntime.Options{Catalog: catalog, RuntimeID: "windows-amd64-cpu", Store: routerruntime.ConfigIntentStore{Store: store}, Installer: installer, Factory: factory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager3.Close(context.Background())
+	local3 := &LocalModels{Manager: manager3, Detector: device, Layout: l, Catalog: catalog, AutoLoad: true, Checks: trialChecks}
+	local3.autoLoadInstalled(context.Background())
+
+	st3 := manager3.Status()
+	if !st3.Intent.Enabled || st3.Intent.UserDisabled || st3.Runtime != routerruntime.Idle || !st3.Healthy || factory.calls.Load() != 2 {
+		t.Fatalf("expected third startup after re-enable to auto-load, got %+v calls=%d", st3, factory.calls.Load())
+	}
+	if err := manager3.Close(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	manager4, err := routerruntime.New(context.Background(), routerruntime.Options{Catalog: catalog, RuntimeID: "windows-amd64-cpu", Store: routerruntime.ConfigIntentStore{Store: store}, Installer: installer, Factory: factory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager4.Close(context.Background())
+	local4 := &LocalModels{Manager: manager4, Detector: device, Layout: l, Catalog: catalog, AutoLoad: true, Checks: trialChecks}
+	local4.autoLoadInstalled(context.Background())
+	if st := manager4.Status(); !st.Intent.Enabled || st.Intent.UserDisabled || st.Runtime != routerruntime.Idle || !st.Healthy || factory.calls.Load() != 3 {
+		t.Fatalf("project shutdown lost the saved enabled choice: %+v starts=%d", st, factory.calls.Load())
 	}
 }

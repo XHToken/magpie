@@ -8,60 +8,84 @@ and entity replacement algorithms are outside this subsystem.
 ## Source of truth and files
 
 [`routermanifest.Fixed`](../../internal/routermanifest/manifest.go) is a detached,
-compiled catalog: llama.cpp **b10828**, CPU Windows x64/Linux x64 and Metal macOS
-arm64 metadata; Spark-X2.5 **1.7B / 4B Q4_K_M**, exact revisions, lengths,
+compiled catalog: llama.cpp **b10828**, CPU Windows x64/Linux x64/macOS arm64/x64,
+Windows x64 CUDA 12.4/Vulkan and macOS arm64 Metal metadata;
+Spark-X2.5 **1.7B / 4B Q4_K_M**, exact revisions, lengths,
 SHA256, fixed template, license and disk reservation. Runtime/weight metadata
-was checked on 2026-10-17; downloading and hashing the actual release bytes and
-native inference remain separate acceptance steps. CUDA/Vulkan artifacts are
-not selected: the existing device provider cannot yet establish their backend
-availability. The legacy serving context is 8192 tokens. Explicit runtime
-settings support 8K, 16K, 32K and 64K windows; the selected window is a serving
+was checked on 2026-10-17; accelerator release bytes were additionally hashed
+on 2026-10-24. Native inference remains a platform-specific acceptance step.
+The product enables automatic backend selection as described below.
+The product serving context is 65536 tokens. Trusted diagnostic
+settings also support 8K, 16K and 32K windows; the selected window is a serving
 limit, not an assertion of validated 1M-context/tool compatibility. Archive expansion
-has a conservative 256 MiB hard safety limit; model installation reserves two
-model copies plus 576 MiB for runtime, staging and margin.
+uses each fixed artifact's expansion limit; the CUDA engine needs 640 MiB and
+its CUDA dependency archive 576 MiB. Installation requirements include runtime
+download, extraction, composition and dependency peaks plus model reservation.
 
 The two published models are **public execution validation weights**, not the
 final judgment/redaction artifacts. Their metadata does not establish any of
 the three purpose-specific acceptance results. Mirror metadata and fixed hashes
 are recorded in catalog evidence (historical development record; not distributed).
 
-`config.json.runtime.enabled/selected` records user intent through the existing
-configuration coordinator; unknown fields are preserved. Missing fields mean
-disabled/no selection. Invalid values or unknown persisted selection fail closed.
-Only explicit `Enable`/`Disable` changes enablement. Startup verifies selected
-files but makes no model/network/process call. Persisted enablement permits later
-on-demand loading; startup itself never loads or resumes downloads.
+`config.json.runtime.enabled/selected/userDisabled` records user intent through
+the existing configuration coordinator; unknown fields are preserved. Missing
+fields mean disabled/no selection and not explicitly user-disabled. Invalid
+values or unknown persisted selection fail closed. Explicit `Disable` persists
+`userDisabled: true` while explicit `Enable` clears it. `routerruntime.New`
+verifies selected files without starting a process or resuming downloads; when
+the full Router service starts (`AutoLoad: true`) and `userDisabled` is false,
+it asynchronously probes installed catalog models, selects/enables a compatible
+installed model (preferring `selected`, then the hardware recommendation),
+loads it, runs capability checks and enables experimental routing/execution
+when those checks pass. Automatic enablement checks `userDisabled` under the
+same operation lock as explicit enable/disable, so closing the model while
+startup device checks are in flight cannot re-enable it. A selected installed
+model remains enabled by default until the user disables it. Router shutdown
+releases its process while retaining the saved choice for the next startup.
 
-### Configurable context and budgets
+### Standard context and budgets
 
 [`routerconfig.RuntimeSettings`](../../internal/routerconfig/runtime.go) owns the
-complete `runtime.settings` object. Context is one of 8192/16384/32768/65536; time
-fields use integer seconds. An absent or zero object retains legacy behavior,
-including one shared five-second judgment queue/inference deadline. Explicit
-settings split judgment waiting from inference. The long-context preset is an
-explicit test configuration, not a replacement for the legacy defaults:
+complete `runtime.settings` object. The product service applies
+`StandardRuntimeSettings()` through `ConfigIntentStore.StandardSettings` before
+auto-loading or serving requests: both catalog models
+use a 64K window and the same built-in time budgets. Users do not configure them.
+Absent or former manual values resolve to the standard policy in memory. Startup
+does not rewrite configuration or its backup, including when later host/port
+synchronization fails. The next explicit intent save persists the policy through
+the existing coordinator, preserving model selection, enable/disable intent,
+trial authorization and unknown fields, and keeping the previous configuration
+in the normal `.bak` file. Invalid or unreadable configuration remains an error.
 
-| Setting | Legacy default | Long-context test preset |
-| --- | --- | --- |
-| Serving context | 8192 tokens | 65536 tokens (64K) |
-| Judgment | 5 s shared queue and inference | 15 s queue, then 30 s inference |
-| Execution | 8 s queue, then 120 s generation | 30 s queue, then 300 s generation |
-| Cold loading | 60 s | 90 s |
-| Whole business request | 120 s | 600 s |
-| Cloud fallback reserve | No separate reserve | 60 s within the same request budget |
+| Setting | Standard product policy |
+| --- | --- |
+| Serving context | 65536 tokens (64K) |
+| Judgment | 15 s queue, then 30 s inference |
+| Execution | 30 s queue, then 300 s generation |
+| Redaction | 30 s shared deadline across queueing and all extraction batches |
+| Cold loading | 90 s |
+| Whole business request | 600 s |
+| Cloud fallback reserve | 60 s within the same request budget |
 
-These are configurable limits, not measured performance guarantees. In
+These are limits, not measured performance guarantees. In
 particular, 64K requires loading, resource and latency checks on the actual
 computer; model metadata alone does not prove that it fits available memory.
 
-[`Manager.UpdateSettings`](../../internal/routerruntime/settings.go) stops local
+Trusted runtime callers and diagnostic fixtures retain support for the legacy
+zero settings object (8K and one shared five-second judgment deadline), and for
+explicit settings. `LongContextRuntimeSettings()` aliases the standard policy.
+The product service always resolves to explicit standard settings.
+
+[`Manager.UpdateSettings`](../../internal/routerruntime/settings.go), available
+only to trusted in-process callers, stops local
 admission, drains and reaps its one owned child, then saves through the existing
 configuration coordinator. Any changed setting invalidates capability evidence;
 changing context also changes the model fingerprint used in runtime bindings.
-Existing weight/template downloads remain reusable. The management action
-explicitly reloads an enabled installed model and reports a failed load without
-claiming the saved settings are running.
-Status exposes saved settings and resolved effective targets; the latter are not
+Existing weight/template downloads remain reusable. HTTP management no longer
+accepts settings mutations. Normal startup and the model enable switch load the
+model, run current capability checks and enable experimental use only when
+those checks pass; a saved standard policy is not proof of a successful load.
+Status exposes the resolved policy and effective targets; the latter are not
 proof that a process is loaded. Requests bind a settings snapshot, and local
 observation captures its identity under the same Manager lock. An older snapshot
 cannot silently invoke or claim the identity of a replacement runtime.
@@ -164,7 +188,7 @@ An older installation lacking these files reports not installed and requires an
 explicit install/repair. Startup, status reads and enable never download,
 assemble or migrate it. Valid old GGUF/template/runtime caches are reused.
 Explicit repair preserves damaged source/execution trees as `.invalid-*` before
-replacement while no model uses them. Disable, idle unload and close release
+replacement while no model uses them. Disable and close release
 processes without deleting files; this change adds no uninstall endpoint or
 automatic cache/quarantine cleanup.
 
@@ -177,6 +201,61 @@ recovery. A dependency set reports `not_required`, `unknown`, `preparing`,
 health and capability acceptance. The full dependency metadata participates in
 the existing capability fingerprint. W4/W5's `Invoke`/diagnostic interfaces and
 the owned-process lifecycle signatures are unchanged.
+Selection and installation refresh preserve the fallback runtime's exact
+dependency failure when no candidate verifies, including with automatic backend
+selection; a missing dependency does not become an unknown status.
+
+## Automatic CPU/GPU selection
+
+[`backend.go`](../../internal/routerruntime/backend.go) owns the production
+`AutoBackend` path. Windows tries CUDA, Vulkan, then CPU when system driver hints
+are present; Apple Silicon tries Metal then CPU, while Intel macOS uses CPU.
+Linux currently retains CPU. Hints decide optional installation and candidate
+order; they never establish that acceleration works.
+
+An explicit install/repair prepares CPU first and then hinted GPU packages.
+Optional GPU download failure leaves verified CPU files usable and records a
+fallback reason. Startup, status, enable and load never download missing files.
+Existing CPU installations can use install/repair to add GPU components.
+Apple Silicon CPU and Metal reuse the same pinned archive with different
+runtime identities and launch flags.
+
+The exact verified GPU engine runs a bounded `--list-devices` probe. Selection
+uses one matching hardware device's free memory, excludes software renderers
+and reserves at least 1 GiB or 15% of its reported memory. Memory is never summed
+across GPUs. Explicit device, automatic layer fitting and memory reserve preserve
+the serving context; fitting can produce partial offload. Health alone is
+insufficient: nonzero offloaded layers, a matching device model buffer and a
+fixed synthetic JSON inference are required. This proves execution availability,
+not redaction quality.
+
+Attempts share the cold-load deadline, with at most three model attempts.
+Device probes have an eight-second bound; each GPU load gets at most 45 seconds
+or half the remaining deadline. Failed children are stopped and reaped before
+trying another backend. Failed GPU loads/inference enter a ten-minute cooldown;
+explicit component repair clears it. Unexpected GPU exit faults the current
+call and cools that backend; a later load may use CPU. Business redaction errors
+do not trigger backend retries or bypass privacy gates.
+
+`Status.backend` reports unloaded/loading, CPU, hybrid, accelerated or unavailable,
+with the actual device, layer counts and safe fallback reason. The page shows
+GPU acceleration only with a healthy owned process. Effective runtime, device,
+actual layer counts and context bind capability fingerprints and privacy
+identity. A change resets capability evidence and retires redaction caches;
+free VRAM remains an observation and does not churn fingerprints.
+Reloading the same runtime and execution plan retains its current sample
+evidence. A capability check that triggers a cold load binds its sample to the
+runtime selected by that load, before executing the validator.
+
+If no candidate passes installation verification, loading clears the installed
+state so component/model repair remains available. Verification failure never
+starts a process or downloads files; cancellation keeps its existing meaning.
+
+CUDA composition adds separately pinned CUDA DLLs alongside the existing VC set.
+Each DLL requires its own size/hash/PE architecture/version checks; CUDA file
+versions legitimately differ. All source receipts and composition overlays are
+verified. Increased DLL limits apply only to trusted CUDA plans; VC remains
+strict. See the [process contract](../../internal/routerprocess/README.md).
 
 ## Lifetime and concurrency
 
@@ -195,8 +274,9 @@ runtime and capability samples are separate fields. Runtime transitions are:
 - `unloaded → loading → ready → busy → idle`; shared cold starts use one worker.
 - Verification/start/health/load timeout or crash → `fault`; children remain
   owned until termination is confirmed. Failed cleanup cannot spawn a successor.
-- `idle/ready → unloading → unloaded` after 15 minutes without **any** active,
-  queued or loading occupancy. Intent remains enabled; the next request loads.
+- `idle/ready` remains loaded for the lifetime of the Router service. There is
+  no product idle-unload timer; only an explicit disable, process fault or
+  Router shutdown releases the process.
 - Explicit disable first stops admission and invalidates old waiters, persists
   disabled intent, cancels installation/loading, rejects queued requests, drains
   active generation and releases the child. Later requests cannot reload it.
@@ -213,25 +293,27 @@ Disabled/full/canceled/fault are distinct errors. Timers and `Now` are injectabl
 An active child's crash returns `ErrFault`, not caller cancellation. Caller
 cancellation/deadlines, explicit shutdown epochs and purpose deadlines retain
 their own errors, so W4 can apply its pre-output fallback/cancel policy safely.
-`Sweep` and intent transitions serialize so unload/disable/re-enable cannot
-overlap two live processes. No blocking network/process operation holds the
-status mutex.
+Trusted diagnostic callers may opt into `Options.IdleTimeout` and call `Sweep`;
+zero disables idle eviction. The product never schedules `Sweep`. Lifecycle
+transitions serialize so unload/disable/re-enable cannot overlap two live
+processes. No blocking network/process operation holds the status mutex.
 
 Cold loading has its own budget; the judgment and execution queue budgets begin
 only after it succeeds. Legacy and explicit settings use the limits in
-[Configurable context and budgets](#configurable-context-and-budgets). Redaction
-retains its separate **15 s** shared queue/inference budget. A caller's shorter
+[Standard context and budgets](#standard-context-and-budgets). Redaction
+retains its separate **30 s** shared queue/inference budget. A caller's shorter
 deadline always bounds the operation. Disable's management drain budget is 120 s;
 Router shutdown permits 5 s for HTTP and then bounded model cleanup. Expired drain
 cancels active work, initiates owned-process termination and records a fault.
 
 The explicit experimental-redaction startup option changes that Manager's
-default redaction budget to **30 s**, capped at 30 s. A shorter configured or
+redaction budget to **30 s**, capped at 30 s. A shorter configured or
 caller budget remains in effect. Its dedicated invoker also places cold loading
 under the same request deadline; the experimental extractor owns the earlier
-deadline shared by every batch. The ordinary startup default remains 15 s.
+deadline shared by every batch. The ordinary redaction default is also 30 s.
 
-An owned process requested to stop by Disable, Close or idle Sweep is an
+An owned process requested to stop by Disable, Close or an explicitly configured
+diagnostic Sweep is an
 expected exit. Its monitor must not publish `process_exited` while Stop is
 completing. This distinction is bound to the same process immediately before
 Stop; merely draining work does not make a crash expected. Unexpected exit
@@ -282,7 +364,7 @@ does not clear any application's redaction intent or send original text to cloud
 with no management HTTP setter. Only that choice permits
 `NewExperimentalRedactionInvoker(fingerprint,suite)`. The immutable handle
 admits Redaction for either enabled fixed Spark-X2.5 1.7B or 4B selection and exact
-current artifact fingerprint, with a complete `privacy-trial-v1:` suite plus
+current artifact fingerprint, with a complete `privacy-trial-v2:` suite plus
 64 lowercase hexadecimal digits. `VerifyBinding` checks the experimental
 extractor's exact fingerprint and suite on every request. Disabled, closing,
 stopping, different-purpose/model/binding and incomplete-suite calls reject.
@@ -323,7 +405,7 @@ no-store and bounded input. Encoded aliases and arbitrary URLs/paths are rejecte
 | Route under `/api/local-model` | Method / behavior |
 | --- | --- |
 | base | GET/HEAD: status and fixed catalog; no enable/install/load |
-| `/settings` | GET/HEAD: same status/catalog with saved and effective settings; POST: a complete integer-only `RuntimeSettings`, drain/save and reload an enabled installed model without downloading |
+| `/settings` | GET/HEAD: read-only status/catalog with saved and effective settings; mutation methods return 405 |
 | `/detect` | POST: existing `routerdevice` report and recommendation |
 | `/select` | POST `{model:<fixed-id>}`: disabled-only selection |
 | `/enable` | POST: device checks bound to exact selection; persists enable only |
@@ -341,18 +423,16 @@ navigation/connect/manual refresh and polls transient install/load states only
 while that page is open. All five languages and desktop/mobile layouts are
 covered. Closing the page stops no Router or model process.
 
-Runtime settings use the app's 8K/16K/32K/64K buttons and separate numeric
-second budgets. The long-context test preset only fills the form; Save and
-reload is the explicit mutation. Invalid, missing, duplicate, unknown or null
-fields in a settings POST are rejected before any runtime change. A disabled
-model stays disabled.
-Saved targets are visible after a load failure; an unloaded/unhealthy process
-is labeled as not loaded instead of claiming its target window is active.
-Each built-in capability check derives its suite from the current runtime
-identity and prompt version; after a settings change, users must check again before
-experimental admission resumes. Saved trial authorization remains the user's
-independent choice and is not quality evidence. API status remains
-available while the explicit settings operation drains and reloads.
+The page has no runtime settings section, context selector, numeric budgets or
+save/reload action. The configured model's switch performs the existing
+enable/load/check/trial sequence; startup follows the same capability gates.
+The switch reflects saved enable intent independently of runtime health, so a
+faulted or unloaded enabled model can still be explicitly turned off.
+Resolving standard settings never enables or loads a disabled model.
+Resolved settings remain in authenticated API status for diagnostics;
+runtime health and current capability evidence must be checked independently.
+Saved trial authorization remains the user's independent choice and is not
+quality evidence.
 
 Available physical memory measured around loading is an observation, not a
 model-process peak-memory measurement.

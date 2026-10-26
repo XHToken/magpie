@@ -11,6 +11,7 @@ import (
 // Dependencies pins release-only app-local files from an official Microsoft
 // Visual Studio payload. The payload is downloaded only by explicit install.
 type Dependencies struct {
+	Family       string           `json:"family,omitempty"`
 	ID           string           `json:"id"`
 	Version      string           `json:"version"`
 	Architecture string           `json:"architecture"`
@@ -35,12 +36,19 @@ func (d Dependencies) Validate() error {
 		return errors.New("invalid Windows dependency metadata")
 	}
 	seen := make(map[string]bool)
+	if d.Family != "" && d.Family != "cuda" {
+		return errors.New("unknown dependency family")
+	}
+	maximum := int64(20 << 20)
+	if d.Family == "cuda" {
+		maximum = 512 << 20
+	}
 	sources := make(map[string]bool)
 	var total int64
 	for _, f := range d.Files {
 		h, err := hex.DecodeString(f.SHA256)
 		key := strings.ToLower(f.Name)
-		if err != nil || len(h) != 32 || f.Size <= 0 || f.Size > 20<<20 || f.Size > d.Artifact.ExpandedBytes-total || f.Version != d.Version || !strings.HasSuffix(key, ".dll") || !safeDependencyComponent(f.Name) || f.Source == "" || path.Clean(f.Source) != f.Source || strings.HasPrefix(f.Source, "/") || strings.Contains(strings.ToLower(f.Source), "debug_nonredist") || seen[key] || sources[strings.ToLower(f.Source)] {
+		if err != nil || len(h) != 32 || f.Size <= 0 || f.Size > maximum || f.Size > d.Artifact.ExpandedBytes-total || (d.Family == "" && f.Version != d.Version) || !validDependencyVersion(f.Version) || !strings.HasSuffix(key, ".dll") || !safeDependencyComponent(f.Name) || f.Source == "" || path.Clean(f.Source) != f.Source || strings.HasPrefix(f.Source, "/") || strings.Contains(strings.ToLower(f.Source), "debug_nonredist") || seen[key] || sources[strings.ToLower(f.Source)] {
 			return errors.New("invalid Windows dependency file metadata")
 		}
 		for _, part := range strings.Split(f.Source, "/") {

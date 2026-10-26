@@ -27,6 +27,10 @@ const (
 	// Weighted spreads a provider's requests over its keys by each key's
 	// weight (KeyAccount.Weight, #841), smoothly: 3 and 1 go a, a, b, a…
 	Weighted = "weight"
+	// EdgeCloud routes simple short text turns of a routing group to its
+	// local models when the local runtime is ready and idle, and routes
+	// complex turns or falls back to cloud models.
+	EdgeCloud = "edge-cloud"
 )
 
 // SetRouting changes how a provider's requests spread over its keys or

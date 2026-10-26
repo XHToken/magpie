@@ -171,7 +171,7 @@ func rewritePort(host, model, origin string, raw []byte) ([]byte, string, bool, 
 		if err != nil {
 			return nil, "", false, err
 		}
-		entry, index := workBuddyModel(doc, model)
+		entry, _ := workBuddyModel(doc, model)
 		if entry == nil || entry["apiKey"] != PlaceholderAPIKey {
 			return nil, "", false, nil
 		}
@@ -186,8 +186,24 @@ func rewritePort(host, model, origin string, raw []byte) ([]byte, string, bool, 
 		if base == strings.TrimRight(old, "/") || !validPortOrigin(base) {
 			return nil, "", false, errors.New("invalid WorkBuddy Router endpoint")
 		}
-		after, err := workBuddyPatchModel(raw, index, map[string]any{"url": origin + "/app/workbuddy/v1"}, nil)
-		return after, base, true, err
+		// A WorkBuddy catalog has one endpoint per model, unlike Loomy's
+		// shared provider endpoint. Follow every model of this same managed
+		// connection so selecting a secondary model cannot use the old port.
+		after := bytes.Clone(raw)
+		for index, candidate := range workBuddyModelEntries(doc) {
+			endpoint, ok := candidate["url"].(string)
+			if !ok || strings.TrimRight(endpoint, "/") != base+"/app/workbuddy/v1" || candidate["apiKey"] != PlaceholderAPIKey {
+				continue
+			}
+			if candidate["supportsToolCall"] != true || candidate["useCustomProtocol"] != false {
+				return nil, "", false, errors.New("WorkBuddy Router connection fields conflict")
+			}
+			after, err = workBuddyPatchModel(after, index, map[string]any{"url": origin + "/app/workbuddy/v1"}, nil)
+			if err != nil {
+				return nil, "", false, err
+			}
+		}
+		return after, base, true, nil
 	}
 	doc, err := readJSON(raw)
 	if err != nil {
@@ -207,20 +223,43 @@ func rewritePort(host, model, origin string, raw []byte) ([]byte, string, bool, 
 		return bytes.Clone(raw), origin, true, nil
 	}
 	base := strings.TrimSuffix(strings.TrimRight(old, "/"), "/app/loomy/v1")
-	wanted := loomyProviderValues(strings.TrimRight(old, "/"), model)
+	checkModels := loomyPortCheckModels(doc, provider, model)
+	wanted := loomyProviderValues(strings.TrimRight(old, "/"), checkModels...)
 	// Display labels are user settings and do not determine the endpoint.
 	if p, ok := provider.(map[string]any); ok {
 		if name, exists := p["name"]; exists {
 			wanted["name"] = name
 		}
-		if name, exists := lookup(p, []string{"models", model, "name"}); exists {
-			wanted["models"].(map[string]any)[model].(map[string]any)["name"] = name
+		for _, m := range checkModels {
+			if name, exists := lookup(p, []string{"models", m, "name"}); exists {
+				wanted["models"].(map[string]any)[m].(map[string]any)["name"] = name
+			}
 		}
 	}
 	if !ok || base == strings.TrimRight(old, "/") || !validPortOrigin(base) ||
-		!loomyCompatibleProvider(provider, wanted, model) {
+		!loomyCompatibleProvider(provider, wanted, checkModels...) {
 		return nil, "", false, errors.New("Loomy Router connection fields conflict")
 	}
 	after, err := edit.PatchJSON(raw, []edit.KV{{Path: "provider.api_router.options.baseURL", Value: origin + "/app/loomy/v1"}}, nil)
 	return after, base, true, err
+}
+
+func loomyPortCheckModels(doc map[string]any, provider any, model string) []string {
+	if _, exists := lookup(doc, []string{"provider", loomyProvider, "models", model}); exists {
+		return []string{model}
+	}
+	if sel, ok := doc["model"].(string); ok && strings.HasPrefix(sel, loomyProvider+"/") {
+		dm := strings.TrimPrefix(sel, loomyProvider+"/")
+		if loomyModelKey(dm) {
+			if _, exists := lookup(doc, []string{"provider", loomyProvider, "models", dm}); exists {
+				return []string{dm}
+			}
+		}
+	}
+	if m, exists := lookup(doc, []string{"provider", loomyProvider, "models"}); exists {
+		if mm, ok := m.(map[string]any); ok && len(mm) == 0 {
+			return nil
+		}
+	}
+	return []string{model}
 }

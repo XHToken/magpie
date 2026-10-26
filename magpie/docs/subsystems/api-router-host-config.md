@@ -1,106 +1,69 @@
-# API-Router Host Configuration Transactions (WorkBuddy & Loomy)
+# API-Router host configuration transactions
 
-## Purpose
+The [`routerhost`](../../internal/routerhost/types.go) package plans, journals
+and restores explicit host changes. WorkBuddy and Loomy use
+`POST /api/hosts/auto` for automatic connections. The explicit Loomy
+preview/apply API and offline `host restore-preview`/`host restore` CLI remain
+separate. See [Loomy integration](api-router-loomy.md) and
+[pinned protocol contracts](api-router-host-contracts.md).
 
-Safely inspect, connect, synchronize, and restore external desktop agent host
-configurations—specifically **WorkBuddy** (`~/.workbuddy/models.json` and
-`~/.workbuddy/settings.json`) and **Loomy** (`~/.config/opencode/opencode.json`)—
-with multi-model and routing-group (`group/<id>`) bindings, non-blocking fast
-validation (`FastChecker`), automatic port follow-up, and backup recovery.
+## Options and files
 
-## Entry Points
+`routerhost.Options` contains `Host`, `ConfigRoot`, `RouterURL`, `Model` and
+`Models`. `EffectiveModels` deduplicates selections; `NormalizeOptions` sets the
+primary to the first selection. Targets are `group/<id>`, `<providerId>/<model>`
+or `local/<id>`. The service validates the proposed Profile revision and every
+selected target before host writes, including group existence, enabled state,
+active members and direct provider credentials. These checks run no inference.
+`FastChecker` independently checks health; it does not prove model readiness.
 
-- Core types & manager (`internal/routerhost/`):
-  - `host.go`: `HostName`, `HostWorkBuddy`, `HostLoomy`, `Action`, `Options`,
-    `FastChecker`, `ProbeChecker`, `Result`, `Manager`, `NewManager`
-  - `workbuddy.go`: `inspectWorkBuddy`, `connectWorkBuddy`, `restoreWorkBuddy`,
-    `workBuddyModelID`, `retireManagedWorkBuddyEntries`
-  - `loomy.go`: `inspectLoomy`, `connectLoomy`, `restoreLoomy`,
-    `retireManagedLoomyEntries`
-  - `ports.go`, `ports_sync.go`, `ports_commit.go`: `SyncConnectedHostPorts`,
-    `commitTransaction`, `loadRecoveryRecord`
-- Service HTTP handlers (`internal/routerservice/hosts.go`):
-  - `handleHosts` (`GET /api/hosts`, `POST /api/hosts/{host}/{action}`)
-  - `handleHostsAuto` (`POST /api/hosts/auto`)
+`WorkBuddyAdapter` manages `models.json` (native root array or CLI object with
+`models`) and JSONC `settings.json`. Each raw target ID uses
+`<origin>/app/workbuddy/v1`, the public placeholder, `supportsToolCall: true`
+and `useCustomProtocol: false`. `settings.model` is `custom-local:<primary>`.
+Stale generated entries are retired; user entries and extensions survive.
 
-## Architecture
+`LoomyAdapter` manages JSONC `opencode.json`: the `api_router` provider uses
+`<origin>/app/loomy/v1`, the public placeholder and `useSessionAuth: false`.
+It publishes all selected IDs and selects `api_router/<primary>`. Sidecar state,
+small-model preservation and runtime refresh are documented in
+[Loomy integration](api-router-loomy.md).
+Contract v2 also manages `api-router-title.mjs` and its own `plugin` list entry
+in the same transaction. Valid v1 records retain their first baseline on upgrade.
 
-### Multi-Model & Routing-Group `Options` and `FastChecker`
+## Transactions and status
 
-`routerhost.Options` drives host connection and verification:
+[`ConnectAndCommit` and `RestoreAndCommit`](../../internal/routerhost/connection_commit.go)
+include host files, the original recovery journal and Profile persistence in
+[`commitHostGroups`](../../internal/routerhost/ports_commit.go). Failed host
+writes, Profile saves or stale Profile revisions roll back host and journal
+bytes. Runtime refresh occurs after commit. Interrupted or incomplete rollback
+retains recovery metadata; inspection reports any Profile/file mismatch.
 
-```go
-type Options struct {
-    AppID          string
-    Model          string
-    Models         []string
-    ModelName      string
-    ProviderName   string
-    Vendor         string
-    ContextLength  int
-    MaxOutput      int
-    SupportsImages bool
-}
-```
+First pre-connection snapshots are retained in
+`<Router state>/host-config/<host>-<root hash>.json`. Switching models retires
+obsolete generated catalog entries while retaining the original baseline.
+An explicit reconnect also accepts host files that exactly match that validated
+baseline after the host restored them independently; other conflicts still stop
+the operation.
+Offline restore works while Router is stopped. Disconnect retains selections
+unless the caller explicitly supplies `models: []`.
 
-- `Options.Models []string` carries all selected model and routing-group IDs from
-  `AppProfile.Models` (such as `group/<id>`, `<providerId>/<model>`, and
-  `local/<engine>`). `resolvedModels()` deduplicates the list and guarantees the
-  first item (`models[0]`) is used as the host's default primary model.
-- **`FastChecker` Non-Blocking Validation**:
-  - `routerhost.FastChecker` validates local configuration state without firing
-    live upstream network probes.
-  - During `POST /api/hosts/auto` (`action: "connect"`), `Service.fastCheckApp`
-    satisfies `FastChecker` by verifying that the `AppProfile` exists and that
-    every referenced routing group (`group/<id>`), cloud provider
-    (`<providerId>/<model>`), or local model (`local/<id>`) is configured.
-  - Full live upstream probing (`ProbeChecker`) remains available for explicit
-    manual `verify` actions (`POST /api/hosts/{host}/verify`) without blocking
-    the one-click agent onboarding flow.
+Status requires agreement between the enabled Profile and host files, including
+catalog membership and the service endpoint. Stale Router references produce
+`needsReconnect: true`; merely selecting them does not enable a connection.
+Status reads never rewrite host files.
 
-### WorkBuddy Multi-Model Synchronization & Retirement
+`routerhost.SynchronizePorts` follows the actual loopback address for already
+managed hosts. WorkBuddy stores the endpoint on each model: all entries with
+the same managed origin and placeholder follow the new address together;
+entries belonging to another origin or key remain untouched. Its transaction
+and recovery preserve model/provider settings and never kill an unrelated port
+owner.
 
-When connecting WorkBuddy (`connectWorkBuddy`):
+## Verification
 
-1. **Multi-Model Catalogue (`models.json`)**:
-   - Iterates over all items in `Options.Models` (`resolvedModels()`).
-   - For each target `m`, generates a stable WorkBuddy entry ID via
-     `workBuddyModelID(appID, m)` (`api-router-<appID>` for a single model or
-     `api-router-<appID>-<slug>` when multiple models/groups are bound) with
-     `id: entryID`, `model: m` (the wire model/group ID sent to API-Router, e.g.
-     `group/claude-sonnet-4` or `openai/gpt-4.1`), `vendor`, `name`, and
-     `apiKey: "api-router-local"`.
-   - Calls `retireManagedWorkBuddyEntries` to remove any previously managed
-     API-Router entries from `models.json` that are no longer in the current
-     `Options.Models` selection, while preserving all user-owned non-API-Router
-     models.
-2. **Default Primary Model (`settings.json`)**:
-   - Sets `codeMode.SelectedModel` and `chat.SelectedModel` in `settings.json`
-     to the display name/ID of the **first** selected item (`models[0]`), and
-     updates the endpoint URL to `<baseURL>/v1`.
-
-### Loomy Multi-Model Synchronization & Retirement
-
-When connecting Loomy (`connectLoomy`):
-
-- Writes `provider.api_router` in `opencode.json` with `options.baseURL`
-  (`<baseURL>/v1`), `options.headers["X-API-Router-App"] = appID`, and populates
-  `provider.api_router.models` with every selected entry in `Options.Models`
-  (including `group/<id>`, `<providerId>/<model>`, and `local/<id>`).
-- Calls `retireManagedLoomyEntries` so stale model keys from previous connects
-  are removed from `provider.api_router.models`.
-- Sets top-level `model` and `small_model` to `api_router/<models[0]>`.
-
-### Transactional Backups, Disconnect (`Restore`), and Port Sync
-
-- Before mutating any host file, `commitTransaction` snapshots the pre-connection
-  files into `%LOCALAPPDATA%/api-router/hosts/<host>/backups/` and records
-  `recovery.json`.
-- Calling `POST /api/hosts/auto` with `{"host": "<host>", "action": "disconnect"}`
-  (or `POST /api/hosts/{host}/restore`) invokes `Manager.Restore`, which
-  restores the backed-up host configuration files (or removes managed entries
-  and restores previous default model fields if the file was created during
-  connect).
-- When API-Router switches loopback ports at startup, `SyncConnectedHostPorts`
-  updates the endpoint port in already-connected WorkBuddy and Loomy files
-  without altering their selected models or user settings.
+Run `internal/routerhost` and `internal/routerservice` Go suites and the
+Chromium/WebKit Agents and Loomy host browser suites. Isolated host roots cover
+model changes, first-baseline preservation, Profile-write rollback, stale
+configuration and offline restoration.

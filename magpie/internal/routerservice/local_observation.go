@@ -174,7 +174,9 @@ func emitObservedLocalCall(meta localCallContext, manager *routerruntime.Manager
 		return
 	}
 	identity := meta.Binding
-	if !meta.BindingCaptured {
+	if diagnostics.BindingCaptured {
+		identity = diagnostics.Binding
+	} else if !meta.BindingCaptured {
 		identity, _ = manager.SnapshotBinding(routerruntime.WithRuntimeSettings(context.Background(), meta.Settings))
 	}
 	ended := time.Now().UTC()

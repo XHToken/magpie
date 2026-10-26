@@ -43,5 +43,11 @@ later successful cloud result.
 Settings and model/runtime identity are captured together at the call boundary.
 A request whose snapshot no longer matches the Manager cannot borrow the newer
 runtime's identity; unavailable identity remains unknown. This binding is
-separate from the [privacy specification and cache binding](api-router-runtime.md#configurable-context-and-budgets).
+refreshed when the request acquires its scheduler slot, so automatic cold-load
+backend selection records the runtime that actually serves the request.
+`GenerationDiagnosticSnapshot` carries that captured binding to the service's
+execution and `RuntimeJudge` observers. They prefer it over admission-time
+identity and never reread completion-time state for an admitted call; a call
+that acquired no slot retains its admission identity. This binding is
+separate from the [privacy specification and cache binding](api-router-runtime.md#standard-context-and-budgets).
 

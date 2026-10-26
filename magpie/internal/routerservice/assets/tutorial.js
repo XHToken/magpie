@@ -319,9 +319,10 @@
     }
     isolated = [];
   }
-  function open() {
+  function open(event) {
     if (opened) return;
-    returnFocus = document.activeElement;
+    const invoker = event?.currentTarget;
+    returnFocus = invoker instanceof HTMLElement && invoker.isConnected ? invoker : document.activeElement;
     opened = true;
     // Remember the first display immediately so a refresh never forces it open again.
     state.dismissed = true;

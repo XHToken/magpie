@@ -111,12 +111,14 @@ test('default gate retains all product packages and ten pages, including onboard
   assert.ok(commands[1].args.includes('-race')); assert.ok(commands[1].args.includes('-count=1'));
   for (const engine of ['chromium', 'webkit']) {
     const call = commands.find(call => call.env.BROWSER === engine);
-    assert.equal(summary.browserFiles.length, 10);
+    assert.equal(summary.browserFiles.length, 12);
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/tutorial.test.cjs'));
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/spark-models.test.cjs'));
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/redaction.test.cjs'));
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/loomy-host.test.cjs'));
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/local-model.test.cjs'));
+    assert.ok(summary.browserFiles.includes('internal/routerservice/tests/agents.test.cjs'));
+    assert.ok(summary.browserFiles.includes('internal/routerservice/tests/routing-groups.test.cjs'));
     assert.deepEqual(call.args.filter(arg => arg.endsWith('.test.cjs')), summary.browserFiles);
     assert.ok(call.args.includes('--test-concurrency=1'));
     assert.ok(path.isAbsolute(call.env.API_ROUTER_BINARY));

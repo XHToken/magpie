@@ -25,6 +25,7 @@ type privacyRepairEvidence struct {
 	Heldout             *routerredact.PrivacyEvaluation  `json:"heldout,omitempty"`
 	HeldoutVersion      string                           `json:"heldoutVersion,omitempty"`
 	Calls               []privacyCallEvidence            `json:"calls"`
+	ParseFailureReasons map[string]int                   `json:"parseFailureReasons,omitempty"`
 	Roundtrip           *privacyRoundtripEvidence        `json:"roundtrip,omitempty"`
 	SmallRoundtrip      *privacyRoundtripEvidence        `json:"smallRoundtrip,omitempty"`
 	TextRoundtrip       *privacyRoundtripEvidence        `json:"textRoundtrip,omitempty"`
@@ -191,12 +192,30 @@ func runPrivacyRepairDiagnostic(ctx context.Context, m *routerruntime.Manager, m
 	defer func() {
 		report.DurationMS = time.Since(started).Milliseconds()
 		report.CapabilitiesUnknown = unknownCapabilities(m) == nil
+		for _, call := range report.Calls {
+			if call.ParseCode != "" {
+				if report.ParseFailureReasons == nil {
+					report.ParseFailureReasons = map[string]int{}
+				}
+				report.ParseFailureReasons[call.ParseCode]++
+			}
+		}
 	}()
-	spec, err := routerredact.NewPrivacySpecification(routerredact.ModelBinding{ModelID: model.ID, RuntimeID: rt.ID})
+	if m == nil {
+		return report, errors.New("privacy_diagnostic_runtime_unavailable")
+	}
+	spec, err := routerredact.NewPrivacySpecification(routerredact.ModelBinding{
+		ModelID:       model.ID,
+		RuntimeID:     rt.ID,
+		ContextTokens: m.Status().Settings.ContextTokens,
+	})
 	if err != nil {
 		return report, err
 	}
 	report.Suite, report.Fingerprints = spec.CapabilitySuite(), spec.Fingerprints()
+	if capState := m.Status().Capabilities[routerruntime.Redaction]; capState.Fingerprint != spec.RuntimeFingerprint() {
+		return report, fmt.Errorf("privacy_diagnostic_fingerprint_mismatch: runtime=%s spec=%s", capState.Fingerprint, spec.RuntimeFingerprint())
+	}
 	cases, err := routerredact.PrivacyEvaluationCases(spec)
 	if err != nil {
 		return report, err

@@ -1041,7 +1041,10 @@ func SaveGroup(g Group) error {
 	if err := cleanDecisionGroup(&g, groupsIn(entries)); err != nil {
 		return err
 	}
-	if g.Routing != Ordered && g.Routing != Rotate && g.Routing != LeastUsed && g.Routing != Pace && g.Routing != Weighted && g.Routing != Manual {
+	if g.Routing != Ordered && g.Routing != Rotate && g.Routing != LeastUsed && g.Routing != Pace && g.Routing != Weighted && g.Routing != Manual && g.Routing != EdgeCloud {
+		g.Routing = ""
+	}
+	if g.Routing == EdgeCloud && !slices.ContainsFunc(g.Members, func(m string) bool { return strings.HasPrefix(m, "local/") }) {
 		g.Routing = ""
 	}
 	if !slices.Contains(Affinities, g.Affinity) {

@@ -75,7 +75,15 @@ func checkJournalContract(j *journal, c AdapterContract) error {
 		stored = &legacy
 	}
 	if !sameContract(*stored, c) {
-		return fmt.Errorf("recovery adapter version or contract conflict; use the matching adapter to restore")
+		if j.Host == "loomy" && sameContract(*stored, loomyV1Contract()) && sameContract(c, (LoomyAdapter{}).Contract()) && len(j.Files) == 1 && j.Files[0].Name == "opencode.json" {
+			// V1 never owned this filename. An absent snapshot makes an existing
+			// file a conflict, preserving it rather than claiming ownership.
+			j.Adapter = &c
+			j.Files = append(j.Files, snapshot{FilePlan: FilePlan{Name: loomyTitleFile, After: []byte{}}, Mode: 0o600})
+			stored = j.Adapter
+		} else {
+			return fmt.Errorf("recovery adapter version or contract conflict; use the matching adapter to restore")
+		}
 	}
 	if len(j.Files) != len(c.Files) {
 		return fmt.Errorf("recovery file set does not match adapter contract")

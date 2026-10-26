@@ -63,7 +63,9 @@
       'Drain reset': '重置前用完',
       'Weighted': '按权重',
       'Manual': '手动',
+      'Edge-cloud': '端云协同',
       'Picks the healthiest, fastest, best-fit model for each request, prioritizing local on-device models when suitable.': '综合速度、健康度、配额与任务复杂度自动挑选最合适的模型（简单任务优先走本地端侧，复杂任务走云端）。',
+      'Short simple text requests go to the local model first with cloud models as fallback; busy local runtime, images, tool calls, long context (> 2048 tokens), or complex tasks go straight to the cloud.': '短小简单的纯文本请求优先交由本地模型响应，云端模型排在后面兜底；当本地运行正忙或不可用，或请求带图片、工具调用、长上下文（> 2048 tokens）及复杂推理时直接走云端。',
       'Always tries the first model; falls through on error.': '总是先用排第一的模型，失败或限流时按顺序往下兜底。',
       'Rotates requests evenly across healthy models.': '在健康的成员模型之间轮流分配请求。',
       'Sends the next request to whichever model has served the fewest.': '优先把下一个请求发给近期调用次数最少的成员模型。',
@@ -139,6 +141,11 @@
       'Move up': '上移',
       'Move down': '下移',
       'Default': '默认',
+      'Local model redaction': '本地模型脱敏',
+      'Redact On': '开',
+      'Redact Off': '关',
+      'Redacts sensitive information using local model and rules before routing requests.': '使用本地模型与规则对请求中的敏感信息进行脱敏后再路由，并在响应时还原占位符。',
+      'Routes requests directly without local model redaction.': '不对请求执行本地模型脱敏，直接按策略路由。',
       'invalid routing group payload': '路由组数据格式无效',
       'group name is required': '请输入路由组名称',
       'unsupported routing strategy': '不支持的路由策略',
@@ -147,6 +154,11 @@
       'routing rule target is required': '请选择路由规则的目标模型',
       'routing group cycle detected': '检测到路由组循环引用',
       'routing group not found': '未找到该路由组'
+    },
+    en: {
+      'Local model redaction': 'Local model redaction',
+      'Redact On': 'On',
+      'Redact Off': 'Off'
     }
   };
 
@@ -179,8 +191,8 @@
     { test: /qwen|tongyi|dashscope|bailian|alibaba/i, icon: 'qwen-color.svg' },
     { test: /gemini|google|vertex/i, icon: 'gemini-color.svg' },
     { test: /gpt-|o1|o3|o4|chatgpt|codex|openai/i, icon: 'openai.svg' },
-    { test: /glm|zhipu|bigmodel|chatglm/i, icon: 'glm-color.svg' },
-    { test: /kimi|moonshot/i, icon: 'kimi-color.svg' },
+    { test: /glm|zhipu|bigmodel|chatglm/i, icon: 'zhipu-color.svg' },
+    { test: /kimi|moonshot/i, icon: 'kimi.svg' },
     { test: /minimax|abab/i, icon: 'minimax-color.svg' },
     { test: /doubao|volces|ark|bytedance/i, icon: 'doubao-color.svg' },
     { test: /grok|xai/i, icon: 'grok.svg' },
@@ -191,7 +203,7 @@
     { test: /spark|iflytek|xinghuo/i, icon: 'spark-color.svg' },
     { test: /ernie|baidu|qianfan/i, icon: 'wenxin-color.svg' },
     { test: /step|stepfun/i, icon: 'stepfun-color.svg' },
-    { test: /yi-|lingyi/i, icon: 'yi-color.svg' },
+    { test: /yi-|lingyi/i, icon: 'yi.svg' },
     { test: /baichuan/i, icon: 'baichuan-color.svg' },
     { test: /internlm/i, icon: 'internlm-color.svg' },
     { test: /cohere|command-r/i, icon: 'cohere-color.svg' },
@@ -201,7 +213,7 @@
     { test: /together/i, icon: 'together-color.svg' },
     { test: /fireworks/i, icon: 'fireworks-color.svg' },
     { test: /groq/i, icon: 'groq.svg' },
-    { test: /cerebras/i, icon: 'cerebras-color.svg' },
+    { test: /cerebras/i, icon: 'cerebras.svg' },
     { test: /ollama/i, icon: 'ollama.svg' },
     { test: /vllm/i, icon: 'vllm-color.svg' },
     { test: /lmstudio/i, icon: 'lmstudio.svg' },
@@ -228,8 +240,15 @@
     { id: 'least-used', label: 'Least used', cardLabel: 'Least used', desc: 'Sends the next request to whichever model has served the fewest.' },
     { id: 'drain-reset', label: 'Drain reset', cardLabel: 'Drain reset', desc: 'Spends down the member whose quota window resets soonest, so paid quota doesn\'t expire unused.' },
     { id: 'weighted', label: 'Weighted', cardLabel: 'Weighted', desc: 'Splits traffic by the weights set on each model.' },
-    { id: 'manual', label: 'Manual', cardLabel: 'Manual', desc: 'Uses only the model you\'ve ticked above; switch anytime with one click.' }
+    { id: 'manual', label: 'Manual', cardLabel: 'Manual', desc: 'Uses only the model you\'ve ticked above; switch anytime with one click.' },
+    { id: 'edge-cloud', label: 'Edge-cloud', cardLabel: 'Edge-cloud', desc: 'Short simple text requests go to the local model first with cloud models as fallback; busy local runtime, images, tool calls, long context (> 2048 tokens), or complex tasks go straight to the cloud.' }
   ];
+
+  function hasLocalMember(members) {
+    return Array.isArray(members) && members.some(function (m) {
+      return String(m || '').trim().indexOf('local/') === 0;
+    });
+  }
 
   function normalizeStrategy(raw) {
     var s = String(raw || 'smart_hybrid').trim().toLowerCase();
@@ -239,6 +258,7 @@
     if (s === 'rotate' || s === 'round_robin') return 'round-robin';
     if (s === 'usage' || s === 'least' || s === 'least_used') return 'least-used';
     if (s === 'pace' || s === 'drain_reset') return 'drain-reset';
+    if (s === 'edge_cloud') return 'edge-cloud';
     return s;
   }
 
@@ -472,6 +492,7 @@
 
   window.__apiRouterRoutingGroups = {
     STRATEGIES: STRATEGIES,
+    hasLocalMember: hasLocalMember,
     normalizeStrategy: normalizeStrategy,
     strategyMeta: strategyMeta,
     state: state,

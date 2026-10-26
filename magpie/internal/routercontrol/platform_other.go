@@ -11,7 +11,13 @@ import (
 	"time"
 )
 
-func hide(cmd *exec.Cmd)          {}
+func hide(cmd *exec.Cmd) {}
+
+func startHidden(makeCmd func() *exec.Cmd) (*exec.Cmd, error) {
+	cmd := makeCmd()
+	hide(cmd)
+	return cmd, cmd.Start()
+}
 func reparse(fi os.FileInfo) bool { return false }
 
 var selfStamp = fmt.Sprint(time.Now().UnixNano())

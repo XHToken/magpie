@@ -4,9 +4,9 @@
 
 API-router is a local service for routing AI model requests. Manage cloud APIs, local models, and routing policies in one web console, then connect WorkBuddy and Loomy to the same service. It is derived from a fixed Magpie source snapshot; the product entry point is `magpie/cmd/api-router`.
 
-**[Download the Windows x64 preview](https://github.com/xyzane54/magpie/releases/tag/api-router-v0.1.0-beta.1)** · [Browse the API-router source](https://github.com/xyzane54/magpie/tree/codex/api-router)
+**[Download the Windows x64 preview](https://github.com/xyzane54/magpie/releases/tag/api-router-v0.1.0-beta.2)** · [Browse the API-router source](https://github.com/xyzane54/magpie/tree/codex/api-router)
 
-The current version is **0.1.0-beta.1**, with initial support focused on WorkBuddy and Loomy running on the same machine. A prebuilt package is available for Windows x64. macOS and Linux can be built from source; the other host presets and protocol adapters in this repository do not imply that every client, version, or platform has been verified.
+The current version is **0.1.0-beta.2**, with initial support focused on WorkBuddy and Loomy running on the same machine. A prebuilt package is available for Windows x64. macOS and Linux can be built from source; the other host presets and protocol adapters in this repository do not imply that every client, version, or platform has been verified.
 
 ## Download and install on Windows x64
 
@@ -14,15 +14,15 @@ The package includes the executable and embedded web console. Go, Node.js, and P
 
 | File | Purpose |
 | --- | --- |
-| `api-router-0.1.0-beta.1-windows-amd64.zip` | Executable, web console, Windows guide, and installation scripts |
-| `api-router-0.1.0-beta.1-windows-amd64.manifest.json` | File sizes and SHA256 hashes checked by the installer |
+| `api-router-0.1.0-beta.2-windows-amd64.zip` | Executable, web console, Windows guide, and installation scripts |
+| `api-router-0.1.0-beta.2-windows-amd64.manifest.json` | File sizes and SHA256 hashes checked by the installer |
 | `install-windows.ps1` | Standalone installer |
 | `SHA256SUMS` | SHA256 hashes for the ZIP, manifest, and standalone installer |
 
 Open PowerShell in that folder and run:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -ManifestPath "$PWD\api-router-0.1.0-beta.1-windows-amd64.manifest.json" -PackagePath "$PWD\api-router-0.1.0-beta.1-windows-amd64.zip"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -ManifestPath "$PWD\api-router-0.1.0-beta.2-windows-amd64.manifest.json" -PackagePath "$PWD\api-router-0.1.0-beta.2-windows-amd64.zip"
 
 $router = Join-Path $env:LOCALAPPDATA 'Programs\API-router\api-router.exe'
 & $router service start
@@ -114,7 +114,7 @@ The gate builds the product and runs race tests, vet, and Chromium/WebKit page t
 Build a fixed Windows package in PowerShell:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File magpie/scripts/package-windows.ps1 -Version 0.1.0-beta.1 -OutputDir "$PWD\dist\release\0.1.0-beta.1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File magpie/scripts/package-windows.ps1 -Version 0.1.0-beta.2 -OutputDir "$PWD\dist\release\0.1.0-beta.2"
 ```
 
 The installer accepts explicitly supplied local files. It does not fetch a latest release, update automatically, or roll back data schemas. Preview packages are published in [this repository's Releases](https://github.com/xyzane54/magpie/releases).

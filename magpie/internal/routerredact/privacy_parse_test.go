@@ -304,3 +304,35 @@ func TestPrivacyParseInputBoundsCancellationAndIsolation(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestPrivacyParseUniqueSubstringOffsetAlignment(t *testing.T) {
+	specification := privacyParseSpec(t)
+	source := "请联系宁祁明天到场确认。"
+	in := Extraction{Versions: specification.Versions(), Texts: []string{source}}
+	// Slight rune offset drift on unique exact match aligns to exact byte span.
+	raw := privacyParseEnvelope(privacyParseContent(privacyParseField(0, privacyParseFinding("private_person", "宁祁", 1, 3))), "stop")
+	result, err := specification.Parse(context.Background(), in, raw)
+	if err != nil || !result.Complete || len(result.Entities) != 1 {
+		t.Fatalf("expected unique exact substring alignment to succeed, got err=%v complete=%v entities=%v", err, result.Complete, result.Entities)
+	}
+	wantStart := strings.Index(source, "宁祁")
+	wantEnd := wantStart + len("宁祁")
+	if result.Entities[0].Start != wantStart || result.Entities[0].End != wantEnd || result.Entities[0].Text != "宁祁" {
+		t.Fatalf("unexpected aligned entity: %+v (want %d..%d)", result.Entities[0], wantStart, wantEnd)
+	}
+
+	// Non-existent text or ASCII word-interior partial match must fail closed.
+	for _, bad := range []struct {
+		source string
+		text   string
+	}{
+		{source: "请联系宁祁明天到场确认。", text: "王五"},
+		{source: "contact malice tomorrow", text: "alice"},
+	} {
+		badIn := Extraction{Versions: specification.Versions(), Texts: []string{bad.source}}
+		badRaw := privacyParseEnvelope(privacyParseContent(privacyParseField(0, privacyParseFinding("private_person", bad.text, 0, 2))), "stop")
+		if res, parseErr := specification.Parse(context.Background(), badIn, badRaw); parseErr == nil || res.Complete {
+			t.Fatalf("expected %q in %q to be rejected, got res=%+v err=%v", bad.text, bad.source, res, parseErr)
+		}
+	}
+}

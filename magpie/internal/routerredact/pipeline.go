@@ -4,9 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/yetone/magpie/internal/routerruntime"
 )
 
 type Stats struct {
@@ -24,11 +27,11 @@ type cacheKey struct {
 	versions     Versions
 }
 type cacheEntry struct {
-	fingerprints        [][32]byte
-	processed           []string
-	mapping, categories map[string]string
-	expires, used       time.Time
-	bytes               int
+	fingerprints                     [][32]byte
+	processed                        []string
+	mapping, categories, generalized map[string]string
+	expires, used                    time.Time
+	bytes                            int
 }
 type Pipeline struct {
 	mu        sync.Mutex
@@ -44,8 +47,12 @@ type Pipeline struct {
 }
 type Prepared struct {
 	*Snapshot
-	mu   sync.RWMutex
-	body []byte
+	mu          sync.RWMutex
+	body        []byte
+	cacheHit    bool
+	durationMS  int64
+	categories  map[string]string
+	generalized map[string]string
 }
 
 func (p *Prepared) Body() ([]byte, error) {
@@ -56,20 +63,78 @@ func (p *Prepared) Body() ([]byte, error) {
 	}
 	return append([]byte(nil), p.body...), nil
 }
+
+func (p *Prepared) ObservationMeta() (ObservationMeta, error) {
+	if p == nil {
+		return ObservationMeta{}, fail("redaction_released")
+	}
+	p.mu.RLock()
+	if p.body == nil {
+		p.mu.RUnlock()
+		return ObservationMeta{}, fail("redaction_released")
+	}
+	cacheHit := p.cacheHit
+	durationMS := p.durationMS
+	categories := cloneStrings(p.categories)
+	generalized := cloneStrings(p.generalized)
+	p.mu.RUnlock()
+
+	mapping, err := p.Snapshot.mappingCopy()
+	if err != nil {
+		return ObservationMeta{}, err
+	}
+	replacements := make([]ReplacementMeta, 0, len(mapping)+len(generalized))
+	for token, orig := range mapping {
+		cat := categories[token]
+		if cat == "" {
+			if strings.HasPrefix(token, "<") {
+				if idx := strings.IndexByte(token, ':'); idx > 1 {
+					cat = token[1:idx]
+				}
+			}
+		}
+		replacements = append(replacements, ReplacementMeta{
+			Placeholder: token,
+			Category:    cat,
+			Original:    orig,
+		})
+	}
+	for gen, orig := range generalized {
+		replacements = append(replacements, ReplacementMeta{
+			Placeholder: gen,
+			Category:    "AMOUNT",
+			Original:    orig,
+		})
+	}
+	sort.Slice(replacements, func(i, j int) bool {
+		if replacements[i].Category != replacements[j].Category {
+			return replacements[i].Category < replacements[j].Category
+		}
+		if replacements[i].Placeholder != replacements[j].Placeholder {
+			return replacements[i].Placeholder < replacements[j].Placeholder
+		}
+		return replacements[i].Original < replacements[j].Original
+	})
+	return ObservationMeta{
+		CacheHit:     cacheHit,
+		DurationMS:   durationMS,
+		Replacements: replacements,
+	}, nil
+}
+
 func (p *Prepared) Close() {
 	if p == nil {
 		return
 	}
 	p.mu.Lock()
 	p.body = nil
+	p.categories = nil
+	p.generalized = nil
 	p.mu.Unlock()
 	p.Snapshot.Close()
 }
 func New(options Options) *Pipeline {
-	maximumBudget := 15 * time.Second
-	if options.Experimental {
-		maximumBudget = 30 * time.Second
-	}
+	maximumBudget := routerruntime.DefaultRedactionBudget
 	if options.Budget <= 0 || options.Budget > maximumBudget {
 		options.Budget = maximumBudget
 	}
@@ -165,7 +230,7 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 	}
 	key := cacheKey{in.AppID, in.SessionID, in.Protocol, in.Operation, in.Versions}
 	cacheable := in.SessionVerified && in.SessionID != ""
-	mapping, categories := map[string]string{}, map[string]string{}
+	mapping, categories, generalized := map[string]string{}, map[string]string{}, map[string]string{}
 	processed := []string{}
 	p.mu.Lock()
 	if p.closed {
@@ -201,6 +266,7 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 		if equal {
 			mapping = cloneStrings(cached.mapping)
 			categories = cloneStrings(cached.categories)
+			generalized = cloneStrings(cached.generalized)
 			processed = append(processed, cached.processed...)
 			hit = true
 			cached.used = now
@@ -215,6 +281,16 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 			return nil, err
 		}
 		if extractErr != nil {
+			if errors.Is(extractErr, context.DeadlineExceeded) {
+				return nil, fail("redaction_timeout")
+			}
+			if errors.Is(extractErr, context.Canceled) {
+				return nil, fail("redaction_canceled")
+			}
+			var failure *Failure
+			if errors.As(extractErr, &failure) {
+				return nil, fail(SafeFailureCode(failure.Code))
+			}
 			return nil, fail("redaction_extraction_failed")
 		}
 		entities, validationErr := validateEntities(increment, result)
@@ -222,7 +298,7 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 			return nil, validationErr
 		}
 		entityCount = len(entities)
-		replaced, replaceErr := applyEntities(increment, entities, mapping, categories, doc.texts)
+		replaced, replaceErr := applyEntities(increment, entities, mapping, categories, doc.texts, generalized)
 		if replaceErr != nil {
 			return nil, replaceErr
 		}
@@ -250,7 +326,7 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 		canWrite = true
 	}
 	if canWrite && epoch == p.epoch {
-		entry := cacheEntry{fingerprints, append([]string(nil), processed...), cloneStrings(mapping), cloneStrings(categories), now.Add(p.options.CacheTTL), now, 0}
+		entry := cacheEntry{fingerprints, append([]string(nil), processed...), cloneStrings(mapping), cloneStrings(categories), cloneStrings(generalized), now.Add(p.options.CacheTTL), now, 0}
 		for _, s := range entry.processed {
 			entry.bytes += len(s)
 		}
@@ -258,10 +334,20 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 		for k, v := range mapping {
 			entry.bytes += len(k) + len(v) + len(categories[k])
 		}
+		for k, v := range generalized {
+			entry.bytes += len(k) + len(v)
+		}
 		p.putLocked(writeKey, entry)
 	}
 	p.mu.Unlock()
-	return &Prepared{Snapshot: &Snapshot{mapping: mapping}, body: rendered}, nil
+	return &Prepared{
+		Snapshot:    &Snapshot{mapping: mapping},
+		body:        rendered,
+		cacheHit:    hit,
+		durationMS:  time.Since(started).Milliseconds(),
+		categories:  cloneStrings(categories),
+		generalized: cloneStrings(generalized),
+	}, nil
 }
 func contextError(ctx context.Context) error {
 	if errors.Is(ctx.Err(), context.Canceled) {
@@ -303,6 +389,11 @@ func (p *Pipeline) Close() {
 		p.mu.Unlock()
 	})
 	<-p.done
+}
+
+// Done closes after the pipeline's background expiry loop stops its ticker and exits.
+func (p *Pipeline) Done() <-chan struct{} {
+	return p.done
 }
 
 // Sweep is also exposed for injected-clock tests and explicit maintenance.

@@ -168,7 +168,9 @@ func RunWithModelOptions(ctx context.Context, l dirs.Layout, version string, rea
 	if productionRedactor != nil {
 		defer productionRedactor.close()
 	}
+	defer closeServiceGroupRedactors(store, options.LocalRuntime)
 	var ownedLedger *routerledger.Store
+	var ownedRedactionObservations *routerledger.RedactionObservationStore
 	defer func() {
 		stop, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -176,14 +178,19 @@ func RunWithModelOptions(ctx context.Context, l dirs.Layout, version string, rea
 		if options.LocalCalls != nil {
 			options.LocalCalls.Close()
 		}
+		if ownedRedactionObservations != nil {
+			_ = ownedRedactionObservations.Close()
+		}
 		if ownedLedger != nil {
 			_ = ownedLedger.Close()
 		}
 	}()
-	idleCtx, idleCancel := context.WithCancel(context.Background())
-	idleDone := make(chan struct{})
-	go localIdleLoop(idleCtx, options.LocalRuntime, idleDone)
-	defer func() { idleCancel(); <-idleDone }()
+	if options.RedactionObservations == nil {
+		if obsStore, obsErr := routerledger.OpenRedactionObservations(filepath.Join(l.State, "redaction_observations.sqlite")); obsErr == nil {
+			options.RedactionObservations = obsStore
+			ownedRedactionObservations = obsStore
+		}
+	}
 	// The service lock excludes concurrent ledger owners. An incompatible or
 	// damaged ledger remains untouched and is exposed as unavailable over the
 	// management API; cloud execution can still serve without inventing history.
@@ -252,6 +259,18 @@ func RunWithModelOptions(ctx context.Context, l dirs.Layout, version string, rea
 	}
 	if err := routercontrol.SaveOptions(l, options.ExperimentalRedaction); err != nil {
 		return fmt.Errorf("save explicit startup choice: %w", err)
+	}
+	if options.LocalRuntime != nil && options.LocalRuntime.AutoLoad {
+		autoLoadCtx, autoLoadCancel := context.WithCancel(ctx)
+		autoLoadDone := make(chan struct{})
+		go func() {
+			defer close(autoLoadDone)
+			options.LocalRuntime.autoLoadInstalled(autoLoadCtx)
+		}()
+		defer func() {
+			autoLoadCancel()
+			<-autoLoadDone
+		}()
 	}
 	err = srv.Serve(ln)
 	if errors.Is(err, http.ErrServerClosed) {

@@ -9,47 +9,54 @@ host-connection endpoints, and the embedded single-page management console.
 ## Entry Points
 
 - Binary entry: `cmd/api-router/main.go`
-- Service lifecycle: `internal/routerservice/service.go` (`Config`, `Service`,
-  `New`, `Start`, `Shutdown`, `Handler`, `BaseURL`, `AdminToken`)
-- Listener & port binding: `internal/routerservice/listen.go`
-- HTTP routes & middleware: `internal/routerservice/routes.go`
+- Service lifecycle: `internal/routerservice/service.go` (`Options`, `Info`,
+  `Running`, `Start`, `Run`, `LockDir`)
+- Listener & port binding: `internal/routerservice/ports.go` (`listenAvailable`,
+  `startupPortTargets`, `persistStartupAddress`)
+- HTTP routes & middleware: `internal/routerservice/http.go` (`handler`,
+  `handlerWithModelOptions`, `requireManagement`, `managementSession`)
 - Routing groups API: `internal/routerservice/groups.go`
-  (`handleRoutingGroups`, `handleRoutingGroupByID`, `handleRoutingGroupSwitch`)
-- Host auto-connection API: `internal/routerservice/hosts.go`
-  (`handleHosts`, `handleHostsAuto`)
+  (`routingGroupsAPI`, `routingGroupSwitchAPI`, `effectiveGroups`)
+- Host auto-connection API: `internal/routerservice/host_auto.go`
+  (`hostAutoAPI`, `inspectAutoHosts`, `syncAutoHostStore`, `resolveAutoHostRoot`)
+  and `internal/routerservice/loomy.go` (`loomyHostAPI`, `autoHostConfigRoot`)
 - Embedded web console (`internal/routerservice/assets/`):
   - `index.html`, `app.js`, `provider.js`, `profiles.js`,
     `routing-groups.js`, `routing-groups-editor.js`, `observations.js`,
-    `models.js`, `redaction.js`, `usage.js`
+    `models.js`, `redaction.js`, `usage.js`, `spark.js`, `tutorial.js`
 
 ## Architecture
 
 ### Startup Sequence and Automatic Loopback Port Selection
 
-`Service.Start` initializes state and binds the loopback listener without killing
+`Start` initializes state and binds the loopback listener without killing
 unrelated processes:
 
-1. Ensures `APIRouterLayout` directories exist and initializes `config.json`,
-   `credentials.json`, and `models/manifest.json`.
-2. Loads runtime settings, redaction policy, local engine manager, usage store,
-   and observation ring buffer.
-3. Acquires `run/api-router.lock` via `routerlock.Manager`. If an identical
-   instance is already live, startup aborts cleanly (`StatusAlreadyRunning`).
-4. Binds the configured loopback port (`127.0.0.1:<port>`, default `18470`). If
-    occupied by an unrelated listener, `listenLoopback` automatically binds an
-   ephemeral loopback port, persists the newly bound port to `config.json`, and
-   calls `routerhost.SyncConnectedHostPorts` so already connected Loomy and
-   WorkBuddy configurations follow the new port.
+1. Ensures `dirs.Layout` directories exist and initializes `config.json` and
+   `credentials.json`.
+2. Loads runtime settings, redaction policy, local engine manager, usage ledger,
+   and observation collector.
+3. Acquires `<state>/router.lock` (`owner.json` + `management-token`). If an
+   identical instance is already live, startup fails with a running lock error;
+   stale locks whose recorded PID has exited or been reused are archived.
+4. Binds the configured loopback port (`127.0.0.1:<port>`, default `13145`). If
+   occupied by an unrelated listener, `listenAvailable` automatically binds the
+   next available loopback port, `routerhost.SynchronizePorts` updates already
+   connected Loomy and WorkBuddy configurations, and `persistStartupAddress`
+   persists the newly bound address to `config.json`.
 
 ### Loopback Isolation and Admin Token Authentication
 
-- All requests must originate from a loopback remote address (`isLoopbackRemote`).
-- Management API routes (`/api/*`) require either the session cookie or
-  `Authorization: Bearer <adminToken>` / `X-API-Router-Admin-Token` matching the
-  per-run random token (`s.adminToken`).
-- Gateway data-plane routes (`/v1/chat/completions`, `/v1/responses`,
-  `/v1/messages`, `/v1/models`, `/v1beta/models/*`) accept loopback agent traffic
-  without requiring the management admin token.
+- All requests must originate from a loopback remote address and match the bound
+  `Host` and same-origin checks (`http.go`).
+- Management API routes (`/api/*`) require either the management session cookie
+  or `Authorization: Bearer <token>` matching the per-run random token stored in
+  `<state>/router.lock/management-token` (`requireManagement`).
+- Gateway data-plane routes (`/app/{appId}/v1/chat/completions`,
+  `/app/{appId}/v1/responses`, `/app/{appId}/v1/messages`,
+  `/app/{appId}/v1/messages/count_tokens`, `/app/{appId}/v1/models`) accept
+  loopback agent traffic governed by the target `AppProfile`'s `CredentialMode`
+  and reject management bearer tokens on model routes.
 
 ### Management HTTP API Surface
 
@@ -97,3 +104,7 @@ The single-page console (`index.html`) organizes workflows into six views:
 - `#view-usage` (`usage.js`, `observations.js`): token/cost usage charts and
   breakdowns at the top, with the request observation ledger and diagnostic
   drawer (`#ledgerPane`, `#obsBody`, `#obsDrawer`) integrated at the bottom.
+
+The usage guide restores focus to its invoking header, resume or settings
+control after closing, for both pointer and keyboard activation; automatic
+opening retains the previous focus or uses the header entry as a fallback.

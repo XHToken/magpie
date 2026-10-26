@@ -1,7 +1,6 @@
 package routerredact
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -27,8 +26,8 @@ const PrimaryLLMSystemPrompt = `你是隐私信息抽取器。请识别文本中
 要求：
 1. value 必须是原文中的精确子串。
 2. 不要输出解释，不要输出 markdown。
-3. 优先识别中文姓名、机构、地址、口令、密钥、业务单号、证件号以及与收入/合同/打款/余额/税费相关的敏感金额。
-4. 不要把普通年份、纯季节时间、宏观统计数字、泛化词（如"客户""公司""接口"）识别成敏感实体。
+3. 优先识别中文姓名（含口语化提及如“转告/通知/联系某人”、并列人名“A和B”）、外文/法文等带重音符号的姓名（如 Élodie Durand）、机构、地址、口令、密钥、业务单号、证件号以及与收入/合同/打款/余额/税费相关的敏感金额。
+4. 不要把普通年份、纯季节时间、版本号（如 v1.2.3）、端口号、重试次数、成功率百分比、泛化词（如"客户""公司""接口"）识别成敏感实体。
 5. 如果没有发现，输出 {"entities":[]}。`
 
 const FocusedReviewLLMSystemPrompt = `你是隐私漏检复核器。请结合整段上下文，检查文本中是否还有被遗漏的敏感信息，只输出 JSON，格式为 {"entities":[{"label":"NAME|PHONE|EMAIL|WECHAT|QQ|ID_CARD|PASSPORT|HM_PASS|TW_PASS|DRIVER_LICENSE|MILITARY_ID|BIRTH_DATE|BANK_CARD|SOCIAL_CREDIT_CODE|CASE_NUMBER|WORK_ORDER|PLATE_NUMBER|ADDRESS|ORG|COMPANY|SCHOOL|IP|MAC|HOSTNAME|URL|SECRET|AMOUNT","value":"原文子串","confidence":0.0}]}。
@@ -112,6 +111,20 @@ func NewLocalLLMDetector(opts LocalLLMDetectorOptions) *LocalLLMDetector {
 		enableReviewPass:   opts.EnableReviewPass,
 		reviewMinRemaining: minRem,
 	}
+}
+
+// Available checks whether the underlying runtime invoker is currently available for redaction.
+func (d *LocalLLMDetector) Available() error {
+	if d == nil || d.completionFunc != nil {
+		return nil
+	}
+	if d.invoker == nil {
+		return fail("redaction_unavailable")
+	}
+	if err := d.invoker.Require(routerruntime.Redaction); err != nil {
+		return fail("redaction_unavailable")
+	}
+	return nil
 }
 
 // ChunkText splits text into overlapping rune chunks, preferring newline boundaries near the chunk end.
@@ -245,8 +258,14 @@ func (d *LocalLLMDetector) detectChunk(ctx context.Context, chunk TextChunk, exi
 	if err != nil {
 		return nil, err
 	}
-	primaryEntities := ParseLLMContent(rawContent)
-	spans := d.alignAndFilterEntities(chunk, primaryEntities, "local_llm_primary")
+	primaryEntities, err := ParseLLMContentStrict(rawContent)
+	if err != nil {
+		return nil, err
+	}
+	spans, err := d.alignAndFilterEntities(chunk, primaryEntities, "local_llm_primary")
+	if err != nil {
+		return nil, err
+	}
 
 	if d.enableReviewPass && d.hasRemainingBudget(ctx) {
 		combinedLocal := make([]DetectedSpan, 0, len(existingLocal)+len(spans))
@@ -259,11 +278,18 @@ func (d *LocalLLMDetector) detectChunk(ctx context.Context, chunk TextChunk, exi
 		}
 		reviewUserPrompt := buildFocusedReviewUserPrompt(chunk.Text, combinedLocal)
 		reviewContent, reviewErr := d.complete(ctx, FocusedReviewLLMSystemPrompt, reviewUserPrompt, true)
-		if reviewErr == nil && strings.TrimSpace(reviewContent) != "" {
-			reviewEntities := ParseLLMContent(reviewContent)
-			reviewSpans := d.alignAndFilterEntities(chunk, reviewEntities, "local_llm_review")
-			spans = append(spans, reviewSpans...)
+		if reviewErr != nil {
+			return nil, reviewErr
 		}
+		reviewEntities, parseErr := ParseLLMContentStrict(reviewContent)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		reviewSpans, alignErr := d.alignAndFilterEntities(chunk, reviewEntities, "local_llm_review")
+		if alignErr != nil {
+			return nil, alignErr
+		}
+		spans = append(spans, reviewSpans...)
 	}
 	return spans, nil
 }
@@ -314,9 +340,23 @@ func buildFocusedReviewUserPrompt(chunkText string, existingLocal []DetectedSpan
 
 func (d *LocalLLMDetector) complete(ctx context.Context, systemPrompt, userPrompt string, review bool) (string, error) {
 	if d.completionFunc != nil {
-		return d.completionFunc(ctx, systemPrompt, userPrompt, review)
+		raw, err := d.completionFunc(ctx, systemPrompt, userPrompt, review)
+		if err != nil {
+			return "", err
+		}
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			return "", fail("redaction_invalid_result")
+		}
+		if strings.HasPrefix(trimmed, "{") && strings.Contains(trimmed, `"choices"`) {
+			return extractCompletionTextStrict([]byte(trimmed))
+		}
+		return raw, nil
 	}
 	if d.invoker == nil {
+		return "", fail("redaction_unavailable")
+	}
+	if err := d.invoker.Require(routerruntime.Redaction); err != nil {
 		return "", fail("redaction_unavailable")
 	}
 	reqPayload := map[string]any{
@@ -355,13 +395,23 @@ func (d *LocalLLMDetector) complete(ctx context.Context, systemPrompt, userPromp
 		if usage := reportedUsageFromBody(raw); usage != nil {
 			routerruntime.PublishGenerationUsage(ctx, usage)
 		}
-		content = extractCompletionText(raw)
+		extracted, extractErr := extractCompletionTextStrict(raw)
+		if extractErr != nil {
+			return extractErr
+		}
+		content = extracted
 		return nil
 	})
 	if ctxErr := contextError(ctx); ctxErr != nil {
 		return "", ctxErr
 	}
 	if err != nil || consumed != 1 {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return "", fail("redaction_timeout")
+		}
+		if errors.Is(err, context.Canceled) {
+			return "", fail("redaction_canceled")
+		}
 		var failure *Failure
 		if errors.As(err, &failure) {
 			return "", fail(SafeFailureCode(failure.Code))
@@ -369,6 +419,278 @@ func (d *LocalLLMDetector) complete(ctx context.Context, systemPrompt, userPromp
 		return "", fail("redaction_extraction_failed")
 	}
 	return content, nil
+}
+
+func extractCompletionTextStrict(raw []byte) (string, error) {
+	v, err := wireDecode(raw, 1<<20)
+	root, ok := v.(map[string]any)
+	if err != nil || !ok {
+		return "", fail("redaction_invalid_result")
+	}
+	for key, value := range root {
+		switch key {
+		case "choices":
+		case "id", "object", "model":
+			if _, ok := value.(string); !ok {
+				return "", fail("redaction_invalid_result")
+			}
+		case "system_fingerprint", "service_tier":
+			if _, ok := value.(string); value != nil && !ok {
+				return "", fail("redaction_invalid_result")
+			}
+		case "created":
+			if _, ok := privacyInteger(value, int(^uint(0)>>1)); !ok {
+				return "", fail("redaction_invalid_result")
+			}
+		case "truncated", "prompt_truncated":
+			if value != false {
+				return "", fail("redaction_invalid_result")
+			}
+		case "usage", "timings":
+			if _, ok := value.(map[string]any); value != nil && !ok {
+				return "", fail("redaction_invalid_result")
+			}
+			if !privacyUntruncatedMetadata(value) {
+				return "", fail("redaction_invalid_result")
+			}
+		default:
+			return "", fail("redaction_invalid_result")
+		}
+	}
+	choices, ok := root["choices"].([]any)
+	if !ok || len(choices) != 1 {
+		return "", fail("redaction_invalid_result")
+	}
+	choice, ok := choices[0].(map[string]any)
+	if !ok {
+		return "", fail("redaction_invalid_result")
+	}
+	for key, value := range choice {
+		switch key {
+		case "index", "message", "finish_reason":
+		case "logprobs":
+			if value != nil {
+				return "", fail("redaction_invalid_result")
+			}
+		default:
+			return "", fail("redaction_invalid_result")
+		}
+	}
+	if idxVal, hasIndex := choice["index"]; hasIndex {
+		index, indexOK := privacyInteger(idxVal, 0)
+		if !indexOK || index != 0 {
+			return "", fail("redaction_invalid_result")
+		}
+	}
+	if choice["finish_reason"] != "stop" {
+		return "", fail("redaction_invalid_result")
+	}
+	message, messageOK := choice["message"].(map[string]any)
+	if !messageOK {
+		return "", fail("redaction_invalid_result")
+	}
+	for key, value := range message {
+		switch key {
+		case "role", "content":
+		case "refusal", "reasoning", "reasoning_content":
+			if value != nil && value != "" {
+				return "", fail("redaction_invalid_result")
+			}
+		case "tool_calls", "annotations":
+			if values, ok := value.([]any); value != nil && (!ok || len(values) != 0) {
+				return "", fail("redaction_invalid_result")
+			}
+		case "function_call":
+			if object, ok := value.(map[string]any); value != nil && (!ok || len(object) != 0) {
+				return "", fail("redaction_invalid_result")
+			}
+		default:
+			return "", fail("redaction_invalid_result")
+		}
+	}
+	if roleVal, hasRole := message["role"]; hasRole && roleVal != "assistant" {
+		return "", fail("redaction_invalid_result")
+	}
+	content, ok := message["content"].(string)
+	if !ok || strings.TrimSpace(content) == "" {
+		return "", fail("redaction_invalid_result")
+	}
+	return content, nil
+}
+
+// ParseLLMContentStrict strictly validates that raw LLM content is a complete, well-formed JSON entity list
+// with recognized privacy labels, failing closed on truncation, garbage, duplicate/unknown keys, or unknown labels.
+func ParseLLMContentStrict(raw string) ([]LLMRawEntity, error) {
+	cleaned := strings.TrimSpace(raw)
+	if cleaned == "" {
+		return nil, fail("redaction_invalid_result")
+	}
+	decoded, err := wireDecode([]byte(cleaned), 1<<20)
+	root, ok := decoded.(map[string]any)
+	if err != nil || !ok {
+		return nil, fail("redaction_invalid_result")
+	}
+	if completeVal, hasComplete := root["complete"]; hasComplete {
+		if completeBool, isBool := completeVal.(bool); !isBool || !completeBool {
+			return nil, fail("redaction_invalid_result")
+		}
+	}
+	payloadKeys := 0
+	for key := range root {
+		switch key {
+		case "complete":
+		case "entities", "findings", "fields":
+			payloadKeys++
+		default:
+			return nil, fail("redaction_invalid_result")
+		}
+	}
+	if payloadKeys != 1 {
+		return nil, fail("redaction_invalid_result")
+	}
+	if rawList, exists := root["entities"]; exists {
+		list, ok := rawList.([]any)
+		if !ok {
+			return nil, fail("redaction_invalid_result")
+		}
+		return parseLLMEntitySliceStrict(list)
+	}
+	if rawList, exists := root["findings"]; exists {
+		list, ok := rawList.([]any)
+		if !ok {
+			return nil, fail("redaction_invalid_result")
+		}
+		return parseLLMEntitySliceStrict(list)
+	}
+	if rawFields, exists := root["fields"]; exists {
+		fields, ok := rawFields.([]any)
+		if !ok || len(fields) == 0 {
+			return nil, fail("redaction_invalid_result")
+		}
+		var combined []LLMRawEntity
+		for i, f := range fields {
+			fm, ok := f.(map[string]any)
+			if !ok {
+				return nil, fail("redaction_invalid_result")
+			}
+			if completeVal, hasComplete := fm["complete"]; hasComplete {
+				if completeBool, isBool := completeVal.(bool); !isBool || !completeBool {
+					return nil, fail("redaction_invalid_result")
+				}
+			}
+			if idxVal, hasIdx := fm["index"]; hasIdx {
+				idx, idxOK := privacyInteger(idxVal, len(fields)-1)
+				if !idxOK || idx != i {
+					return nil, fail("redaction_invalid_result")
+				}
+			}
+			listKeys := 0
+			var list []any
+			for key, val := range fm {
+				switch key {
+				case "index", "complete":
+				case "findings", "entities":
+					listKeys++
+					l, ok := val.([]any)
+					if !ok {
+						return nil, fail("redaction_invalid_result")
+					}
+					list = l
+				default:
+					return nil, fail("redaction_invalid_result")
+				}
+			}
+			if listKeys != 1 {
+				return nil, fail("redaction_invalid_result")
+			}
+			parsed, err := parseLLMEntitySliceStrict(list)
+			if err != nil {
+				return nil, err
+			}
+			combined = append(combined, parsed...)
+		}
+		return combined, nil
+	}
+	return nil, fail("redaction_invalid_result")
+}
+
+func parseLLMEntitySliceStrict(items []any) ([]LLMRawEntity, error) {
+	out := make([]LLMRawEntity, 0, len(items))
+	for _, item := range items {
+		m, ok := item.(map[string]any)
+		if !ok {
+			return nil, fail("redaction_invalid_result")
+		}
+		labelKeys := 0
+		valueKeys := 0
+		confKeys := 0
+		for key := range m {
+			switch key {
+			case "label", "type", "category":
+				labelKeys++
+			case "value", "text", "entity":
+				valueKeys++
+			case "confidence", "score":
+				confKeys++
+			case "start", "end":
+			default:
+				return nil, fail("redaction_invalid_result")
+			}
+		}
+		if labelKeys != 1 || valueKeys != 1 || confKeys > 1 {
+			return nil, fail("redaction_invalid_result")
+		}
+		label := firstString(m, "label", "type", "category")
+		value := firstString(m, "value", "text", "entity")
+		if label == "" || value == "" || !isRecognizedLLMLabel(label) {
+			return nil, fail("redaction_invalid_result")
+		}
+		conf := 0.85
+		if confKeys == 1 {
+			var rawConf any
+			if v, exists := m["confidence"]; exists {
+				rawConf = v
+			} else {
+				rawConf = m["score"]
+			}
+			if !privacyConfidence(rawConf) {
+				return nil, fail("redaction_invalid_result")
+			}
+			c, _ := firstFloat(m, "confidence", "score")
+			conf = clampConfidence(c)
+		}
+		_, hasStart := m["start"]
+		_, hasEnd := m["end"]
+		if hasStart != hasEnd {
+			return nil, fail("redaction_invalid_result")
+		}
+		var startPtr, endPtr *int
+		if hasStart {
+			s, sOK := privacyInteger(m["start"], int(^uint(0)>>1))
+			e, eOK := privacyInteger(m["end"], int(^uint(0)>>1))
+			if !sOK || !eOK || e <= s {
+				return nil, fail("redaction_invalid_result")
+			}
+			startPtr = &s
+			endPtr = &e
+		}
+		out = append(out, LLMRawEntity{
+			Label:      label,
+			Value:      value,
+			Confidence: conf,
+			Start:      startPtr,
+			End:        endPtr,
+		})
+	}
+	return out, nil
+}
+
+func isRecognizedLLMLabel(rawLabel string) bool {
+	canon := CanonicalizeLabel(rawLabel)
+	if canon == "" {
+		return false
+	}
+	return SensitiveLabels[canon] || AllowedPassThroughLabels[canon] || LLMIgnoredLabels[canon]
 }
 
 func extractCompletionText(raw []byte) string {
@@ -670,19 +992,7 @@ func ResolveEntitySpans(chunkText string, item LLMRawEntity) [][2]int {
 	if len(spans) > 0 {
 		return spans
 	}
-
-	// 3. Relaxed whitespace regex alignment when LLM omitted or normalized spaces.
-	relaxed := buildRelaxedWhitespaceRegex(val)
-	if relaxed != nil {
-		for _, loc := range relaxed.FindAllStringIndex(chunkText, -1) {
-			start, end := loc[0], loc[1]
-			matched := chunkText[start:end]
-			if !overlapsPlaceholder(start, end) && validLLMASCIISpanBoundary(chunkText, matched, start, end) {
-				spans = append(spans, [2]int{start, end})
-			}
-		}
-	}
-	return spans
+	return nil
 }
 
 func validLLMASCIISpanBoundary(text, val string, start, end int) bool {
@@ -704,37 +1014,6 @@ func isASCIIWordByte(b byte) bool {
 	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_'
 }
 
-func buildRelaxedWhitespaceRegex(val string) *regexp.Regexp {
-	runes := []rune(strings.TrimSpace(val))
-	if len(runes) < 2 || len(runes) > 128 {
-		return nil
-	}
-	var b bytes.Buffer
-	prevSpace := false
-	for i, r := range runes {
-		if unicode.IsSpace(r) {
-			if !prevSpace {
-				b.WriteString(`\s*`)
-				prevSpace = true
-			}
-			continue
-		}
-		prevSpace = false
-		b.WriteString(regexp.QuoteMeta(string(r)))
-		if i+1 < len(runes) && !unicode.IsSpace(runes[i+1]) {
-			// Allow optional whitespace between CJK and ASCII or punctuation tokens.
-			if (r > 127) != (runes[i+1] > 127) {
-				b.WriteString(`\s*`)
-			}
-		}
-	}
-	re, err := regexp.Compile(b.String())
-	if err != nil {
-		return nil
-	}
-	return re
-}
-
 var (
 	nonSensitiveDatePattern = regexp.MustCompile(`^(?:(?:19|20)\d{2}\s*年?|(?:19|20)\d{2}[-/.年](?:0?[1-9]|1[0-2])月?|(?:0?[1-9]|1[0-2])月(?:0?[1-9]|[12]\d|3[01])日?|今天|昨天|明天|前天|后天|本周|上周|下周|本月|上月|下月|上个月|这个月|下个月|今年|去年|明年|年初|年中|年底|月末|月初|季度|第[一二三四1-4]季度|Q[1-4]|q[1-4]|春季|夏季|秋季|冬季|\d+\s*(?:年|个月|周|天|日|小时|分钟|秒)内?)$`)
 	amountCurrencyMarkerRe  = regexp.MustCompile(`(?i)(?:[￥¥$€£]|人民币|美元|欧元|英镑|港元|港币|日元|元|块|万|亿|RMB|CNY|USD|HKD|EUR|JPY|GBP)`)
@@ -751,6 +1030,19 @@ var genericSensitiveValueStopwords = map[string]bool{
 	"银行卡号": true, "金额": true, "余额": true, "工资": true, "薪资": true,
 	"合同": true, "工单": true, "车牌": true, "车牌号": true, "微信号": true,
 	"微信": true, "验证码": true, "客户端": true, "董事会": true, "公告": true,
+	"程序": true, "系统": true, "模块": true, "服务": true, "文档": true,
+	"代码": true, "脚本": true, "配置": true, "环境": true, "分支": true,
+	"版本": true, "日志": true, "数据库": true, "服务器": true, "集群": true,
+	"容器": true, "节点": true, "网关": true, "路由": true, "插件": true,
+	"组件": true, "框架": true, "算法": true, "模型": true, "策略": true,
+	"规则": true, "流程": true, "方案": true, "报告": true, "清单": true,
+	"表格": true, "附件": true, "邮件": true, "消息": true, "通知": true,
+	"会议": true, "全员": true, "大家": true, "各位": true, "同事": true,
+	"团队": true, "部门": true, "中心": true, "负责人": true, "文档负责人": true,
+	"项目负责人": true, "技术负责人": true, "经办人": true, "申请人": true, "审核人": true,
+	"审批人": true, "管理员": true, "开发": true, "测试": true, "运维": true,
+	"产品": true, "设计": true, "客服": true, "法务": true, "财务": true,
+	"明天提交": true, "今天提交": true, "尽快提交": true, "立即处理": true, "明天到场": true,
 	"password": true, "passwd": true, "pwd": true, "token": true,
 	"secret": true, "api_key": true, "apikey": true, "username": true,
 	"account": true, "client": true, "company": true, "project": true,
@@ -784,6 +1076,14 @@ var codeIdentifierStopwords = map[string]bool{
 var personExcludedSuffixes = []string{
 	"公司", "集团", "银行", "证券", "基金", "保险", "科技", "技术", "股份",
 	"医药", "医院", "学校", "大学", "政府", "委员会", "中心", "研究院",
+	"负责人", "专员", "经理", "主管", "总监", "工程师", "管理员",
+	"提交", "确认", "处理", "办理", "申请", "签署", "到场", "参会", "回电",
+}
+
+var personExcludedPrefixes = []string{
+	"明天", "今天", "今日", "昨天", "前天", "后天", "本周", "上周", "下周",
+	"本月", "上月", "下月", "今年", "明年", "稍后", "尽快", "立即", "马上",
+	"下午", "上午", "晚上", "请通知", "通知", "请联系", "联系", "请转告", "转告",
 }
 
 // ShouldKeepLLMEntity applies post-extraction heuristic filters to suppress false positives from local LLM output.
@@ -826,6 +1126,11 @@ func ShouldKeepLLMEntity(rawLabel, value string) bool {
 				return false
 			}
 		}
+		for _, prefix := range personExcludedPrefixes {
+			if strings.HasPrefix(trimmed, prefix) {
+				return false
+			}
+		}
 		// Reject camelCase code identifiers mistaken for English names.
 		if asciiIdentifierShapeRe.MatchString(trimmed) && !strings.Contains(trimmed, " ") && hasInternalUpperCase(trimmed) {
 			return false
@@ -851,10 +1156,16 @@ func hasInternalUpperCase(s string) bool {
 	return false
 }
 
-func (d *LocalLLMDetector) alignAndFilterEntities(chunk TextChunk, rawEntities []LLMRawEntity, detectorName string) []DetectedSpan {
+func (d *LocalLLMDetector) alignAndFilterEntities(chunk TextChunk, rawEntities []LLMRawEntity, detectorName string) ([]DetectedSpan, error) {
 	var out []DetectedSpan
 	for _, item := range rawEntities {
+		if !ShouldKeepLLMEntity(item.Label, item.Value) {
+			continue
+		}
 		spans := ResolveEntitySpans(chunk.Text, item)
+		if len(spans) == 0 {
+			return nil, fail("redaction_invalid_result")
+		}
 		for _, sp := range spans {
 			matchedText := chunk.Text[sp[0]:sp[1]]
 			if !ShouldKeepLLMEntity(item.Label, matchedText) {
@@ -878,5 +1189,5 @@ func (d *LocalLLMDetector) alignAndFilterEntities(chunk TextChunk, rawEntities [
 			})
 		}
 	}
-	return out
+	return out, nil
 }

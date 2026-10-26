@@ -1,6 +1,11 @@
 'use strict';
 (() => {
   for (const [key, zh, tw, ja, de] of [
+    ['Statistics scope', '统计口径', '統計口徑', '集計対象', 'Zählweise'],
+    ['Request share', '请求占比', '請求占比', 'リクエストの割合', 'Anfrageanteil'],
+    ['Token count', 'Token 数', 'Token 數', 'トークン数', 'Token-Anzahl'],
+    ['Timing details', '耗时明细', '耗時明細', '所要時間の詳細', 'Zeitdetails'],
+    ['Retained history', '记录保留范围', '紀錄保留範圍', '保存履歴の範囲', 'Gespeicherter Verlauf'],
     ['Routing decision', '判断结果', '判斷結果', 'ルーティング判断', 'Routing-Entscheidung'], ['Cloud routing reason', '转云原因', '轉雲原因', 'クラウド実行の理由', 'Grund für Cloud-Routing'], ['Judgment status', '判断调用状态', '判斷呼叫狀態', '判断の呼出状態', 'Status des Beurteilungsaufrufs'], ['Execution status', '执行调用状态', '執行呼叫狀態', '実行の呼出状態', 'Status des Ausführungsaufrufs'], ['Judgment duration (ms)', '判断耗时（毫秒）', '判斷耗時（毫秒）', '判断時間（ms）', 'Beurteilungsdauer (ms)'], ['Not observed', '未观测到调用', '未觀測到呼叫', '呼び出しの記録なし', 'Kein Aufruf beobachtet'], ['Failure reason', '失败原因', '失敗原因', '失敗の理由', 'Fehlergrund'], ['Local routing is unavailable', '本地判断暂不可用', '本機判斷暫時無法使用', 'ローカル判断を利用できません', 'Lokales Routing ist nicht verfügbar'],
     ['Judgment queue timed out', '判断排队超时', '判斷排隊逾時', '判断の待機がタイムアウト', 'Wartezeit für Beurteilung überschritten'], ['Judgment inference timed out', '判断推理超时', '判斷推理逾時', '判断の推論がタイムアウト', 'Zeit für Beurteilungsinferenz überschritten'], ['Judgment budget exhausted', '判断总预算耗尽', '判斷總預算耗盡', '判断の時間予算を消費', 'Beurteilungsbudget erschöpft'], ['Judgment failed', '本地判断失败', '本機判斷失敗', 'ローカル判断に失敗', 'Lokale Beurteilung fehlgeschlagen'], ['Judgment input exceeds its limit', '判断输入超过上限', '判斷輸入超過上限', '判断入力が上限を超過', 'Beurteilungseingabe überschreitet das Limit'], ['Request cannot be summarized safely', '请求限制无法完整压缩，已转云', '請求限制無法完整壓縮，已轉雲', '要求の制約を完全に要約できないためクラウドへ切替', 'Anfragebeschränkungen sind nicht vollständig zusammenfassbar; Cloud gewählt'], ['Context window exceeded', '上下文窗口不足', '上下文視窗不足', 'コンテキスト長の上限を超過', 'Kontextfenster überschritten'], ['Local token count is unavailable', '无法确认本地 Token 数', '無法確認本機 Token 數', 'ローカルトークン数を確認できません', 'Lokale Tokenzahl ist nicht verfügbar'],
     ['Local service returned an HTTP error', '本地服务返回 HTTP 错误', '本機服務傳回 HTTP 錯誤', 'ローカルサービスのHTTPエラー', 'Lokaler Dienst meldete einen HTTP-Fehler'], ['Execution queue timed out', '执行排队超时', '執行排隊逾時', '実行の待機がタイムアウト', 'Wartezeit für Ausführung überschritten'], ['Local execution timed out', '本地执行超时', '本機執行逾時', 'ローカル実行がタイムアウト', 'Zeit für lokale Ausführung überschritten'], ['Local execution is unavailable', '本地执行暂不可用', '本機執行暫時無法使用', 'ローカル実行を利用できません', 'Lokale Ausführung ist nicht verfügbar'], ['Local execution failed', '本地执行失败', '本機執行失敗', 'ローカル実行に失敗', 'Lokale Ausführung fehlgeschlagen'], ['Local output protocol is unsupported', '本地不支持本次输出协议', '本機不支援本次輸出協定', 'ローカル出力プロトコルに非対応', 'Lokales Ausgabeprotokoll wird nicht unterstützt'], ['Judgment returned an invalid decision', '判断结果格式无效', '判斷結果格式無效', '判断結果の形式が無効', 'Beurteilung lieferte eine ungültige Entscheidung'], ['Time reserved for cloud fallback', '本地剩余预算不足，已预留时间转云', '本機剩餘預算不足，已預留時間轉雲', 'ローカル予算が不足し、クラウド切替時間を確保', 'Lokales Zeitbudget reicht nicht; Zeit für Cloud-Fallback reserviert'],
@@ -26,6 +31,18 @@
     ['Routing / failure reason', '转云/失败原因', '轉雲/失敗原因', '切替・失敗の理由', 'Routing-/Fehlergrund'], ['Redaction failed', '脱敏处理失败', '去識別化處理失敗', '匿名化処理に失敗', 'Anonymisierung fehlgeschlagen'], ['Redaction canceled', '脱敏已取消', '去識別化已取消', '匿名化がキャンセルされました', 'Anonymisierung abgebrochen'], ['Redaction runtime closed', '脱敏运行时已关闭', '去識別化執行階段已關閉', '匿名化ランタイムが終了しました', 'Anonymisierungslaufzeit geschlossen'], ['Redaction extraction failed', '敏感实体提取失败', '敏感實體擷取失敗', '機密エンティティの抽出に失敗', 'Entitätsextraktion fehlgeschlagen'], ['Redaction input exceeds limit', '脱敏输入超过上限', '去識別化輸入超過上限', '匿名化入力が上限を超過', 'Anonymisierungseingabe überschreitet Limit'], ['Invalid redaction input', '脱敏输入无效', '去識別化輸入無效', '無効な匿名化入力', 'Ungültige Anonymisierungseingabe'], ['Redaction returned invalid response', '脱敏模型返回格式无效', '去識別化模型傳回格式無效', '匿名化モデルの応答形式が無効', 'Anonymisierung lieferte ungültige Antwort'],
     ['Redaction result failed validation', '脱敏结果校验失败', '去識別化結果驗證失敗', '匿名化結果の検証に失敗', 'Validierung des Anonymisierungsergebnisses fehlgeschlagen'], ['Redaction entity conflict', '敏感实体映射冲突', '敏感實體映射衝突', '機密エンティティのマッピング競合', 'Entitätskonflikt bei der Anonymisierung'], ['Redaction mapping limit exceeded', '敏感实体映射数量超限', '敏感實體映射數量超限', 'エンティティマッピング数が上限を超過', 'Zuordnungslimit für Anonymisierung überschritten'], ['Redaction placeholder limit exceeded', '脱敏占位符数量超限', '去識別化佔位符數量超限', 'プレースホルダー数が上限を超過', 'Platzhalterlimit für Anonymisierung überschritten'], ['Redaction session released', '脱敏会话已释放', '去識別化工作階段已釋放', '匿名化セッションが解放されました', 'Anonymisierungssitzung freigegeben'], ['Redaction response exceeds limit', '脱敏响应超过上限', '去識別化回應超過上限', '匿名化応答が上限を超過', 'Anonymisierungsantwort überschreitet Limit'], ['Redaction specification failed', '脱敏规范校验未通过', '去識別化規範驗證未通過', '匿名化仕様の検証に失敗', 'Anonymisierungsspezifikation fehlgeschlagen'], ['Redaction timed out', '脱敏超时', '去識別化逾時', '匿名化がタイムアウト', 'Zeitüberschreitung bei der Anonymisierung'],
     ['Redaction unavailable', '脱敏服务不可用', '去識別化服務不可用', '匿名化サービスを利用できません', 'Anonymisierung nicht verfügbar'], ['Stream restore failed', '流式脱敏还原失败', '串流去識別化還原失敗', 'ストリーム復元処理に失敗', 'Stream-Wiederherstellung fehlgeschlagen'],
+    ['Inspect the latest user input turn of each request before and after redaction. System prompts, tool definitions and tool outputs are excluded.', '展示每次请求最新一轮用户输入的原始文本与脱敏后文本对比。不包含系统提示词、工具定义与工具返回结果。', '顯示每次請求最新一輪使用者輸入的原始文本與去識別化後文本對比。不包含系統提示詞、工具定義與工具傳回結果。', '各リクエストの最新ユーザー入力について、匿名化前後のテキストを比較表示します。システムプロンプト、ツール定義、ツール出力は除外されます。', 'Zeigt die letzte Benutzereingabe jeder Anfrage vor und nach der Anonymisierung. Systemprompts, Tool-Definitionen und Tool-Ausgaben sind ausgeschlossen.'],
+    ['Observed inputs', '观测输入总数', '觀測輸入總數', '観測された入力数', 'Beobachtete Eingaben'], ['Redaction hits', '命中脱敏次数', '命中去識別化次數', '匿名化ヒット数', 'Anonymisierungstreffer'], ['Pass-through inputs', '未命中原样放行', '未命中原樣放行', '未検出（そのまま通過）', 'Unverändert durchgeleitet'], ['Redacted entities', '累计替换敏感项', '累計替換敏感項', '置換された機密項目数', 'Ersetzte sensible Elemente'],
+    ['All user inputs', '全部用户输入', '全部使用者輸入', 'すべてのユーザー入力', 'Alle Benutzereingaben'], ['Redaction hits only', '仅看命中脱敏', '僅看命中去識別化', '匿名化ヒットのみ', 'Nur Treffer'], ['Keyword search', '关键词搜索', '關鍵字搜尋', 'キーワード検索', 'Stichwortsuche'], ['Search original or redacted text…', '搜索原始输入或脱敏文本…', '搜尋原始輸入或去識別化文本…', '元のテキストまたは匿名化テキストを検索…', 'Original- oder anonymisierten Text suchen…'],
+    ['Clear records', '清空记录', '清空紀錄', '記録を消去', 'Einträge löschen'], ['Confirm clear', '确认清空', '確認清空', '消去を確認', 'Löschen bestätigen'], ['Original user input (before redaction)', '原始用户输入（脱敏前）', '原始使用者輸入（去識別化前）', '元のユーザー入力（匿名化前）', 'Ursprüngliche Benutzereingabe (vor Anonymisierung)'], ['Redacted user input (sent to model)', '脱敏后用户输入（实际发送）', '去識別化後使用者輸入（實際傳送）', '匿名化後のユーザー入力（送信内容）', 'Anonymisierte Benutzereingabe (gesendet)'],
+    ['Copy', '复制', '複製', 'コピー', 'Kopieren'], ['Copied', '已复制', '已複製', 'コピー済み', 'Kopiert'], ['Sensitive entity mappings', '敏感实体替换映射表', '敏感實體替換映射表', '機密エンティティ置換マッピング', 'Zuordnung sensibler Entitäten'], ['Redacted token', '脱敏后表示', '去識別化後表示', '置換後トークン', 'Anonymisierter Token'],
+    ['Sensitive category', '敏感类别', '敏感類別', '機密カテゴリ', 'Kategorie'], ['Original value', '原始敏感内容', '原始敏感內容', '元の機密値', 'Ursprünglicher Wert'], ['Occurrences', '替换次数', '替換次數', '置換回数', 'Vorkommen'], ['Hit {count} items', '命中 {count} 项', '命中 {count} 項', '{count} 件検出', '{count} Treffer'],
+    ['No sensitive info', '未命中敏感信息', '未命中敏感資訊', '機密情報なし', 'Keine sensiblen Daten'], ['Cache hit', '命中缓存', '命中快取', 'キャッシュヒット', 'Cache-Treffer'], ['Generalized', '泛化', '泛化', '汎化', 'Verallgemeinert'], ['No redaction observations yet', '暂无脱敏观测记录', '暫無去識別化觀測紀錄', '匿名化の観測記録はまだありません', 'Noch keine Anonymisierungsbeobachtungen'],
+    ['No matching redaction observations', '没有匹配的脱敏观测记录', '沒有符合的去識別化觀測紀錄', '一致する匿名化観測記録はありません', 'Keine passenden Anonymisierungsbeobachtungen'], ['Loading redaction observations…', '正在读取脱敏观测记录…', '正在讀取去識別化觀測紀錄…', '匿名化観測記録を読み込み中…', 'Anonymisierungsbeobachtungen werden geladen…'], ['Redaction observation store unavailable', '脱敏观测存储不可用', '去識別化觀測儲存無法使用', '匿名化観測ストアを利用できません', 'Anonymisierungs-Beobachtungsspeicher nicht verfügbar'], ['Older observations', '更早的记录', '更早的紀錄', '以前の記録', 'Ältere Einträge'],
+    ['Latest observations', '最新记录', '最新紀錄', '最新の記録', 'Neueste Einträge'], ['cat.NAME', '姓名', '姓名', '氏名', 'Name'], ['cat.PHONE', '手机号', '手機號', '電話番号', 'Telefon'], ['cat.EMAIL', '邮箱', '信箱', 'メール', 'E-Mail'],
+    ['cat.ID_CARD', '身份证号', '身分證號', '身分証番号', 'Ausweisnummer'], ['cat.BANK_CARD', '银行卡号', '銀行卡號', 'カード番号', 'Bankkarte'], ['cat.API_KEY', 'API 密钥', 'API 金鑰', 'APIキー', 'API-Schlüssel'], ['cat.PASSWORD', '密码', '密碼', 'パスワード', 'Passwort'],
+    ['cat.PRIVATE_KEY', '私钥', '私鑰', '秘密鍵', 'Privater Schlüssel'], ['cat.DB_URI', '数据库连接串', '資料庫連線字串', 'DB接続文字列', 'DB-Verbindungs-URI'], ['cat.INTERNAL_IP', '内网 IP', '內網 IP', '内部IP', 'Interne IP'], ['cat.ADDRESS', '地址', '地址', '住所', 'Adresse'],
+    ['cat.COMPANY', '公司/机构', '公司/機構', '会社・組織', 'Unternehmen'], ['cat.PROJECT_CODE', '项目代号', '專案代號', 'プロジェクトコード', 'Projektcode'], ['cat.AMOUNT', '金额', '金額', '金額', 'Betrag'],
   ]) for (const [lang, text] of [['zh', zh], ['zh-TW', tw], ['ja', ja], ['de', de]]) (I18N[lang] ||= {})[key] = text;
 
   const statuses = { processing: 'Processing', succeeded: 'Succeeded', failed: 'Failed', canceled: 'Canceled', timed_out: 'Timed out', interrupted: 'Interrupted' };
@@ -48,6 +65,7 @@
   const timingFields = { queueLoadMs: 'Queue and load (ms)', queueMs: 'Queue (ms)', loadMs: 'Load (ms)', requestHeadersMs: 'Request headers (ms)', consumeMs: 'Response consumption (ms)', inferenceMs: 'Inference (ms)', totalMs: 'Total time (ms)' };
   let records = [], summary = null, ledger = null, nextCursor = '', cursor = '', selected = null;
   let state = 'Management token required', detailError = '', loading = false, sequence = 0, status = '', operation = '', destinationFilter = '';
+  let redactRecords = [], redactSummary = null, redactNextCursor = '', redactCursor = '', redactHitOnly = '', confirmingClear = false;
   const visible = () => view === 'usage';
   const num = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString(intlLang()) : t('Unknown');
   const milliseconds = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER ? value.toLocaleString(intlLang(), { maximumFractionDigits: 3 }) : t('Unknown');
@@ -61,64 +79,120 @@
   const actualModel = record => record.destination === 'local' ? record.localModel || t('Unknown') : record.destination === 'cloud' ? record.model || t('Unknown') : t('Unknown');
   const amount = value => typeof value === 'string' && /^(0|[1-9]\d*)(\.\d+)?$/.test(value) && value.length <= 256 ? value : t('Unknown');
   const priceNumber = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value.toLocaleString(intlLang(), { maximumFractionDigits: 20 }) : t('Unknown');
-  function aggregate(value, calls = false) { return num(value?.knownTokens) + ' · ' + t(calls ? 'Known calls' : 'Known requests') + ': ' + num(value?.knownRequests) + ' · ' + t(calls ? 'Unknown calls' : 'Unknown requests') + ': ' + num(value?.unknownRequests); }
   function section(name, className = '') { const box = el('section', 'list request-stat-section ' + className); box.append(el('h2', '', t(name))); return box; }
+  function scopeNote(...messages) {
+    const note = el('details', 'destination-scope'); note.append(el('summary', '', t('Statistics scope')));
+    for (const message of messages) note.append(el('p', 'router-note', t(message)));
+    return note;
+  }
+  function statHead(name, tone = '') {
+    const head = el('div', 'destination-head'), dot = el('i', 'destination-dot'); dot.setAttribute('aria-hidden', 'true');
+    if (tone) head.style.setProperty('--destination-color', 'var(--' + tone + ')');
+    head.append(dot, el('h3', '', t(name))); return head;
+  }
+  function statCount(value, name) {
+    const count = el('div', 'destination-count'); count.append(el('b', '', value), el('span', '', t(name))); return count;
+  }
+  function statFields(entries) {
+    const fields = el('dl', 'request-fields usage-card-fields');
+    for (const [name, value] of entries) field(fields, name, value);
+    return fields;
+  }
+  function metricsTable(caption, rows, calls = false, timing = false) {
+    const table = el('table', 'usage-metrics'), head = el('thead'), header = el('tr'), body = el('tbody');
+    table.append(el('caption', '', t(caption)));
+    for (const name of ['Usage', timing ? 'Duration (ms)' : 'Token count', calls ? 'Known calls' : 'Known requests', calls ? 'Unknown calls' : 'Unknown requests']) {
+      const cell = el('th', '', t(name)); cell.scope = 'col'; header.append(cell);
+    }
+    head.append(header); table.append(head);
+    for (const [key, name, value] of rows) {
+      const row = el('tr'), label = el('th', '', t(name)); label.scope = 'row';
+      if (!timing) row.dataset.token = key;
+      row.append(label, el('td', '', timing ? milliseconds(value?.knownMs) : value?.knownRequests > 0 ? num(value.knownTokens) : t('Unknown')), el('td', '', num(timing ? value?.knownCalls : value?.knownRequests)), el('td', '', num(timing ? value?.unknownCalls : value?.unknownRequests)));
+      body.append(row);
+    }
+    table.append(body); return table;
+  }
   function observationWarning() {
     if (!ledger?.observationFailures) return null;
     const warning = el('p', 'usage-note router-note request-observation-warning'); warning.setAttribute('role', 'status');
     warning.textContent = t('Internal statistics may be incomplete after an observation failure.') + ' ' + t('Missing internal observations') + ': ' + num(ledger.observationFailures); return warning;
   }
   function retainedRange() {
-    const range = el('dl', 'request-fields');
-    for (const [name, value] of [['Oldest retained generation', date(summary?.oldestStartedAt)], ['Newest retained generation', date(summary?.newestStartedAt)], ['Retention limit', num(ledger?.maxRecords)], ['Retention age (seconds)', num(ledger?.maxAgeSeconds)]]) field(range, name, value);
-    return range;
+    const box = section('Retained history', 'request-retention'), grid = el('div', 'usage-retention-grid');
+    for (const [name, value] of [['Oldest retained generation', date(summary?.oldestStartedAt)], ['Newest retained generation', date(summary?.newestStartedAt)], ['Retention limit', num(ledger?.maxRecords)], ['Retention age (seconds)', num(ledger?.maxAgeSeconds)]]) {
+      const card = el('dl', 'usage-card usage-retention-item'); field(card, name, value); grid.append(card);
+    }
+    box.append(grid); return box;
   }
   function destinationBreakdown() {
     const box = section('Destination breakdown', 'request-destinations');
-    box.append(el('p', 'router-note', t('Final local and cloud destinations. One business request is counted once; retries and internal calls do not add requests.')), el('p', 'router-note', t('The denominator includes all retained business generation requests, including failures and no-dispatch requests. Diagnostics and token counting are excluded.')));
+    box.append(scopeNote('Final local and cloud destinations. One business request is counted once; retries and internal calls do not add requests.', 'The denominator includes all retained business generation requests, including failures and no-dispatch requests. Diagnostics and token counting are excluded.'));
     if (!summary?.destinations) { box.append(el('p', '', t('Unknown'))); return box; }
-    const groups = el('div', 'request-stat-grid');
+    const groups = el('div', 'destination-grid');
     for (const group of summary.destinations) {
-      const card = el('div', 'request-stat-group'), fields = el('dl', 'request-fields'); card.dataset.destination = group.destination; card.append(el('h3', '', destination(group.destination)));
-      field(fields, 'Requests', num(group.total));
-      field(fields, 'Share of retained generation requests', typeof group.share === 'number' && Number.isFinite(group.share) && group.share >= 0 && group.share <= 1 ? group.share.toLocaleString(intlLang(), { style: 'percent', maximumFractionDigits: 2 }) : t('Unknown'));
-      for (const [key, name] of [['succeeded', 'Succeeded'], ['failed', 'Failed'], ['canceled', 'Canceled'], ['timedOut', 'Timed out'], ['interrupted', 'Interrupted'], ['processing', 'Processing']]) field(fields, name, num(group[key]));
-      for (const [key, name] of [['inputTokens', 'Input tokens'], ['outputTokens', 'Output tokens'], ['totalTokens', 'Total tokens']]) field(fields, name, aggregate(group[key]));
-      card.append(fields); groups.append(card);
+      const card = el('article', 'destination-card'), head = el('div', 'destination-head');
+      card.dataset.destination = group.destination;
+      const dot = el('i', 'destination-dot'); dot.setAttribute('aria-hidden', 'true');
+      head.append(dot, el('h3', '', destination(group.destination)));
+      const count = el('div', 'destination-count'); count.append(el('b', '', num(group.total)), el('span', '', t('Requests')));
+      const shareKnown = typeof group.share === 'number' && Number.isFinite(group.share) && group.share >= 0 && group.share <= 1;
+      const share = el('div', 'destination-share');
+      share.append(el('span', '', t('Request share')), el('b', '', shareKnown ? group.share.toLocaleString(intlLang(), { style: 'percent', maximumFractionDigits: 2 }) : t('Unknown')));
+      share.title = t('Share of retained generation requests');
+      const track = el('div', 'destination-track'), fill = el('div'); track.setAttribute('aria-hidden', 'true');
+      if (shareKnown) fill.style.width = (group.share * 100) + '%';
+      track.append(fill);
+      const statuses = el('dl', 'destination-statuses');
+      for (const [key, name] of [['succeeded', 'Succeeded'], ['failed', 'Failed'], ['canceled', 'Canceled'], ['timedOut', 'Timed out'], ['interrupted', 'Interrupted'], ['processing', 'Processing']]) {
+        const item = el('div', 'destination-status' + (group[key] === 0 ? ' is-zero' : ''));
+        item.dataset.status = key; field(item, name, num(group[key])); statuses.append(item);
+      }
+      const tokens = metricsTable('Reported tokens', [['inputTokens', 'Input tokens', group.inputTokens], ['outputTokens', 'Output tokens', group.outputTokens], ['totalTokens', 'Total tokens', group.totalTokens]]);
+      tokens.classList.add('destination-tokens'); card.append(head, count, share, track, statuses, tokens); groups.append(card);
     }
     box.append(groups); return box;
   }
   function savings() {
-    const box = section('Estimated cloud savings', 'request-savings'), value = summary?.savings, fields = el('dl', 'request-fields');
-    box.append(el('p', 'router-note', t('Only successful local business generations qualify. Input plus output tokens estimate avoided cloud tokens; tokenizers may differ. Amounts use request-time Profile prices per million tokens, grouped by currency. Estimates are not bills or net savings.')));
-    field(fields, 'Eligible local successes', num(value?.eligibleRequests));
-    for (const [key, name] of [['inputTokens', 'Input tokens'], ['outputTokens', 'Output tokens'], ['avoidedTokens', 'Estimated avoided cloud tokens']]) field(fields, name, aggregate(value?.[key]));
-    field(fields, 'Unknown reference price requests', num(value?.unknownPriceRequests)); box.append(fields, el('h3', '', t('Estimated savings by currency')));
-    if (!value?.money?.length) box.append(el('p', '', t('Unknown')));
+    const box = section('Estimated cloud savings', 'request-savings'), value = summary?.savings, grid = el('div', 'usage-two-grid');
+    box.append(scopeNote('Only successful local business generations qualify. Input plus output tokens estimate avoided cloud tokens; tokenizers may differ. Amounts use request-time Profile prices per million tokens, grouped by currency. Estimates are not bills or net savings.'));
+    const eligible = el('article', 'usage-card'), tokens = el('article', 'usage-card');
+    eligible.append(statHead('Eligible local successes', 'green'), statCount(num(value?.eligibleRequests), 'Requests'), statFields([['Unknown reference price requests', num(value?.unknownPriceRequests)]]));
+    tokens.append(metricsTable('Estimated avoided cloud tokens', [['inputTokens', 'Input tokens', value?.inputTokens], ['outputTokens', 'Output tokens', value?.outputTokens], ['avoidedTokens', 'Estimated avoided cloud tokens', value?.avoidedTokens]]));
+    grid.append(eligible, tokens); box.append(grid, el('h3', 'usage-subtitle', t('Estimated savings by currency')));
+    const money = el('div', 'usage-money-grid');
+    if (!value?.money?.length) money.append(el('div', 'usage-card usage-empty', t('Unknown')));
     for (const group of value?.money || []) {
-      const row = el('p', 'request-money'); row.dataset.currency = group.currency;
-      row.textContent = group.currency + ': ' + amount(group.knownAmount) + ' · ' + t('Known requests') + ': ' + num(group.knownRequests) + ' · ' + t('Unknown requests') + ': ' + num(group.unknownRequests); box.append(row);
+      const card = el('article', 'usage-card request-money'); card.dataset.currency = group.currency;
+      card.append(el('div', 'usage-money-value', group.currency + ': ' + amount(group.knownAmount)), statFields([['Known requests', num(group.knownRequests)], ['Unknown requests', num(group.unknownRequests)]])); money.append(card);
     }
-    return box;
+    box.append(money); return box;
   }
   function callsSummary(name, groups) {
     const box = section(name, name === 'Internal model calls' ? 'request-internal' : 'request-diagnostics');
-    box.append(el('p', 'router-note', t('Internal calls do not add business requests or savings. Execution usage already included in a local business result is excluded from overhead. Queue/load is a measured combined stage; unknown stages are not zero.')));
+    box.append(scopeNote('Internal calls do not add business requests or savings. Execution usage already included in a local business result is excluded from overhead. Queue/load is a measured combined stage; unknown stages are not zero.'));
     groups = groups?.filter(group => group.total !== 0);
-    if (!groups?.length) { box.append(el('p', '', t('No observed calls'))); return box; }
+    if (!groups?.length) { box.append(el('div', 'usage-card usage-empty', t('No observed calls'))); return box; }
+    const grid = el('div', 'usage-call-grid');
+    grid.style.setProperty('--usage-columns', Math.min(groups.length, 3));
     const avgTiming = timing => timing?.knownCalls > 0 && typeof timing.knownMs === 'number' && Number.isFinite(timing.knownMs) ? milliseconds(timing.knownMs / timing.knownCalls) : t('Unknown');
     for (const group of groups) {
-      const card = el('div', 'request-stat-group'), fields = el('dl', 'request-fields'); card.dataset.purpose = group.purpose; card.append(el('h3', '', label(callPurposes, group.purpose)));
-      for (const [key, title] of [['total', 'Calls'], ['inferenceStarted', 'Inference started'], ['notStarted', 'Inference not started'], ['businessUsageCalls', 'Business usage already counted'], ['overheadUsageCalls', 'Overhead calls']]) field(fields, title, num(group[key]));
-      for (const [result, count] of Object.entries(group.results || {})) field(fields, callResults[result] || 'Unknown', num(count));
-      for (const [key, title] of [['inputTokens', 'Input tokens'], ['outputTokens', 'Output tokens'], ['totalTokens', 'Total tokens']]) field(fields, title, aggregate(group[key], true));
-      const overhead = el('div', 'request-overhead'), overheadFields = el('dl', 'request-fields'); overhead.append(el('b', '', t('Overhead reported tokens')));
-      for (const [key, title] of [['overheadInputTokens', 'Input tokens'], ['overheadOutputTokens', 'Output tokens'], ['overheadTotalTokens', 'Total tokens']]) field(overheadFields, title, aggregate(group[key], true));
-      for (const [key, title] of Object.entries(timingFields)) { const timing = group.timings?.[key]; field(fields, title, milliseconds(timing?.knownMs) + ' · ' + t('Known calls') + ': ' + num(timing?.knownCalls) + ' · ' + t('Unknown calls') + ': ' + num(timing?.unknownCalls)); }
+      const card = el('article', 'usage-card usage-call-card'), fields = statFields([]); card.dataset.purpose = group.purpose;
+      card.append(statHead(callPurposes[group.purpose] || 'Unknown', group.purpose === 'execution' ? 'green' : group.purpose === 'redaction' ? 'amber' : 'accent'), statCount(num(group.total), 'Calls'));
+      const results = el('dl', 'destination-statuses');
+      for (const [result, count] of Object.entries(group.results || {})) {
+        const item = el('div', 'destination-status' + (count === 0 ? ' is-zero' : '')); item.dataset.status = result;
+        field(item, callResults[result] || 'Unknown', num(count)); results.append(item);
+      }
+      card.append(results);
+      for (const [key, title] of [['inferenceStarted', 'Inference started'], ['notStarted', 'Inference not started'], ['businessUsageCalls', 'Business usage already counted'], ['overheadUsageCalls', 'Overhead calls']]) field(fields, title, num(group[key]));
       field(fields, 'Average inference (ms)', avgTiming(group.timings?.inferenceMs)); field(fields, 'Average total time (ms)', avgTiming(group.timings?.totalMs));
-      overhead.append(overheadFields); card.append(fields, overhead); box.append(card);
+      const reported = metricsTable('Reported tokens', [['inputTokens', 'Input tokens', group.inputTokens], ['outputTokens', 'Output tokens', group.outputTokens], ['totalTokens', 'Total tokens', group.totalTokens]], true);
+      const overhead = metricsTable('Overhead reported tokens', [['overheadInputTokens', 'Input tokens', group.overheadInputTokens], ['overheadOutputTokens', 'Output tokens', group.overheadOutputTokens], ['overheadTotalTokens', 'Total tokens', group.overheadTotalTokens]], true);
+      const timing = el('details', 'usage-timing'); timing.append(el('summary', '', t('Timing details')), metricsTable('Timing details', Object.entries(timingFields).map(([key, title]) => [key, title, group.timings?.[key]]), true, true));
+      card.append(fields, reported, overhead, timing); grid.append(card);
     }
-    return box;
+    box.append(grid); return box;
   }
   function tokenText(usage) { return ['inputTokens', 'outputTokens', 'totalTokens'].map((k, i) => t(['Input tokens', 'Output tokens', 'Total tokens'][i]) + ': ' + num(usage?.[k])).join(' · '); }
   function detail() {
@@ -206,6 +280,173 @@
     const container = $(selector); if (!container) return;
     container.replaceChildren(...[['', all], ...Object.entries(values)].map(([id, key]) => { const b = button(key, () => choose(id), 'mchip' + (id === current ? ' on' : '')); b.setAttribute('aria-pressed', String(id === current)); return b; }));
   }
+  function categoryLabel(cat) {
+    const key = 'cat.' + String(cat || '').toUpperCase();
+    const translated = t(key);
+    return translated !== key ? translated + ' (' + cat + ')' : cat || t('Unknown');
+  }
+  function categoryShort(cat) {
+    const key = 'cat.' + String(cat || '').toUpperCase();
+    const translated = t(key);
+    return translated !== key ? translated : cat || t('Unknown');
+  }
+  function renderHighlightedCode(text, rawPatterns, markClass) {
+    const pre = el('pre', 'redact-obs-pre'), code = el('code', 'redact-obs-code');
+    pre.setAttribute('tabindex', '0');
+    const source = String(text || '');
+    const seen = new Set(), patterns = [];
+    for (const item of rawPatterns || []) {
+      const needle = String(item?.needle || '');
+      if (!needle || seen.has(needle)) continue;
+      seen.add(needle);
+      patterns.push(needle);
+    }
+    patterns.sort((a, b) => b.length - a.length);
+    const spans = [];
+    for (const needle of patterns) {
+      let from = 0;
+      while (from <= source.length - needle.length) {
+        const idx = source.indexOf(needle, from);
+        if (idx === -1) break;
+        const end = idx + needle.length;
+        if (!spans.some(s => idx < s.end && end > s.start)) {
+          spans.push({ start: idx, end });
+          from = end;
+        } else {
+          from = idx + 1;
+        }
+      }
+    }
+    spans.sort((a, b) => a.start - b.start);
+    let pos = 0;
+    for (const span of spans) {
+      if (span.start > pos) code.append(document.createTextNode(source.slice(pos, span.start)));
+      code.append(el('mark', 'redact-mark ' + markClass, source.slice(span.start, span.end)));
+      pos = span.end;
+    }
+    if (pos < source.length) code.append(document.createTextNode(source.slice(pos)));
+    pre.append(code);
+    return pre;
+  }
+  function copyButton(value) {
+    const btn = el('button', 'text', t('Copy'));
+    btn.type = 'button';
+    btn.onclick = async () => {
+      try {
+        await navigator.clipboard?.writeText(String(value || ''));
+        btn.textContent = t('Copied');
+        setTimeout(() => { btn.textContent = t('Copy'); }, 1400);
+      } catch {}
+    };
+    return btn;
+  }
+  function redactionSummarySection() {
+    const box = el('div');
+    if (!redactSummary) return box;
+    const stats = el('section', 'stats router-kpis');
+    for (const [key, value] of [
+      ['Observed inputs', redactSummary.total ?? 0],
+      ['Redaction hits', redactSummary.hits ?? 0],
+      ['Pass-through inputs', redactSummary.passthrough ?? 0],
+      ['Redacted entities', redactSummary.totalEntities ?? 0],
+    ]) {
+      const kpi = el('div', 'kpi');
+      kpi.append(el('b', '', num(value)), el('span', '', t(key)));
+      stats.append(kpi);
+    }
+    box.append(stats);
+    return box;
+  }
+  function redactionObservationItem(obs, index) {
+    const item = el('details', 'redact-obs-item');
+    item.dataset.observationId = String(obs.id || '');
+    item.dataset.requestId = obs.requestId || '';
+    if (index === 0) item.open = true;
+    const sum = el('summary', 'redact-obs-summary');
+    const replacements = Array.isArray(obs.replacements) ? obs.replacements : [];
+    const hitBadge = el('span', 'redact-badge ' + (obs.hit ? 'is-hit' : 'is-clean'), obs.hit ? t('Hit {count} items', { count: obs.entityCount || replacements.length || 1 }) : t('No sensitive info'));
+    sum.append(hitBadge);
+    const categories = Array.isArray(obs.categories) && obs.categories.length ? obs.categories : [...new Set(replacements.map(r => r.category).filter(Boolean))];
+    if (categories.length) {
+      const catWrap = el('span', 'redact-cat-tags');
+      for (const cat of categories) catWrap.append(el('span', 'redact-cat-tag', categoryShort(cat)));
+      sum.append(catWrap);
+    }
+    const previewText = String(obs.rawInput || '').replace(/\s+/g, ' ').trim();
+    sum.append(el('span', 'redact-obs-preview', previewText.length > 96 ? previewText.slice(0, 96) + '…' : previewText));
+    const meta = el('span', 'redact-obs-meta');
+    meta.append(
+      el('span', '', obs.appName || obs.appId || t('Unknown')),
+      el('span', '', (obs.destination ? destination(obs.destination) : t('Unknown')) + (obs.model ? ' · ' + obs.model : '')),
+      el('span', '', milliseconds(obs.durationMs ?? 0) + ' ms' + (obs.cacheHit ? ' (' + t('Cache hit') + ')' : '')),
+      el('span', '', date(obs.startedAt))
+    );
+    sum.append(meta);
+    item.append(sum);
+
+    const body = el('div', 'redact-obs-body'), grid = el('div', 'redact-compare-grid');
+    const rawPanel = el('div', 'redact-panel is-raw'), rawHead = el('div', 'redact-panel-head');
+    rawHead.append(el('b', '', t('Original user input (before redaction)')), copyButton(obs.rawInput));
+    rawPanel.append(rawHead, renderHighlightedCode(obs.rawInput, replacements.map(r => ({ needle: r.raw })), 'redact-mark-raw'));
+
+    const redactedPatterns = replacements.map(r => ({ needle: r.placeholder }));
+    for (const match of String(obs.redactedInput || '').matchAll(/<[A-Z_]+:[1-9]\d*>/g)) {
+      redactedPatterns.push({ needle: match[0] });
+    }
+    const redactedPanel = el('div', 'redact-panel is-redacted'), redactedHead = el('div', 'redact-panel-head');
+    redactedHead.append(el('b', '', t('Redacted user input (sent to model)')), copyButton(obs.redactedInput));
+    redactedPanel.append(redactedHead, renderHighlightedCode(obs.redactedInput, redactedPatterns, 'redact-mark-redacted'));
+
+    grid.append(rawPanel, redactedPanel);
+    body.append(grid);
+
+    if (replacements.length) {
+      const mapSec = el('div', 'redact-map-section'), wrap = el('div', 'redact-map-wrap'), table = el('table', 'redact-map-table'), thead = el('thead'), trHead = el('tr'), tbody = el('tbody');
+      mapSec.append(el('h3', '', t('Sensitive entity mappings')));
+      for (const col of ['Redacted token', 'Sensitive category', 'Original value', 'Occurrences']) trHead.append(el('th', '', t(col)));
+      thead.append(trHead); table.append(thead);
+      for (const rep of replacements) {
+        const tr = el('tr'), tdToken = el('td'), tdCat = el('td', '', categoryLabel(rep.category)), tdRaw = el('td'), tdCount = el('td', '', num(rep.count || 1));
+        tdToken.append(el('code', '', rep.placeholder || '—'));
+        if (rep.category === 'AMOUNT' && rep.placeholder && !rep.placeholder.startsWith('<')) {
+          tdToken.append(document.createTextNode(' '), el('span', 'redact-cat-tag', t('Generalized')));
+        }
+        tdRaw.append(el('code', 'redact-raw-val', rep.raw || '—'));
+        tr.append(tdToken, tdCat, tdRaw, tdCount);
+        tbody.append(tr);
+      }
+      table.append(tbody); wrap.append(table); mapSec.append(wrap);
+      body.append(mapSec);
+    }
+
+    const foot = el('div', 'redact-obs-foot');
+    foot.append(
+      el('span', '', t('Request ID') + ': ' + (obs.requestId || '—')),
+      el('span', '', t('Application ID') + ': ' + (obs.appId || '—')),
+      el('span', '', t('Destination') + ': ' + (obs.destination ? destination(obs.destination) : t('Unknown'))),
+      el('span', '', t('Redaction call duration (ms)') + ': ' + milliseconds(obs.durationMs ?? 0))
+    );
+    body.append(foot);
+    item.append(body);
+    return item;
+  }
+  function redactionList() {
+    if (state) return empty(state);
+    const box = el('div');
+    const hasFilter = Boolean(redactHitOnly || $('#redactionObsApp')?.value.trim() || $('#redactionObsQuery')?.value.trim());
+    if (!redactRecords.length) {
+      box.append(empty(hasFilter ? 'No matching redaction observations' : 'No redaction observations yet'));
+      return box;
+    }
+    const listWrap = el('div', 'redact-obs-list');
+    redactRecords.forEach((obs, idx) => listWrap.append(redactionObservationItem(obs, idx)));
+    box.append(listWrap);
+    const bar = el('div', 'request-pages');
+    if (redactCursor) bar.append(button('Latest observations', () => load('')));
+    if (redactNextCursor) bar.append(button('Older observations', () => load(redactNextCursor)));
+    box.append(bar);
+    return box;
+  }
   function render() {
     if (!managementToken) state = healthy ? 'Management token required' : 'Connection unavailable';
     $('#period').textContent = t('Retained requests');
@@ -215,6 +456,18 @@
     choices('#requestOperations', operations, operation, id => { operation = id; render(); }, 'All operations');
     choices('#requestDestinations', destinations, destinationFilter, id => { destinationFilter = id; render(); }, 'All destinations');
     $('#requestSummary').replaceChildren(overview()); $('#requestRecords').replaceChildren(list());
+    if ($('#redactionObsScope')) {
+      $('#redactionObsScope').textContent = t('Inspect the latest user input turn of each request before and after redaction. System prompts, tool definitions and tool outputs are excluded.');
+      $('#redactionObsAppLabel').textContent = t('Application ID filter');
+      $('#redactionObsQueryLabel').textContent = t('Keyword search');
+      $('#redactionObsQuery').placeholder = t('Search original or redacted text…');
+      $('#redactionObsApply').textContent = t('Apply filters'); $('#redactionObsApply').disabled = loading;
+      $('#redactionObsClear').textContent = t(confirmingClear ? 'Confirm clear' : 'Clear records');
+      $('#redactionObsClear').disabled = loading || (!redactSummary?.total && !redactRecords.length);
+      choices('#redactionObsHitChoices', { hit: 'Redaction hits only' }, redactHitOnly, id => { confirmingClear = false; redactHitOnly = id; load(''); }, 'All user inputs');
+      $('#redactionObsSummary').replaceChildren(redactionSummarySection());
+      $('#redactionObsRecords').replaceChildren(redactionList());
+    }
   }
   async function api(path, detailRequest = false) {
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 5000);
@@ -233,17 +486,48 @@
   async function load(before = '') {
     if (!visible()) return;
     if (!managementToken) { render(); return; }
-    const request = ++sequence; loading = true; state = 'Loading requests…'; records = []; summary = null; selected = null; detailError = ''; render();
+    const request = ++sequence; loading = true; state = usageTab === 'redaction' ? 'Loading redaction observations…' : 'Loading requests…'; records = []; summary = null; selected = null; detailError = ''; redactRecords = []; redactSummary = null; render();
     try {
       if (usageTab === 'usage') {
         const data = await api('/api/requests/summary'); if (request !== sequence || !managementToken) return; summary = data.summary; ledger = data.ledger;
+      } else if (usageTab === 'redaction') {
+        const query = new URLSearchParams({ limit: '50' });
+        if (before) query.set('before', before);
+        if (redactHitOnly === 'hit') query.set('hitOnly', '1');
+        const app = $('#redactionObsApp')?.value.trim() || '';
+        if (app) query.set('appId', app);
+        const q = $('#redactionObsQuery')?.value.trim() || '';
+        if (q) query.set('q', q);
+        const data = await api('/api/redaction/observations?' + query);
+        if (request !== sequence || !managementToken) return;
+        if (!Array.isArray(data.observations)) throw new Error('Redaction observation store unavailable');
+        redactRecords = data.observations; redactSummary = data.summary || null; redactNextCursor = data.nextCursor || ''; redactCursor = before;
       } else {
         const query = new URLSearchParams({ limit: '50' }); if (before) query.set('before', before); if (status) query.set('status', status); if (operation) query.set('operation', operation); const app = $('#requestApp').value.trim(); if (app) query.set('appId', app);
         const data = await api('/api/requests?' + query); if (request !== sequence || !managementToken) return; if (!Array.isArray(data.requests)) throw new Error('Request ledger unavailable'); records = data.requests; ledger = data.ledger; nextCursor = data.nextCursor || ''; cursor = before;
       }
       state = '';
-    } catch (error) { if (request === sequence) { state = error.message; records = []; summary = null; selected = null; } }
+    } catch (error) { if (request === sequence) { state = error.message; records = []; summary = null; selected = null; redactRecords = []; redactSummary = null; } }
     finally { if (request === sequence) { loading = false; render(); } }
+  }
+  async function clearRedactionObservations() {
+    if (!managementToken || loading) return;
+    if (!confirmingClear) { confirmingClear = true; render(); return; }
+    confirmingClear = false;
+    const request = ++sequence; loading = true; render();
+    try {
+      const response = await managementFetch('/api/redaction/observations', {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + managementToken },
+        credentials: 'omit', redirect: 'error', cache: 'no-store'
+      });
+      if (!response.ok) throw new Error('Redaction observation store unavailable');
+      redactRecords = []; redactSummary = { total: 0, hits: 0, passthrough: 0, totalEntities: 0 }; redactNextCursor = ''; redactCursor = ''; state = '';
+    } catch (error) {
+      if (request === sequence) state = error.message;
+    } finally {
+      if (request === sequence) { loading = false; render(); }
+    }
   }
   async function loadDetail(id) {
     const request = ++sequence; loading = true; detailError = ''; selected = null; render();
@@ -252,7 +536,9 @@
     finally { if (request === sequence) { loading = false; render(); } }
   }
   $('#requestFilters').onsubmit = event => { event.preventDefault(); load(''); };
-  window.routerObservationsOpen = () => load(''); window.routerObservationsRender = render;
-  window.routerObservationsDisconnected = () => { sequence++; loading = false; records = []; summary = null; selected = null; nextCursor = ''; state = healthy ? 'Management token required' : 'Connection unavailable'; render(); };
+  if ($('#redactionObsFilters')) $('#redactionObsFilters').onsubmit = event => { event.preventDefault(); confirmingClear = false; load(''); };
+  if ($('#redactionObsClear')) $('#redactionObsClear').onclick = () => clearRedactionObservations();
+  window.routerObservationsOpen = () => { confirmingClear = false; load(''); }; window.routerObservationsRender = render;
+  window.routerObservationsDisconnected = () => { sequence++; loading = false; confirmingClear = false; records = []; summary = null; selected = null; nextCursor = ''; redactRecords = []; redactSummary = null; redactNextCursor = ''; redactCursor = ''; state = healthy ? 'Management token required' : 'Connection unavailable'; render(); };
   render();
 })();

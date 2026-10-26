@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/netip"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -399,12 +400,14 @@ func Start(ctx context.Context, l dirs.Layout, trial *bool) (result Status, fail
 		return s, err
 	}
 	defer log.Close()
-	cmd := proc.Command(exe, args...)
-	hide(cmd)
-	cmd.Stdout = log
-	cmd.Stderr = log
-	cmd.Dir = filepath.Dir(exe)
-	if err = cmd.Start(); err != nil {
+	cmd, err := startHidden(func() *exec.Cmd {
+		c := proc.Command(exe, args...)
+		c.Stdout = log
+		c.Stderr = log
+		c.Dir = filepath.Dir(exe)
+		return c
+	})
+	if err != nil {
 		return s, err
 	}
 	done := make(chan error, 1)
@@ -551,11 +554,13 @@ func SpawnRestart(l dirs.Layout) (<-chan error, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmd := proc.Command(exe, "service", "restart")
-	hide(cmd)
-	cmd.Dir = filepath.Dir(exe)
-	cmd.Stdout, cmd.Stderr = log, log
-	if err = cmd.Start(); err != nil {
+	cmd, err := startHidden(func() *exec.Cmd {
+		c := proc.Command(exe, "service", "restart")
+		c.Dir = filepath.Dir(exe)
+		c.Stdout, c.Stderr = log, log
+		return c
+	})
+	if err != nil {
 		log.Close()
 		return nil, err
 	}

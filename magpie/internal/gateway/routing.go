@@ -1048,7 +1048,7 @@ func weigh(p provider.Provider, cs []candidate, model string, from provider.Prot
 // turn's mark, spreading a group's sessions, sending the rate limited back
 // and a group's heads.
 func routingOf(routing string) string {
-	if routing == "" || routing == provider.Manual || routes.Served(routing) {
+	if routing == "" || routing == provider.Manual || routing == provider.EdgeCloud || routes.Served(routing) {
 		return routing
 	}
 	return provider.Ordered

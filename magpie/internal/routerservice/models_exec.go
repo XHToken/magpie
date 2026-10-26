@@ -207,6 +207,9 @@ func appModelAPI(w http.ResponseWriter, r *http.Request, store *routerconfig.Sto
 		}
 		return
 	}
+	if _, title := parseLoomyTitle(prepared, sub, body); title {
+		options.purpose = "chat.title"
+	}
 	result, err = executePreparedModel(w, prepared, sub, body, observingModelOptions(options, observation))
 	if err != nil {
 		fail(err)

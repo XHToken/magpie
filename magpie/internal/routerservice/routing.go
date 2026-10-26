@@ -698,6 +698,7 @@ func localExecutionBody(protocol string, source []byte, model string) ([]byte, e
 		if model != "" {
 			root["model"], _ = json.Marshal(model)
 		}
+		applyDefaultLocalTemplateKwargs(root)
 		return json.Marshal(root)
 	}
 	if protocol == "anthropic" {
@@ -717,7 +718,7 @@ func localExecutionBody(protocol string, source []byte, model string) ([]byte, e
 		if err != nil {
 			return nil, errors.New("local_protocol_conversion_unavailable")
 		}
-		return converted, nil
+		return withDefaultLocalTemplateKwargs(converted)
 	}
 	if protocol == "responses" {
 		// Responses carries the same history and controls through the shared IR.
@@ -731,9 +732,31 @@ func localExecutionBody(protocol string, source []byte, model string) ([]byte, e
 		if err != nil {
 			return nil, errors.New("local_protocol_conversion_unavailable")
 		}
-		return converted, nil
+		return withDefaultLocalTemplateKwargs(converted)
 	}
 	return nil, errors.New("local_protocol_conversion_unavailable")
+}
+
+func applyDefaultLocalTemplateKwargs(root map[string]json.RawMessage) {
+	kwargs := map[string]json.RawMessage{}
+	if raw := root["chat_template_kwargs"]; len(raw) > 0 && !bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		if json.Unmarshal(raw, &kwargs) != nil || kwargs == nil {
+			kwargs = map[string]json.RawMessage{}
+		}
+	}
+	if raw, exists := kwargs["enable_thinking"]; !exists || len(bytes.TrimSpace(raw)) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		kwargs["enable_thinking"] = json.RawMessage("false")
+		root["chat_template_kwargs"], _ = json.Marshal(kwargs)
+	}
+}
+
+func withDefaultLocalTemplateKwargs(converted []byte) ([]byte, error) {
+	var root map[string]json.RawMessage
+	if err := json.Unmarshal(converted, &root); err != nil {
+		return nil, errors.New("local_protocol_conversion_unavailable")
+	}
+	applyDefaultLocalTemplateKwargs(root)
+	return json.Marshal(root)
 }
 
 // validateAnthropicLocalControls rejects control values that CloudCodec's IR
@@ -1057,6 +1080,7 @@ func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protoco
 			}
 			redactionCtx = withLocalCallContext(redactionCtx, localCallContext{RequestID: requestID, AppID: state.AppID, Observer: options.LocalObserver, Check: check, Mode: mode, PromptVersion: versions.RedactionPromptVersion, Material: "w5-redaction"})
 		}
+		beforeBody := append([]byte(nil), wire.Body()...)
 		sessionID, sessionVerified, seedSessionID := parseRedactionSessionMaterial(state.AppID, protocol, body)
 		preparedCloud, prepareErr = routing.Redactor.Prepare(redactionCtx, RedactionRequest{RequestID: state.ID, AppID: state.AppID, SourceProtocol: protocol, TargetProtocol: target.Provider.Config.Protocol, Operation: operation, SessionID: sessionID, SeedSessionID: seedSessionID, SessionVerified: sessionVerified, Versions: versions, Body: wire.Body(), Context: redactionCtx})
 		if preparedCloud.Close != nil || preparedCloud.Release != nil {
@@ -1068,6 +1092,9 @@ func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protoco
 		}
 		if prepareErr != nil || len(preparedCloud.Body) == 0 {
 			return routercloud.Result{Operation: operation, Decision: string(DecisionCloud)}, ErrRedactionUnavailable
+		}
+		if !check && operation != "count_tokens" {
+			recordRedactionObservation(options.RedactionObservations, state.ID, state.AppID, state.Target.Profile.Name, string(DecisionCloud), target.Model, target.Provider.Config.Protocol, beforeBody, preparedCloud.Body, preparedCloud.ObservationMeta)
 		}
 	}
 	var downstream http.ResponseWriter = w

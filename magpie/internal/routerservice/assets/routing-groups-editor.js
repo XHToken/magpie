@@ -56,16 +56,19 @@
     var ctxMode = 'max';
     if (g.context === -1 || g.context === 'min') ctxMode = 'min';
     else if (Number(g.context) > 0) ctxMode = Number(g.context);
+    var members = Array.isArray(g.members) ? g.members.slice() : [];
+    var hasLocal = rg.hasLocalMember ? rg.hasLocalMember(members) : members.some(function (m) { return String(m || '').indexOf('local/') === 0; });
     return {
       isNew: isNew,
       id: id,
       name: g.name || '',
       alias: g.family || g.alias || '',
       enabled: g.enabled !== false && !g.disabled,
-      members: Array.isArray(g.members) ? g.members.slice() : [],
+      members: members,
       patterns: rawPatterns.slice(),
       hideMembers: !!(g.unlists || g.hideMembers),
       routing: rg.normalizeStrategy(g.routing || 'smart_hybrid'),
+      localRedaction: !!(hasLocal && g.localRedaction),
       active: g.pick || g.active || '',
       weights: Object.assign({}, g.weights || {}),
       memberEfforts: Object.assign({}, g.memberEfforts || {}),
@@ -109,9 +112,56 @@
 
   var PLUS_SVG = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 2v8M2 6h8"/></svg>';
 
+  function renderLocalRedactionSection() {
+    if (!draft) return;
+    var hasLocal = rg.hasLocalMember ? rg.hasLocalMember(draft.members) : draft.members.some(function (m) { return String(m || '').indexOf('local/') === 0; });
+    if (!hasLocal) {
+      draft.localRedaction = false;
+    }
+    var lblEl = document.getElementById('rgLocalRedactionLabel');
+    var secEl = document.getElementById('rgLocalRedactionSection');
+    if (lblEl) lblEl.hidden = !hasLocal;
+    if (!secEl) return;
+    secEl.hidden = !hasLocal;
+    if (!hasLocal) {
+      secEl.innerHTML = '';
+      return;
+    }
+    var isOn = !!draft.localRedaction;
+    secEl.innerHTML =
+      '<div class="segs">' +
+        '<button type="button" class="opt' + (isOn ? ' on' : '') + '" data-rg-local-redaction="1">' + rg.esc(rg.tr('Redact On')) + '</button>' +
+        '<button type="button" class="opt' + (!isOn ? ' on' : '') + '" data-rg-local-redaction="0">' + rg.esc(rg.tr('Redact Off')) + '</button>' +
+      '</div>' +
+      '<div class="hint">' + rg.esc(rg.tr(isOn ? 'Redacts sensitive information using local model and rules before routing requests.' : 'Routes requests directly without local model redaction.')) + '</div>';
+  }
+
+  function renderRoutingSection() {
+    if (!draft) return;
+    var hasLocal = rg.hasLocalMember ? rg.hasLocalMember(draft.members) : draft.members.some(function (m) { return String(m || '').indexOf('local/') === 0; });
+    if (!hasLocal && draft.routing === 'edge-cloud') {
+      draft.routing = 'smart_hybrid';
+    }
+    renderLocalRedactionSection();
+    var secEl = document.getElementById('rgRoutingSection');
+    if (!secEl) return;
+    var stratMeta = rg.strategyMeta(draft.routing);
+    var visibleStrategies = rg.STRATEGIES.filter(function (s) {
+      return s.id !== 'edge-cloud' || hasLocal;
+    });
+    var stratButtons = visibleStrategies.map(function (s) {
+      var on = draft.routing === s.id;
+      return '<button type="button" class="opt' + (on ? ' on' : '') + '" data-rg-strategy="' + rg.esc(s.id) + '">' + rg.esc(rg.tr(s.label)) + '</button>';
+    }).join('');
+    secEl.innerHTML =
+      '<div class="segs">' + stratButtons + '</div>' +
+      '<div class="hint">' + rg.esc(rg.tr(stratMeta.desc)) + '</div>';
+  }
+
   function renderMembersSection() {
     var listEl = document.getElementById('rgMembersList');
     if (!listEl || !draft) return;
+    renderRoutingSection();
     var isWeighted = draft.routing === 'weighted';
     var isManual = draft.routing === 'manual';
 
@@ -147,8 +197,15 @@
     var body = document.getElementById('rgEditorBody');
     if (!body || !draft) return;
 
+    var hasLocal = rg.hasLocalMember ? rg.hasLocalMember(draft.members) : draft.members.some(function (m) { return String(m || '').indexOf('local/') === 0; });
+    if (!hasLocal && draft.routing === 'edge-cloud') {
+      draft.routing = 'smart_hybrid';
+    }
     var stratMeta = rg.strategyMeta(draft.routing);
-    var stratButtons = rg.STRATEGIES.map(function (s) {
+    var visibleStrategies = rg.STRATEGIES.filter(function (s) {
+      return s.id !== 'edge-cloud' || hasLocal;
+    });
+    var stratButtons = visibleStrategies.map(function (s) {
       var on = draft.routing === s.id;
       return '<button type="button" class="opt' + (on ? ' on' : '') + '" data-rg-strategy="' + rg.esc(s.id) + '">' + rg.esc(rg.tr(s.label)) + '</button>';
     }).join('');
@@ -265,9 +322,21 @@
 
       // 6. Routing
       '<label>' + rg.esc(rg.tr('Routing')) + '</label>' +
-      '<div>' +
+      '<div id="rgRoutingSection">' +
         '<div class="segs">' + stratButtons + '</div>' +
         '<div class="hint">' + rg.esc(rg.tr(stratMeta.desc)) + '</div>' +
+      '</div>' +
+
+      // 6b. Local model redaction (shown when members include a local/* model)
+      '<label id="rgLocalRedactionLabel"' + (hasLocal ? '' : ' hidden') + '>' + rg.esc(rg.tr('Local model redaction')) + '</label>' +
+      '<div id="rgLocalRedactionSection"' + (hasLocal ? '' : ' hidden') + '>' +
+        (hasLocal
+          ? '<div class="segs">' +
+              '<button type="button" class="opt' + (draft.localRedaction ? ' on' : '') + '" data-rg-local-redaction="1">' + rg.esc(rg.tr('Redact On')) + '</button>' +
+              '<button type="button" class="opt' + (!draft.localRedaction ? ' on' : '') + '" data-rg-local-redaction="0">' + rg.esc(rg.tr('Redact Off')) + '</button>' +
+            '</div>' +
+            '<div class="hint">' + rg.esc(rg.tr(draft.localRedaction ? 'Redacts sensitive information using local model and rules before routing requests.' : 'Routes requests directly without local model redaction.')) + '</div>'
+          : '') +
       '</div>' +
 
       // 7. On limit (shown when routing === 'order')
@@ -686,6 +755,7 @@
     else if (Number(draft.context) > 0) ctxInt = Math.round(Number(draft.context));
 
     var activeModel = draft.routing === 'manual' ? (draft.active || draft.members[0] || '') : (draft.active || '');
+    var hasLocal = rg.hasLocalMember ? rg.hasLocalMember(draft.members) : draft.members.some(function (m) { return String(m || '').indexOf('local/') === 0; });
 
     var payload = {
       id: effectiveId,
@@ -694,6 +764,7 @@
       alias: draft.alias || '',
       enabled: draft.enabled !== false,
       routing: draft.routing,
+      localRedaction: !!(hasLocal && draft.localRedaction),
       members: draft.members.slice(),
       match: cleanPatterns,
       patterns: cleanPatterns,
@@ -834,6 +905,13 @@
         if (stratBtn) {
           draft.routing = stratBtn.getAttribute('data-rg-strategy');
           renderEditorBody();
+          return;
+        }
+
+        var localRedBtn = ev.target.closest('[data-rg-local-redaction]');
+        if (localRedBtn) {
+          draft.localRedaction = localRedBtn.getAttribute('data-rg-local-redaction') === '1';
+          renderLocalRedactionSection();
           return;
         }
 

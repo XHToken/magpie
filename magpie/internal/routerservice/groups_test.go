@@ -2,16 +2,21 @@ package routerservice
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"reflect"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/yetone/magpie/internal/dirs"
 	"github.com/yetone/magpie/internal/routerconfig"
 	"github.com/yetone/magpie/internal/routermanifest"
+	"github.com/yetone/magpie/internal/routerruntime"
 )
 
 func newRoutingGroupTestHandler(t *testing.T, local *LocalRuntime) (http.Handler, *routerconfig.Store, string) {
@@ -358,5 +363,98 @@ func TestRoutingGroupsEditorFullPayloadRoundTrip(t *testing.T) {
 	})
 	if recBadWhen.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for invalid rule.when, got %d", recBadWhen.Code)
+	}
+}
+
+func TestRoutingGroupSecurityAndFallbackRegressions(t *testing.T) {
+	var upstreamModels []string
+	var privateCalls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		var payload map[string]any
+		_ = json.Unmarshal(raw, &payload)
+		model, _ := payload["model"].(string)
+		upstreamModels = append(upstreamModels, model)
+		if model == "private-model" {
+			privateCalls.Add(1)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"chatcmpl-test","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`))
+	}))
+	defer upstream.Close()
+
+	h, store := newGroupRoutingEnv(t, ModelOptions{
+		Routing: &RoutingOptions{
+			Judge: &scriptedJudge{err: routerruntime.ErrDisabled},
+		},
+	})
+
+	boundProv := saveTestCloudProvider(t, store, "Bound", upstream.URL+"/v1", "bound-model", "audit-model:free")
+	privateProv := saveTestCloudProvider(t, store, "Private", upstream.URL+"/v1", "private-model")
+	if _, err := store.SaveGroups([]routerconfig.Group{
+		{ID: "private-group", Name: "Private Group", Routing: "order", Members: []string{privateProv.ID + "/private-model"}},
+		{ID: "hybrid", Name: "Hybrid", Routing: "smart_split", Members: []string{"local/spark-x2.5-1.7b", boundProv.ID + "/bound-model"}},
+		{ID: "local-count", Name: "Local Count", Routing: "smart_split", Members: []string{"local/spark-x2.5-1.7b"}},
+		{ID: "suffix", Name: "Suffix", Routing: "order", Members: []string{boundProv.ID + "/audit-model:free"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	saveGroupBoundApp(t, store, []string{boundProv.ID + "/bound-model", "group/hybrid", "group/local-count", "group/suffix"})
+
+	// 1. Unbound group request must be rejected with 400 target_mismatch.
+	recUnbound := postAppChat(t, h, "group/private-group")
+	if recUnbound.Code != http.StatusBadRequest || privateCalls.Load() != 0 {
+		t.Fatalf("unbound group executed: status=%d calls=%d body=%s", recUnbound.Code, privateCalls.Load(), recUnbound.Body.String())
+	}
+
+	// 2. Hybrid smart_split group falls back to cloud when local judge returns ErrDisabled.
+	recHybrid := postAppChat(t, h, "group/hybrid")
+	if recHybrid.Code != http.StatusOK {
+		t.Fatalf("hybrid group failed when local disabled: status=%d body=%s", recHybrid.Code, recHybrid.Body.String())
+	}
+
+	// 3. Local-only smart_split group returns non-200 error on messages/count_tokens.
+	recCount := doGroupRequest(t, h, "", http.MethodPost, "/app/codex/v1/messages/count_tokens", map[string]any{
+		"model":    "group/local-count",
+		"messages": []map[string]any{{"role": "user", "content": "hi"}},
+	})
+	if recCount.Code == http.StatusOK || strings.TrimSpace(recCount.Body.String()) == "" {
+		t.Fatalf("local-only count_tokens returned empty 200: status=%d body=%q", recCount.Code, recCount.Body.String())
+	}
+
+	// 4. Colon-suffixed model ID in a routing group preserves full model ID without invalid reasoning_effort.
+	upstreamModels = nil
+	recSuffix := postAppChat(t, h, "group/suffix")
+	if recSuffix.Code != http.StatusOK || len(upstreamModels) != 1 || upstreamModels[0] != "audit-model:free" {
+		t.Fatalf("colon model in group failed: status=%d upstream=%v body=%s", recSuffix.Code, upstreamModels, recSuffix.Body.String())
+	}
+
+	// 5. syncAutoHostStore preserves RedactionEnabled and ReferencePrice.
+	wbModels := []string{boundProv.ID + "/bound-model"}
+	refPrice := routerconfig.ReferencePrice{
+		Currency: "CNY",
+		Unit:     "million-tokens",
+		Input:    2.0,
+		Output:   8.0,
+		Version:  "v1",
+		Source:   "manual",
+	}
+	savedWB, err := store.SaveApp(routerconfig.AppEdit{
+		ID: "workbuddy", Name: "WorkBuddy", Models: &wbModels,
+		CredentialMode: routerconfig.StoredCredential,
+		ReferencePrice: &refPrice,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SetRedactionIntentsContext(context.Background(), []routerconfig.RedactionIntentEdit{
+		{ID: savedWB.ID, Revision: savedWB.Revision, Enabled: true},
+	}, routerconfig.RedactionAvailable); err != nil {
+		t.Fatal(err)
+	}
+	syncAutoHostStore(context.Background(), store, "workbuddy", true, wbModels)
+	afterWB := findSavedApp(context.Background(), store, "workbuddy")
+	if afterWB == nil || !afterWB.RedactionEnabled || afterWB.ReferencePrice == nil || *afterWB.ReferencePrice != refPrice {
+		t.Fatalf("syncAutoHostStore cleared RedactionEnabled or ReferencePrice: %+v", afterWB)
 	}
 }

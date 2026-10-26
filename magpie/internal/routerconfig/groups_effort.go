@@ -5,6 +5,41 @@ import (
 	"strings"
 )
 
+// IsEffortLevel reports whether s is a supported reasoning effort level
+// (including inline member effort suffixes such as "provider/model:high").
+func IsEffortLevel(s string) bool {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "none", "minimal", "low", "medium", "high", "xhigh", "max", "auto":
+		return true
+	default:
+		return false
+	}
+}
+
+// SplitMemberEffort splits an optional inline reasoning effort suffix (e.g.
+// "provider/model:high") from a group member reference. Model IDs that contain
+// a colon suffix that is not a recognized effort level (e.g.
+// "provider/audit-model:free") are preserved intact with hasEffort == false.
+func SplitMemberEffort(ref string) (bare, effort string, hasEffort bool) {
+	ref = strings.TrimSpace(ref)
+	if _, ok := GroupIDOf(ref); ok {
+		return ref, "", false
+	}
+	idx := strings.LastIndexByte(ref, ':')
+	if idx <= 0 || idx+1 >= len(ref) {
+		return ref, "", false
+	}
+	candidate := strings.ToLower(strings.TrimSpace(ref[idx+1:]))
+	if !IsEffortLevel(candidate) {
+		return ref, "", false
+	}
+	base := strings.TrimSpace(ref[:idx])
+	if base == "" {
+		return ref, "", false
+	}
+	return base, candidate, true
+}
+
 // NormalizeGroup validates and normalizes a single Group before persistence.
 // Derived fields (Matched, Auto) are cleared, slices are trimmed and deduplicated,
 // and orphan Off/Weights entries not present in Members (or Matched) are pruned.
@@ -76,13 +111,13 @@ func NormalizeGroup(g Group) (Group, error) {
 	validMember := make(map[string]bool, len(members)+len(matched))
 	for _, m := range members {
 		validMember[m] = true
-		if bare, _, ok := strings.Cut(m, ":"); ok && bare != "" {
+		if bare, _, ok := SplitMemberEffort(m); ok {
 			validMember[bare] = true
 		}
 	}
 	for _, m := range matched {
 		validMember[m] = true
-		if bare, _, ok := strings.Cut(m, ":"); ok && bare != "" {
+		if bare, _, ok := SplitMemberEffort(m); ok {
 			validMember[bare] = true
 		}
 	}
@@ -91,7 +126,7 @@ func NormalizeGroup(g Group) (Group, error) {
 		if validMember[m] {
 			return true
 		}
-		if bare, _, ok := strings.Cut(m, ":"); ok && validMember[bare] {
+		if bare, _, ok := SplitMemberEffort(m); ok && validMember[bare] {
 			return true
 		}
 		for _, pat := range g.Match {
@@ -137,12 +172,8 @@ func NormalizeGroup(g Group) (Group, error) {
 
 	cleanedEfforts := make(map[string]string, len(g.MemberEfforts))
 	for _, m := range members {
-		if bare, eff, ok := strings.Cut(m, ":"); ok {
-			bare = strings.TrimSpace(bare)
-			eff = strings.ToLower(strings.TrimSpace(eff))
-			if bare != "" && eff != "" {
-				cleanedEfforts[bare] = eff
-			}
+		if bare, eff, ok := SplitMemberEffort(m); ok {
+			cleanedEfforts[bare] = eff
 		}
 	}
 	for k, eff := range g.MemberEfforts {
@@ -204,6 +235,17 @@ func NormalizeGroup(g Group) (Group, error) {
 		g.Rules = cleanedRules
 	} else {
 		g.Rules = nil
+	}
+
+	hasLocal := false
+	for _, m := range members {
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(m)), "local/") {
+			hasLocal = true
+			break
+		}
+	}
+	if !hasLocal {
+		g.LocalRedaction = false
 	}
 
 	// Clear runtime-derived fields before persistence.

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/yetone/magpie/internal/cloudcodec"
 	"github.com/yetone/magpie/internal/routerruntime"
@@ -98,7 +97,7 @@ func (e *RuntimeExtractor) Available(ctx context.Context, versions Versions) err
 func (e *RuntimeExtractor) Extract(parent context.Context, in Extraction) (Result, error) {
 	// Also bound direct uses outside Pipeline. Each subsequent Invoke receives
 	// this same deadline, so batching cannot renew the queue/execution budget.
-	budget := 15 * time.Second
+	budget := routerruntime.DefaultRedactionBudget
 	if e != nil && e.experimental != nil {
 		if spec, ok := e.specification.(*PrivacySpecification); ok && spec.Experimental() {
 			budget = spec.Budget()
@@ -237,6 +236,12 @@ func (e *RuntimeExtractor) extractBatch(ctx context.Context, in Extraction) (Res
 		return Result{}, ctxErr
 	}
 	if err != nil || consumed != 1 || !validConsumption {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return Result{}, fail("redaction_timeout")
+		}
+		if errors.Is(err, context.Canceled) {
+			return Result{}, fail("redaction_canceled")
+		}
 		var failure *Failure
 		if errors.As(err, &failure) {
 			return Result{}, fail(SafeFailureCode(failure.Code))

@@ -57,6 +57,11 @@ func (o *Orchestrator) Available(ctx context.Context, versions Versions) error {
 	if (o.versions != Versions{}) && o.versions != versions {
 		return fail("redaction_unavailable")
 	}
+	if o.llm != nil {
+		if err := o.llm.Available(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -126,7 +131,11 @@ func (o *Orchestrator) Detect(ctx context.Context, text string) ([]DetectedSpan,
 
 	var findings []DetectedSpan
 	if o != nil && o.rules != nil {
-		findings = append(findings, o.rules.Detect(text)...)
+		ruleSpans, err := o.rules.DetectContext(ctx, text)
+		if err != nil {
+			return nil, err
+		}
+		findings = append(findings, ruleSpans...)
 	}
 	if o != nil && o.dict != nil {
 		findings = append(findings, o.dict.Detect(text)...)

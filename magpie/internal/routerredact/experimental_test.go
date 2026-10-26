@@ -29,12 +29,12 @@ func TestExperimentalPrivacyVersionsPreserveFormalMaterialAndSeparateCache(t *te
 			if err != nil {
 				t.Fatal(err)
 			}
-			if formal.Experimental() || formal.Budget() != 15*time.Second || !trial.Experimental() || trial.Budget() != 30*time.Second || !strings.HasPrefix(trial.CapabilitySuite(), "privacy-trial-v1:") {
+			if formal.Experimental() || formal.Budget() != 30*time.Second || !trial.Experimental() || trial.Budget() != 30*time.Second || !strings.HasPrefix(trial.CapabilitySuite(), "privacy-trial-v2:") {
 				t.Fatal("trial changed the formal policy or failed to bind its budget")
 			}
 			f, tr := formal.Fingerprints(), trial.Fingerprints()
-			if f.Config != "2b3b8a2b1ae307d29f71d2909ff933f642c2559d1e6066376ee4e96f99ad36cb" || f.Suite != "privacy-go-v5:a211c0e081094635477fa8cd37f1f573a9936296cbeb5f3e2d1831ba2bce018f" || f.Config == tr.Config || f.Suite == tr.Suite {
-				t.Fatal("formal v5 evidence changed or trial inherited its config/suite")
+			if f.Config == "2b3b8a2b1ae307d29f71d2909ff933f642c2559d1e6066376ee4e96f99ad36cb" || !strings.HasPrefix(f.Suite, "privacy-go-v6:") || f.Config == tr.Config || f.Suite == tr.Suite {
+				t.Fatal("new formal policy inherited v5 evidence or trial inherited its config/suite")
 			}
 			f.Config, f.Suite, tr.Config, tr.Suite = "", "", "", ""
 			if !reflect.DeepEqual(f, tr) {
@@ -262,13 +262,13 @@ func TestExperimentalPrivacyLastBatchFailureHasZeroOutbound(t *testing.T) {
 	}
 }
 
-func TestExperimentalPipelineBudgetRequiresExplicitOptIn(t *testing.T) {
+func TestPipelineBudgetBoundsOrdinaryAndExperimentalModes(t *testing.T) {
 	for _, test := range []struct {
 		name               string
 		experimental       bool
 		requested, maximum time.Duration
 	}{
-		{"default", false, 0, 15 * time.Second}, {"ordinary over limit", false, 30 * time.Second, 15 * time.Second},
+		{"default", false, 0, 30 * time.Second}, {"ordinary over limit", false, 60 * time.Second, 30 * time.Second},
 		{"trial default", true, 0, 30 * time.Second}, {"trial over limit", true, 60 * time.Second, 30 * time.Second},
 	} {
 		t.Run(test.name, func(t *testing.T) {

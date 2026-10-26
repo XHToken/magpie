@@ -58,13 +58,14 @@ for (const [key, zh, tw, ja, de] of [
   ['Refresh now', '立即刷新', '立即重新整理', '今すぐ更新', 'Jetzt aktualisieren'],
   ['Toggle sidebar', '切换侧栏', '切換側邊欄', 'サイドバーを切り替え', 'Seitenleiste umschalten'],
   ['Sidebar width', '侧栏宽度', '側邊欄寬度', 'サイドバーの幅', 'Breite der Seitenleiste'],
+  ['Redaction', '脱敏', '去識別化', '匿名化', 'Anonymisierung'],
 ]) {
   for (const [lang, text] of [['zh', zh], ['zh-TW', tw], ['ja', ja], ['de', de || zh]]) (I18N[lang] ||= {})[key] = text;
 }
 
 const views = ['agents', 'providers', 'local-model', 'routing', 'gateway', 'usage', 'settings'];
 let view = views.includes(params.get('view')) ? params.get('view') : views.includes(preferences.view) ? preferences.view : 'usage';
-let usageTab = ['usage', 'requests'].includes(params.get('tab')) ? params.get('tab') : params.has('tab') ? 'usage' : ['usage', 'requests'].includes(preferences.usageTab) ? preferences.usageTab : 'usage';
+let usageTab = ['usage', 'requests', 'redaction'].includes(params.get('tab')) ? params.get('tab') : params.has('tab') ? 'usage' : ['usage', 'requests', 'redaction'].includes(preferences.usageTab) ? preferences.usageTab : 'usage';
 if (params.get('tab') === 'context' || params.get('view') === 'context') {
   view = 'usage'; usageTab = 'usage';
   params.set('view', view); params.set('tab', usageTab);
@@ -147,7 +148,7 @@ function renderNavigation() {
     button.classList.toggle('on', button.dataset.tab === usageTab);
     button.setAttribute('aria-selected', String(button.dataset.tab === usageTab));
   }
-  for (const [id, tab] of [['usagePane', 'usage'], ['ledgerPane', 'requests']]) $('#' + id).hidden = usageTab !== tab;
+  for (const [id, tab] of [['usagePane', 'usage'], ['ledgerPane', 'requests'], ['redactionObsPane', 'redaction']]) $('#' + id).hidden = usageTab !== tab;
   for (const tab of ['general', 'about']) {
     $('#setPage-' + tab).hidden = settingsTab !== tab;
     $('#setTab-' + tab).classList.toggle('on', settingsTab === tab);

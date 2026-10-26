@@ -73,6 +73,22 @@ func TestDependenciesValidateFixedPEBytes(t *testing.T) {
 	}
 }
 
+func TestIndependentCUDAVersionsRemainPinnedPerFile(t *testing.T) {
+	executable, spec := dependencyFixture(t)
+	item := DependencyFile{Path: filepath.Join(filepath.Dir(executable), "cudart64_12.dll"), Name: "cudart64_12.dll", Version: "6.14.11.12040"}
+	writeDependencyFixture(t, &item, dependencyPEFixture(t, pe.IMAGE_FILE_MACHINE_AMD64, [4]uint16{6, 14, 11, 12040}))
+	spec.Files = append(spec.Files, item)
+	if ValidateDependencies(context.Background(), executable, spec) == nil {
+		t.Fatal("ordinary VC set accepted mixed versions")
+	}
+	spec.MixedVersions = true
+	if err := ValidateDependencies(context.Background(), executable, spec); err != nil {
+		t.Fatal(err)
+	}
+	spec.Files[1].Version = "6.14.11.12041"
+	requireDependencyCode(t, ValidateDependencies(context.Background(), executable, spec), DependencyVersionCode)
+}
+
 func TestDependenciesFailClosed(t *testing.T) {
 	cases := []struct {
 		name string

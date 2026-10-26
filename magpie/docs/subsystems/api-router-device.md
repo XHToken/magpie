@@ -3,8 +3,9 @@
 [`internal/routerdevice`](../../internal/routerdevice/device.go) owns T3.1's
 read-only device observations, hardware tier recommendation and device check.
 It has no CLI/HTTP registration, startup hook, cache, polling, installer, network
-client or process runner. Constructing `Native()` does no detection. Existing
-Router startup, requests, configuration and redaction gates do not call it.
+client or process runner. Constructing `Native()` does no detection. The local-model
+service calls detection for checks, installation, enablement and startup model
+selection; this package itself owns no lifecycle.
 
 ## Consumer contract
 
@@ -56,27 +57,26 @@ product's GB RAM/VRAM labels; there is no floating-point rounding before compari
 
 1. Unknown/invalid RAM → `unknown`; known RAM below 8 GiB → `none` (`memory_below_8_gib`),
    including machines with large GPUs. The below-8 rule takes precedence.
-2. When no GPU accelerator backend (`metal`, `cuda`, `vulkan`) is confirmed available
-   and known `System.LogicalCPUs < 4` → `none` (`cpu_threads_below_4`).
-3. When `AvailableMemoryBytes` is known and `< 2.5 GiB` → `none` (`available_memory_below_2_5_gib`).
-4. Confirmed discrete adapter with at least 6 GiB VRAM (when `< 16 GiB` RAM, or when
-   a matching `cuda`/`vulkan` backend is confirmed available) → `Tier: 4B, MaxTier: 4B`
-   (`discrete_vram_at_least_6_gib`), or `Tier: 1.7B, MaxTier: 1.7B` (`available_memory_limited_to_1_7b`)
-   if known available memory is `< 4.5 GiB`.
-5. Apple Silicon / unified memory with a confirmed `metal` backend and `>= 16 GiB` RAM →
-   `Tier: 4B, MaxTier: 4B` (`metal_unified_memory_at_least_16_gib`) when available memory
-   is unknown or `>= 4.5 GiB`, else `Tier: 1.7B, MaxTier: 1.7B`.
-6. System RAM at least 24 GiB (`HighMemoryBytes`) →
-   - If CPU-only and known `LogicalCPUs < 8`: `Tier: 1.7B, MaxTier: 1.7B` (`cpu_threads_limited_to_1_7b`).
-   - If known available memory `< 4.5 GiB`: `Tier: 1.7B, MaxTier: 1.7B` (`available_memory_limited_to_1_7b`).
-   - If known available memory `< 6.5 GiB`: `Tier: 1.7B, MaxTier: 4B` (`available_memory_prefer_1_7b_allow_4b`).
-   - Otherwise: `Tier: 4B, MaxTier: 4B` (`memory_at_least_24_gib`).
-7. Mainstream 16 GiB to below 24 GiB RAM (`MainstreamMemoryBytes`) → recommends `Tier: 1.7B`
-   by default to avoid severe memory pressure and slow CPU inference on 16 GB machines:
+2. When `AvailableMemoryBytes` is known and `< 2.5 GiB` → `none` (`available_memory_below_2_5_gib`).
+3. When no GPU accelerator backend is confirmed available and known
+   `System.LogicalCPUs < 4` → `none` (`cpu_threads_below_4`). A confirmed accelerator
+   means `metal` on macOS or `cuda`/`vulkan` on other systems.
+4. System RAM at least 24 GiB (`HighMemoryBytes`), available memory unknown or
+   `>= 6.5 GiB`, and a confirmed accelerator or logical CPUs unknown or `>= 8` →
+   `Tier: 4B, MaxTier: 4B` (`memory_at_least_24_gib`). This branch takes precedence
+   over the discrete-VRAM rule.
+5. Otherwise, a confirmed discrete adapter with at least 6 GiB VRAM (when
+   `< 16 GiB` RAM, or when a matching `cuda`/`vulkan` backend is confirmed available),
+   and available memory unknown or `>= 4.5 GiB` → `Tier: 4B, MaxTier: 4B`
+   (`discrete_vram_at_least_6_gib`).
+6. Remaining RAM at least 16 GiB (`MainstreamMemoryBytes`), including higher-RAM
+   machines with limited available memory or CPU threads → recommends `Tier: 1.7B`:
    - If `(hasGPUAccelerator || LogicalCPUs unknown or >= 8)` and `(AvailableMemoryBytes unknown or >= 4.5 GiB)`:
      `Tier: 1.7B, MaxTier: 4B` (`memory_16_gib_prefer_1_7b_allow_4b`), allowing explicit 4B selection/enablement.
-   - Otherwise: `Tier: 1.7B, MaxTier: 1.7B` (`cpu_threads_limited_to_1_7b` or `available_memory_limited_to_1_7b`).
-8. Remaining known RAM from 8 GiB to below 16 GiB → `Tier: 1.7B, MaxTier: 1.7B` (`memory_at_least_8_gib`).
+   - Otherwise: `Tier: 1.7B, MaxTier: 1.7B` (`memory_16_gib_limited_headroom`).
+   Apple Silicon / unified memory follows these same RAM rules: confirmed Metal
+   supplies accelerator evidence but does not itself upgrade 16 GiB RAM to a 4B recommendation.
+7. Remaining known RAM from 8 GiB to below 16 GiB → `Tier: 1.7B, MaxTier: 1.7B` (`memory_at_least_8_gib`).
 
 When `Evaluate` inspects destination disk space and `Recommendation.EffectiveMaxTier() == 4B`
 while `Recommendation.Tier == 1.7B`, if disk free space covers `Tier1_7BBytes` but is below
@@ -93,10 +93,10 @@ below 2.5 GiB, or CPU-only logical threads below 4 prevents `CheckPassed`.
 Known failures dominate unknowns, and all check reason codes are retained.
 The recommendation remains visible even when a device check cannot pass.
 
-Windows x64 and Linux x64 accept a conservative CPU host backend. A VRAM-based
+Windows x64, Linux x64 and macOS arm64/x64 accept a CPU host backend. A VRAM-based
 4B recommendation additionally needs a confirmed CUDA/Vulkan backend with the
 same nonempty `AdapterID` as a qualifying adapter; another GPU or CPU does not
-prove that memory usable. macOS arm64 requires a confirmed Metal host backend.
+prove that memory usable.
 Native Windows/Linux optional accelerator backends currently remain unknown:
 they are never guessed from DLL/library files. T3.2 can inject separately
 validated backend evidence; T3.4 must still verify its exact runtime artifact.
@@ -107,21 +107,25 @@ still block at the later request gate; a recommendation is never a bypass.
 
 ## Native platform boundaries
 
-Windows 10/11 x64 and macOS 14+ arm64 are the required first targets. Other
+Windows 10/11 x64 and macOS 14+ arm64/x64 are supported targets. Other
 architectures return an unsupported check; missing Windows/macOS versions stay unknown.
 
 | Platform | Native observations | Limits |
 | --- | --- | --- |
 | Windows | Installed physical RAM (`GetPhysicallyInstalledSystemMemory` / `GlobalMemoryStatusEx`), real-time available physical RAM (`GlobalMemoryStatusEx.AvailPhys`), native architecture, OS version, read-only CPU name and logical thread count, caller-available disk; DXGI adapters plus D3D12 architecture query | Only non-UMA, non-software/remote adapters count as discrete. Failed D3D12 classification stays unknown even if DXGI returns a large reserved segment. Optional CUDA/Vulkan evidence remains unknown. |
-| macOS | `hw.memsize`, OS/CPU sysctl, process architecture, available filesystem blocks; Apple silicon unified GPU | Unified memory is never discrete VRAM. A cgo build queries `MTLCreateSystemDefaultDevice` without launching a runtime. A no-cgo build reports Metal unknown and does not pass the Metal check. |
+| macOS | `hw.memsize`, OS/CPU sysctl, process architecture, available filesystem blocks; Apple silicon unified GPU | Unified memory is never discrete VRAM. A cgo build queries `MTLCreateSystemDefaultDevice` without launching a runtime. A no-cgo build reports Metal unknown; CPU validation can still pass. |
 | Linux | Sysinfo RAM with checked units, real-time available RAM (`/proc/meminfo` `MemAvailable:` with sysinfo fallback), uname/architecture, logical CPUs and caller-available filesystem blocks | GPU/CPU model details not read are unknown. Injectable fixtures validate the contract separately. Ubuntu/kernel/driver and physical CPU/GPU acceptance remain later native validation. |
 
-The default product build is no-cgo and this task does not change that build or
-connect detection to the service. Before connecting native Metal detection to a
-macOS product build, T3.2/integration must use the cgo provider (system Metal and
-Foundation frameworks) or supply equivalently validated backend evidence. A
-no-cgo cross build proves compatibility only and cannot be recorded as Metal
-acceptance. No Linux release work is included.
+The product remains no-cgo. The service uses
+[`EvaluateWithCPUFallback`](../../internal/routerdevice/cpu_fallback.go) when
+unknown GPU availability blocks an otherwise valid CPU installation. It evaluates
+a separate CPU-only recommendation and preserves the original GPU observations
+in the report. RAM, available-memory, CPU-thread, architecture and disk checks
+still apply; GPU VRAM never becomes CPU RAM. The runtime later probes its exact
+installed CUDA/Vulkan/Metal engine and validates real offload plus synthetic
+inference, as described in the [runtime reference](api-router-runtime.md).
+A no-cgo cross build proves compatibility only, not native Metal acceptance.
+No Linux GPU release work is included.
 
 ## Verification
 

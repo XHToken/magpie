@@ -163,3 +163,150 @@ func TestWorkBuddyRestoreAfterSwitchingCustomLocalModel(t *testing.T) {
 		t.Fatalf("unexpected restored WorkBuddy model: %v (err=%v)", doc["model"], err)
 	}
 }
+
+func TestLoomyRuntimeClearedModelsCatalogAndSwitchedModel(t *testing.T) {
+	e, o := loomySetup(t)
+	path := filepath.Join(o.ConfigRoot, "opencode.json")
+	orig := []byte(`{"model":"imodel/default","small_model":"imodel/qwen3.8-flash","provider":{"imodel":{"name":"iModel"}}}`)
+	put(t, path, orig)
+	o.Model = ""
+	o.Models = []string{"group/111"}
+	if _, err := e.Connect(context.Background(), o); err != nil {
+		t.Fatalf("initial Connect failed: %v", err)
+	}
+	// Simulate Loomy runtime clearing provider.api_router.models to {} and switching model to imodel/spark-x2.6-preview.
+	runtimeEdited, err := edit.PatchJSON(get(t, path), []edit.KV{
+		{Path: "model", Value: "imodel/spark-x2.6-preview"},
+		{Path: "small_model", Value: "imodel/qwen3.8-flash"},
+		{Path: "provider.api_router.models", Value: map[string]any{}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	put(t, path, runtimeEdited)
+
+	// Port synchronization must still succeed across both live opencode.json and the journal.
+	nextURL := "http://127.0.0.1:14388"
+	targets := []PortTarget{{Host: "loomy", ConfigRoot: o.ConfigRoot, Model: "group/111"}}
+	if err := e.synchronizePorts(context.Background(), o.RouterURL, nextURL, targets, func() error { return nil }); err != nil {
+		t.Fatalf("synchronizePorts after Loomy cleared models catalog failed: %v", err)
+	}
+	o.RouterURL = nextURL
+	o.Models = []string{"deepseek-flash"}
+	if _, err := e.Connect(context.Background(), o); err != nil {
+		t.Fatalf("Reconnect after Loomy cleared models catalog failed: %v", err)
+	}
+	// If Loomy or the user both clears models and switches model to a new non-Router selector,
+	// PreviewRestore must reject overwriting the new selection.
+	runtimeEdited2, err := edit.PatchJSON(get(t, path), []edit.KV{
+		{Path: "model", Value: "imodel/spark-x2.6-preview"},
+		{Path: "provider.api_router.models", Value: map[string]any{}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	put(t, path, runtimeEdited2)
+	if _, err := e.PreviewRestore(o.Host, o.ConfigRoot); err == nil {
+		t.Fatal("PreviewRestore accepted conflicting non-Router model after catalog was cleared")
+	}
+	// When only the Router catalog was cleared while model remains a Router selection, Restore succeeds.
+	runtimeClearedCatalogOnly, err := edit.PatchJSON(get(t, path), []edit.KV{
+		{Path: "model", Value: "api_router/deepseek-flash"},
+		{Path: "provider.api_router.models", Value: map[string]any{}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	put(t, path, runtimeClearedCatalogOnly)
+	rp, err := e.PreviewRestore(o.Host, o.ConfigRoot)
+	if err != nil {
+		t.Fatalf("PreviewRestore after Loomy cleared models catalog failed: %v", err)
+	}
+	if err := e.Restore(rp); err != nil {
+		t.Fatalf("Restore after Loomy cleared models catalog failed: %v", err)
+	}
+	doc, err := readJSON(get(t, path))
+	if err != nil || doc["model"] != "imodel/default" || doc["small_model"] != "imodel/qwen3.8-flash" {
+		t.Fatalf("unexpected restored Loomy document: %s (err=%v)", get(t, path), err)
+	}
+}
+
+func TestLoomySidecarSyncOnConnectAndRestore(t *testing.T) {
+	e, o := loomySetup(t)
+	path := filepath.Join(o.ConfigRoot, "opencode.json")
+	sidecar := filepath.Join(o.ConfigRoot, "loomy-config.json")
+	put(t, path, []byte(`{"model":"imodel/default","small_model":"imodel/qwen3.8-flash","provider":{"imodel":{"name":"iModel"}}}`))
+	put(t, sidecar, []byte(`{"customModelsEnabled":false,"modelUserSelected":false,"migrations":{"v1":true}}`))
+
+	o.Model = ""
+	o.Models = []string{"group/2222", "deepseek-chat"}
+	if _, err := e.Connect(context.Background(), o); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+	scDoc, err := readJSON(get(t, sidecar))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scDoc["customModelsEnabled"] != true || scDoc["modelUserSelected"] != true || scDoc["customModelBackup"] != "api_router/group/2222" {
+		t.Fatalf("unexpected sidecar after Connect: %s", get(t, sidecar))
+	}
+
+	rp, err := e.PreviewRestore(o.Host, o.ConfigRoot)
+	if err != nil {
+		t.Fatalf("PreviewRestore failed: %v", err)
+	}
+	if err := e.Restore(rp); err != nil {
+		t.Fatalf("Restore failed: %v", err)
+	}
+	scRestored, err := readJSON(get(t, sidecar))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scRestored["customModelBackup"] != "imodel/default" {
+		t.Fatalf("unexpected sidecar after Restore: %s", get(t, sidecar))
+	}
+}
+
+func TestLoomyRestoreRejectsUserModelEditWhenCatalogIntact(t *testing.T) {
+	e, o := loomySetup(t)
+	path := filepath.Join(o.ConfigRoot, "opencode.json")
+	put(t, path, []byte("{\n  \"model\": \"original/model\",\n  \"small_model\": \"original/small\",\n  \"provider\": {\"original\": {\"options\": {\"apiKey\": \"secret\"}}},\n  \"theme\": \"before\"\n}\n"))
+	mustApply(t, e, o)
+	later, err := edit.PatchJSON(get(t, path), []edit.KV{
+		{Path: "model", Value: "user/changed"},
+		{Path: "theme", Value: "later-user-theme"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	put(t, path, later)
+	if _, err := e.PreviewRestore(o.Host, o.ConfigRoot); err == nil {
+		t.Fatal("PreviewRestore accepted conflicting user model edit when catalog was intact")
+	}
+	doc, err := readJSON(get(t, path))
+	if err != nil || doc["model"] != "user/changed" {
+		t.Fatalf("PreviewRestore modified user model choice: %v (err=%v)", doc["model"], err)
+	}
+}
+
+func TestLoomyRestoreRejectsUserModelEditWhenCatalogCleared(t *testing.T) {
+	e, o := loomySetup(t)
+	path := filepath.Join(o.ConfigRoot, "opencode.json")
+	put(t, path, []byte("{\n  \"model\": \"original/model\",\n  \"small_model\": \"original/small\",\n  \"provider\": {\"original\": {\"options\": {\"apiKey\": \"secret\"}}},\n  \"theme\": \"before\"\n}\n"))
+	mustApply(t, e, o)
+	later, err := edit.PatchJSON(get(t, path), []edit.KV{
+		{Path: "model", Value: "user/changed"},
+		{Path: "provider.api_router.models", Value: map[string]any{}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	put(t, path, later)
+	if _, err := e.PreviewRestore(o.Host, o.ConfigRoot); err == nil {
+		t.Fatal("PreviewRestore accepted user model edit after Router catalog was cleared")
+	}
+	doc, err := readJSON(get(t, path))
+	if err != nil || doc["model"] != "user/changed" {
+		t.Fatalf("PreviewRestore modified user model choice: %v (err=%v)", doc["model"], err)
+	}
+}

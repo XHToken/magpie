@@ -13,6 +13,10 @@ import (
 	"github.com/yetone/magpie/internal/routerprocess"
 )
 
+// DefaultRedactionBudget bounds one complete local redaction request, including
+// queued work and every extraction batch. Shorter caller deadlines still win.
+const DefaultRedactionBudget = 30 * time.Second
+
 var (
 	ErrDisabled                 = errors.New("local_model_disabled")
 	ErrNotInstalled             = errors.New("local_model_not_installed")
@@ -51,10 +55,11 @@ const (
 )
 
 type Intent struct {
-	Enabled  bool                         `json:"enabled"`
-	Selected string                       `json:"selected"`
-	Trial    TrialIntent                  `json:"trial,omitempty"`
-	Settings routerconfig.RuntimeSettings `json:"settings,omitzero"`
+	Enabled      bool                         `json:"enabled"`
+	UserDisabled bool                         `json:"userDisabled,omitempty"`
+	Selected     string                       `json:"selected"`
+	Trial        TrialIntent                  `json:"trial,omitempty"`
+	Settings     routerconfig.RuntimeSettings `json:"settings,omitzero"`
 }
 
 // TrialIntent is deliberately comparable so lifecycle tests can compare the
@@ -111,12 +116,14 @@ type Check struct {
 }
 
 type Status struct {
+	Backend           BackendStatus                `json:"backend"`
 	MemoryBeforeLoad  routerdevice.Fact[uint64]    `json:"memoryBeforeLoad"`
 	MemoryAfterLoad   routerdevice.Fact[uint64]    `json:"memoryAfterLoad"`
 	Settings          routerconfig.RuntimeSettings `json:"settings"`
 	EffectiveSettings routerconfig.RuntimeSettings `json:"effectiveSettings"`
 	Intent            Intent                       `json:"intent"`
 	Installation      string                       `json:"installation"`
+	InstallingModel   string                       `json:"installingModel,omitempty"`
 	Runtime           RunState                     `json:"runtime"`
 	Healthy           bool                         `json:"healthy"`
 	PID               int                          `json:"pid,omitempty"`
@@ -140,13 +147,18 @@ type DependencyStatus struct {
 }
 
 type Options struct {
-	AvailableMemory      func(context.Context) (uint64, error)
-	Catalog              routermanifest.Catalog
-	RuntimeID            string
-	Store                IntentStore
-	Installer            Installer
-	Factory              routerprocess.Factory
-	LoadTimeout          time.Duration
+	// Explicit diagnostic runtimes remain fixed unless AutoBackend is enabled.
+	AutoBackend     bool
+	BackendHints    func(context.Context) []string
+	AvailableMemory func(context.Context) (uint64, error)
+	Catalog         routermanifest.Catalog
+	RuntimeID       string
+	Store           IntentStore
+	Installer       Installer
+	Factory         routerprocess.Factory
+	LoadTimeout     time.Duration
+	// IdleTimeout enables idle eviction only when a trusted caller sets a
+	// positive duration. Zero keeps enabled models resident until shutdown.
 	IdleTimeout          time.Duration
 	JudgmentBudget       time.Duration
 	ExecutionQueueBudget time.Duration

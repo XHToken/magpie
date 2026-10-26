@@ -31,6 +31,9 @@ func (f *FileInstaller) dependencyPaths(r routermanifest.Runtime) (archive, sour
 	archive = filepath.Join(f.Layout.Runtime, d.Artifact.ID+"-archive", d.Artifact.FileName)
 	source = filepath.Join(f.Layout.Runtime, d.ID)
 	execution = filepath.Join(f.Layout.Runtime, r.Artifact.ID+"-"+d.ID)
+	if r.AcceleratorDependencies != nil {
+		execution += "-" + r.AcceleratorDependencies.ID
+	}
 	return
 }
 
@@ -80,7 +83,11 @@ func (f *FileInstaller) assembly(r routermanifest.Runtime) (routerdownload.Assem
 	if rel == "." {
 		rel = ""
 	}
-	return routerdownload.Assembly{Base: r.Artifact, Overlay: r.Dependencies.Artifact, BaseDirectory: base, OverlayDirectory: source, OverlayPrefix: filepath.ToSlash(rel)}, execution, nil
+	a := routerdownload.Assembly{Base: r.Artifact, Overlay: r.Dependencies.Artifact, BaseDirectory: base, OverlayDirectory: source, OverlayPrefix: filepath.ToSlash(rel)}
+	if d := r.AcceleratorDependencies; d != nil {
+		a.Extra = append(a.Extra, routerdownload.AssemblyOverlay{Artifact: d.Artifact, Directory: filepath.Join(f.Layout.Runtime, d.ID)})
+	}
+	return a, execution, nil
 }
 
 func findRuntimeExecutable(folder, name string) (string, error) {
@@ -111,6 +118,11 @@ func (f *FileInstaller) verifyWindowsRuntime(ctx context.Context, r routermanife
 	if err := verifyDependencyFiles(ctx, r.Dependencies, source); err != nil {
 		return "", nil, err
 	}
+	if d := r.AcceleratorDependencies; d != nil {
+		if err := verifyDependencyFiles(ctx, d, filepath.Join(f.Layout.Runtime, d.ID)); err != nil {
+			return "", nil, err
+		}
+	}
 	a, _, err := f.assembly(r)
 	if err == nil {
 		err = a.Verify(ctx, execution)
@@ -127,6 +139,11 @@ func (f *FileInstaller) verifyWindowsRuntime(ctx context.Context, r routermanife
 		return "", nil, dependencyFailure(routerprocess.DependencyLayoutCode, err)
 	}
 	spec := dependencySpec(r.Dependencies, filepath.Dir(executable))
+	if d := r.AcceleratorDependencies; d != nil {
+		extra := dependencySpec(d, filepath.Dir(executable))
+		spec.MixedVersions = true
+		spec.Files = append(spec.Files, extra.Files...)
+	}
 	if err := routerprocess.ValidateDependencies(ctx, executable, spec); err != nil {
 		return "", nil, err
 	}

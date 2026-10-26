@@ -9,6 +9,7 @@ import (
 
 	"github.com/yetone/magpie/internal/cloudcodec"
 	"github.com/yetone/magpie/internal/routerconfig"
+	"github.com/yetone/magpie/internal/routerredact"
 	"github.com/yetone/magpie/internal/routerrequest"
 	"github.com/yetone/magpie/internal/routerruntime"
 )
@@ -91,11 +92,12 @@ type RedactionRequest struct {
 // source-compatible migration alias for older adapters; new adapters must
 // implement Close and leave Release nil.
 type PreparedCloudRequest struct {
-	Body       []byte
-	Restore    func(context.Context, string, string, []byte) ([]byte, error)
-	RestoreSSE func(context.Context, string, io.Reader, io.Writer) error
-	Close      func() error
-	Release    func()
+	Body            []byte
+	ObservationMeta *routerredact.ObservationMeta
+	Restore         func(context.Context, string, string, []byte) ([]byte, error)
+	RestoreSSE      func(context.Context, string, io.Reader, io.Writer) error
+	Close           func() error
+	Release         func()
 }
 
 type Redactor interface {
