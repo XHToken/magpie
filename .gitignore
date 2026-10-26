@@ -6,7 +6,7 @@
 /.migration/
 /.worktrees/
 /.test-locks/
-/API-router开发任务项目管理.md
+/Wefto开发任务项目管理.md
 /产品设计.md
 /架构设计.md
 
@@ -19,13 +19,13 @@ __pycache__/
 /tmp/
 /temp/
 /magpie/scripts/host-acceptance/evidence/
-# Upstream landing site and release automation are not part of API-router.
+# Upstream landing site and release automation are not part of Wefto.
 /magpie/site/
 /magpie/.github/
-/api-router
-/api-router.exe
-/magpie/api-router
-/magpie/api-router.exe
+/wefto
+/wefto.exe
+/magpie/wefto
+/magpie/wefto.exe
 playwright-report/
 test-results/
 *.test
@@ -68,3 +68,10 @@ test-results/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Legacy development records and binaries remain private after the rename.
+/API-router开发任务项目管理.md
+/api-router
+/api-router.exe
+/magpie/api-router
+/magpie/api-router.exe

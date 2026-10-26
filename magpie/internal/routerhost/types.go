@@ -17,10 +17,11 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/yetone/magpie/internal/product"
 	"github.com/yetone/magpie/internal/steady"
 )
 
-const PlaceholderAPIKey = "api-router-local-placeholder"
+const PlaceholderAPIKey = product.PlaceholderKey
 
 type Options struct {
 	Host, ConfigRoot, RouterURL, Model string
@@ -157,7 +158,7 @@ func (p *Plan) Summary() any {
 		RouterURL, RequestURL, Model, CredentialSource, Recovery string
 		Warning                                                  string `json:",omitempty"`
 	}{p.Action, p.Host, p.Digest, files, configBase, requestURL, p.options.PrimaryModel(), credentialSource,
-		"api-router host restore-preview / restore; available while Router is stopped", p.warning()}
+		"wefto host restore-preview / restore; available while Router is stopped", p.warning()}
 }
 func (p *Plan) warning() string {
 	if p.Action == "restore" {

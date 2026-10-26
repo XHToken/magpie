@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/yetone/magpie/internal/product"
 )
 
 type workBuddyHTTPChecker struct{ managementToken string }
@@ -73,8 +75,8 @@ func (c workBuddyHTTPChecker) Check(ctx context.Context, o Options) (result erro
 		return fmt.Errorf("Router health: %w", err)
 	}
 	var h struct{ Service, Status string }
-	if !workBuddyDecodeJSON(health, &h) || h.Service != "api-router" || h.Status != "ok" {
-		return fmt.Errorf("Router health: endpoint is not a healthy API-router service")
+	if !workBuddyDecodeJSON(health, &h) || !product.IsService(h.Service) || h.Status != "ok" {
+		return fmt.Errorf("Router health: endpoint is not a healthy Wefto service")
 	}
 	apps, err := request(http.MethodGet, "/api/apps", nil, true)
 	if err != nil {

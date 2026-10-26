@@ -1,27 +1,29 @@
-# API-router Windows x64 本地安装与管理
+# Wefto 织流 Windows x64 本地安装与管理
 
-[English installation guide](https://github.com/xyzane54/magpie/blob/codex/api-router/README.en.md#download-and-install-on-windows-x64)
+[English installation guide](https://github.com/xyzane54/magpie/blob/codex/wefto-rename/README.en.md#download-and-install-on-windows-x64)
 
-本包包含已编译的产品 EXE 和内嵌网页。使用产品无需 Go、Node、Python 或源码，不需要管理员服务。预览包支持 Windows x64，由个人仓库 [xyzane54/magpie 的 Releases](https://github.com/xyzane54/magpie/releases) 发布，标签使用 `api-router-v` 前缀，与上游 Magpie 版本分别管理。当前未进行发布者代码签名，也没有自动更新功能。SHA256 校验用于核对文件完整性，不能证明 manifest 的发布者身份。
+本包包含已编译的产品 EXE 和内嵌网页。使用产品无需 Go、Node、Python 或源码，不需要管理员服务。预览包支持 Windows x64，由个人仓库 [xyzane54/magpie 的 Releases](https://github.com/xyzane54/magpie/releases) 发布，标签使用 `wefto-v` 前缀，与上游 Magpie 版本分别管理。当前未进行发布者代码签名，也没有自动更新功能。SHA256 校验用于核对文件完整性，不能证明 manifest 的发布者身份。
+
+旧版 Wefto 升级请先阅读[更名升级说明](https://github.com/xyzane54/magpie/blob/wefto-v0.1.0-beta.2/magpie/docs/wefto-upgrade.md)，由旧 EXE 停止旧服务并处理旧登录自启；Wefto 会复用检测到的完整旧数据布局。
 
 ## 安装固定版本
 
-从同一 [API-router 发布版本](https://github.com/xyzane54/magpie/releases/tag/api-router-v0.1.0-beta.2)取得 `*.zip`、`*.manifest.json`、`SHA256SUMS` 和独立 `install-windows.ps1`，保存在同一个本地文件夹。`SHA256SUMS` 列出 ZIP、manifest 和独立安装脚本的校验值，可用 `Get-FileHash -Algorithm SHA256` 核对。安装器只接受明确给定的本地包，不执行网络脚本文本，不查询或隐式使用 latest；当前不实现自动升级、自动回滚或其他平台安装。
+从同一 [Wefto 发布版本](https://github.com/xyzane54/magpie/releases/tag/wefto-v0.1.0-beta.2)取得 `*.zip`、`*.manifest.json`、`SHA256SUMS` 和独立 `install-windows.ps1`，保存在同一个本地文件夹。`SHA256SUMS` 列出 ZIP、manifest 和独立安装脚本的校验值，可用 `Get-FileHash -Algorithm SHA256` 核对。安装器只接受明确给定的本地包，不执行网络脚本文本，不查询或隐式使用 latest；当前不实现自动升级、自动回滚或其他平台安装。
 
 在 PowerShell 中指定绝对路径（支持空格和中文）：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\Downloads\API-router\install-windows.ps1' -ManifestPath 'C:\Downloads\API-router\api-router-VERSION-windows-amd64.manifest.json' -PackagePath 'C:\Downloads\API-router\api-router-VERSION-windows-amd64.zip'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\Downloads\Wefto\install-windows.ps1' -ManifestPath 'C:\Downloads\Wefto\wefto-VERSION-windows-amd64.manifest.json' -PackagePath 'C:\Downloads\Wefto\wefto-VERSION-windows-amd64.zip'
 ```
 
-把 `VERSION` 替换为实际固定版本。默认程序目录为 `%LOCALAPPDATA%\Programs\API-router`，可用 `-InstallDir 'C:\Users\YOU\Programs\API-router'` 指定独立产品目录。程序目录与配置、数据、模型目录必须分开，安装不会覆盖或初始化这些数据。安装不会启动服务、打开自启、下载、启用或加载任何模型。首次启动也不会下载、启用或加载模型。
+把 `VERSION` 替换为实际固定版本。默认程序目录为 `%LOCALAPPDATA%\Programs\Wefto`，可用 `-InstallDir 'C:\Users\YOU\Programs\Wefto'` 指定独立产品目录。程序目录与配置、数据、模型目录必须分开，安装不会覆盖或初始化这些数据。安装不会启动服务、打开自启、下载、启用或加载任何模型。首次启动也不会下载、启用或加载模型。
 
 包、manifest 和安装目录必须是本机盘符绝对路径；不支持 UNC、设备命名空间、`.` / `..` 组件或尾随点/空格路径别名。安装器验证完整包及所有文件的大小和 SHA256、ZIP 平铺文件白名单、Windows PE x64 架构，拒绝路径穿越、链接与重解析点。验证通过后才发布完整安装目录。同一完整包重复安装返回 reused；同版本文件损坏会明确失败并保留原目录。其他版本不会覆盖现有安装，需按手动替换流程操作。
 
 ## 服务与登录自启
 
 ```powershell
-$router = Join-Path $env:LOCALAPPDATA 'Programs\API-router\api-router.exe'
+$router = Join-Path $env:LOCALAPPDATA 'Programs\Wefto\wefto.exe'
 & $router service start
 & $router service status
 & $router service restart
@@ -70,7 +72,7 @@ $router = Join-Path $env:LOCALAPPDATA 'Programs\API-router\api-router.exe'
 & (Join-Path (Split-Path $router) 'uninstall-windows.ps1') -Execute
 ```
 
-卸载停止本产品实例并移除本产品登录自启，只删除 receipt 明确管理的程序文件，不递归删除宽泛目录。默认保留配置、凭证、统计、模型、运行时、宿主恢复备份和日志；保留 `api-router.exe` 及安装 receipt 作为可离线使用的恢复工具。报告会明确列出残留恢复工具路径，这不等于清空全部用户数据。确认所有宿主已恢复且不再需要工具后，可在 EXE 已停止、离开安装目录的 PowerShell 中手动删除列出的 EXE 与 receipt；其他未知文件由用户自行处理。本轮不提供清空用户数据开关。
+卸载停止本产品实例并移除本产品登录自启，只删除 receipt 明确管理的程序文件，不递归删除宽泛目录。默认保留配置、凭证、统计、模型、运行时、宿主恢复备份和日志；保留 `wefto.exe` 及安装 receipt 作为可离线使用的恢复工具。报告会明确列出残留恢复工具路径，这不等于清空全部用户数据。确认所有宿主已恢复且不再需要工具后，可在 EXE 已停止、离开安装目录的 PowerShell 中手动删除列出的 EXE 与 receipt；其他未知文件由用户自行处理。本轮不提供清空用户数据开关。
 
 ## 手动版本替换、备份与恢复
 
@@ -83,7 +85,7 @@ $router = Join-Path $env:LOCALAPPDATA 'Programs\API-router\api-router.exe'
 
 ## 来源与许可证
 
-本程序基于 [Magpie](https://github.com/yetone/magpie) 改造，源代码及本包对应版本可在 [API-router 仓库](https://github.com/xyzane54/magpie/tree/codex/api-router)取得。模型权重和推理运行时另行下载，遵循各自的许可证。原始 MIT 许可证与版权声明如下：
+本程序基于 [Magpie](https://github.com/yetone/magpie) 改造，源代码及本包对应版本可在 [Wefto 仓库](https://github.com/xyzane54/magpie/tree/codex/wefto-rename)取得。模型权重和推理运行时另行下载，遵循各自的许可证。原始 MIT 许可证与版权声明如下：
 
 ```text
 MIT License

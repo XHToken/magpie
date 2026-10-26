@@ -1,6 +1,6 @@
-// Routing Group Editor & Model Picker Popover for API-Router.
+// Routing Group Editor & Model Picker Popover for Wefto.
 (function () {
-  var rg = window.__apiRouterRoutingGroups;
+  var rg = window.__weftoRoutingGroups;
   if (!rg) return;
 
   var EFFORT_CYCLE = ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];

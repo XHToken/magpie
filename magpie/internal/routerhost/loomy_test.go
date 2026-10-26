@@ -49,7 +49,7 @@ func TestLoomyInstalledContractAndPreviewIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, key := range []string{"model", "small_model"} {
-		if doc[key] != "api_router/vendor/model.v1" {
+		if doc[key] != "wefto/vendor/model.v1" {
 			t.Fatalf("wrong installed model selector %s: %v", key, doc[key])
 		}
 	}
@@ -57,13 +57,13 @@ func TestLoomyInstalledContractAndPreviewIsolation(t *testing.T) {
 		path  []string
 		value any
 	}{
-		{[]string{"provider", "api_router", "npm"}, "@ai-sdk/openai-compatible"},
-		{[]string{"provider", "api_router", "name"}, "API Router"},
-		{[]string{"provider", "api_router", "options", "baseURL"}, "http://127.0.0.1:14387/app/loomy/v1"},
-		{[]string{"provider", "api_router", "options", "apiKey"}, "api-router-local-placeholder"},
-		{[]string{"provider", "api_router", "options", "useSessionAuth"}, false},
-		{[]string{"provider", "api_router", "models", "vendor/model.v1", "name"}, "vendor/model.v1"},
-		{[]string{"provider", "api_router", "models", "vendor/model.v1", "tool_call"}, true},
+		{[]string{"provider", "wefto", "npm"}, "@ai-sdk/openai-compatible"},
+		{[]string{"provider", "wefto", "name"}, "Wefto"},
+		{[]string{"provider", "wefto", "options", "baseURL"}, "http://127.0.0.1:14387/app/loomy/v1"},
+		{[]string{"provider", "wefto", "options", "apiKey"}, "wefto-local-placeholder"},
+		{[]string{"provider", "wefto", "options", "useSessionAuth"}, false},
+		{[]string{"provider", "wefto", "models", "vendor/model.v1", "name"}, "vendor/model.v1"},
+		{[]string{"provider", "wefto", "models", "vendor/model.v1", "tool_call"}, true},
 	} {
 		if got, exists := lookup(doc, want.path); !exists || got != want.value {
 			t.Fatalf("installed provider field %v = %v, want %v", want.path, got, want.value)
@@ -97,10 +97,10 @@ func TestLoomyFirstBackupIdempotenceAndOfflineRestore(t *testing.T) {
 				t.Fatal("repeat apply overwrote first backup or changed host bytes")
 			}
 			current, err := edit.PatchJSON(applied, []edit.KV{{Path: "theme", Value: "dark"},
-				{Path: "provider.api_router.options.timeout", Value: 1200000},
-				{Path: "provider.api_router.options.chunkTimeout", Value: 1200000},
-				{Path: "provider.api_router.models.vendor/model\\.v1.limit.context", Value: 8192},
-				{Path: "provider.api_router.localNote", Value: "keep"}}, nil)
+				{Path: "provider.wefto.options.timeout", Value: 1200000},
+				{Path: "provider.wefto.options.chunkTimeout", Value: 1200000},
+				{Path: "provider.wefto.models.vendor/model\\.v1.limit.context", Value: 8192},
+				{Path: "provider.wefto.localNote", Value: "keep"}}, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -152,7 +152,7 @@ func TestLoomyFirstBackupIdempotenceAndOfflineRestore(t *testing.T) {
 }
 
 func TestLoomySameFieldConflictAndStalePlan(t *testing.T) {
-	for _, field := range []string{"model", "small_model", "provider.api_router.options.baseURL", "provider.api_router.options.apiKey", "provider.api_router.options.useSessionAuth", "provider.api_router.models.vendor/model\\.v1.tool_call", "provider.api_router.options"} {
+	for _, field := range []string{"model", "small_model", "provider.wefto.options.baseURL", "provider.wefto.options.apiKey", "provider.wefto.options.useSessionAuth", "provider.wefto.models.vendor/model\\.v1.tool_call", "provider.wefto.options"} {
 		t.Run(field, func(t *testing.T) {
 			e, o := loomySetup(t)
 			mustApply(t, e, o)
@@ -192,7 +192,7 @@ func TestLoomySameFieldConflictAndStalePlan(t *testing.T) {
 }
 
 func TestLoomyMalformedAndReservedProviderConflicts(t *testing.T) {
-	for _, raw := range []string{"", `{"provider":false}`, `{"model":false}`, `{"small_model":{}}`, `{"model":"one","model":"two"}`, `{"provider":{"api_router":{"npm":"other-sdk","options":{"apiKey":"secret"}}}}`} {
+	for _, raw := range []string{"", `{"provider":false}`, `{"model":false}`, `{"small_model":{}}`, `{"model":"one","model":"two"}`, `{"provider":{"wefto":{"npm":"other-sdk","options":{"apiKey":"secret"}}}}`} {
 		t.Run(fmt.Sprint(len(raw)), func(t *testing.T) {
 			e, o := loomySetup(t)
 			path := filepath.Join(o.ConfigRoot, "opencode.json")
@@ -205,7 +205,7 @@ func TestLoomyMalformedAndReservedProviderConflicts(t *testing.T) {
 			}
 		})
 	}
-	for _, field := range []string{"provider.api_router.options.headers.Authorization", "provider.api_router.options.useSessionAuth", "provider.api_router.options.baseURL", "provider.api_router.api", "provider.api_router.models.vendor/model\\.v1.options.headers.Authorization", "provider.api_router.models.vendor/model\\.v1.api.url"} {
+	for _, field := range []string{"provider.wefto.options.headers.Authorization", "provider.wefto.options.useSessionAuth", "provider.wefto.options.baseURL", "provider.wefto.api", "provider.wefto.models.vendor/model\\.v1.options.headers.Authorization", "provider.wefto.models.vendor/model\\.v1.api.url"} {
 		t.Run(field, func(t *testing.T) {
 			e, o := loomySetup(t)
 			p, err := e.Preview(o)
@@ -246,7 +246,7 @@ func TestLoomyModelWireTargetOverridesAreRejected(t *testing.T) {
 				t.Fatal(err)
 			}
 			raw, err := edit.PatchJSON(p.files[0].After, []edit.KV{{
-				Path: "provider.api_router.models.vendor/model\\.v1." + override.name, Value: override.value,
+				Path: "provider.wefto.models.vendor/model\\.v1." + override.name, Value: override.value,
 			}}, nil)
 			if err != nil {
 				t.Fatal(err)
@@ -272,12 +272,12 @@ func TestLoomyInstalledProviderAndModelExclusionsArePreserved(t *testing.T) {
 		model     string
 		allowed   bool
 	}{
-		{"disabled-selected", `{"disabled_providers":["api_router"]}`, "vendor/model.v1", false},
+		{"disabled-selected", `{"disabled_providers":["wefto"]}`, "vendor/model.v1", false},
 		{"disabled-other", `{"disabled_providers":["imodel"]}`, "vendor/model.v1", true},
 		{"enabled-empty", `{"enabled_providers":[]}`, "vendor/model.v1", false},
 		{"enabled-other", `{"enabled_providers":["imodel"]}`, "vendor/model.v1", false},
-		{"enabled-selected", `{"enabled_providers":["api_router","imodel"]}`, "vendor/model.v1", true},
-		{"disabled-wins", `{"enabled_providers":["api_router"],"disabled_providers":["api_router"]}`, "vendor/model.v1", false},
+		{"enabled-selected", `{"enabled_providers":["wefto","imodel"]}`, "vendor/model.v1", true},
+		{"disabled-wins", `{"enabled_providers":["wefto"],"disabled_providers":["wefto"]}`, "vendor/model.v1", false},
 		{"invalid-enabled", `{"enabled_providers":true}`, "vendor/model.v1", false},
 		{"invalid-disabled", `{"disabled_providers":[false]}`, "vendor/model.v1", false},
 		{"removed-model", `{}`, "gpt-5-chat-latest", false},
@@ -314,7 +314,7 @@ func TestLoomyInstalledProviderAndModelExclusionsArePreserved(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			raw, err := edit.PatchJSON(p.files[0].After, []edit.KV{{Path: "provider.api_router.models.vendor/model\\.v1.status", Value: status}}, nil)
+			raw, err := edit.PatchJSON(p.files[0].After, []edit.KV{{Path: "provider.wefto.models.vendor/model\\.v1.status", Value: status}}, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -347,7 +347,7 @@ func TestLoomyCheckerPathsCredentialsAndStoredBoundary(t *testing.T) {
 					if r.Header.Get("Authorization") != "" {
 						t.Error("management credential sent to health")
 					}
-					fmt.Fprint(w, `{"service":"api-router","status":"ok"}`)
+					fmt.Fprint(w, `{"service":"wefto","status":"ok"}`)
 				case "/api/apps":
 					if r.Header.Get("Authorization") != "Bearer private-management-only" {
 						t.Error("missing explicit management credential")

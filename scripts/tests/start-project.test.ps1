@@ -14,14 +14,14 @@ function Assert-Fails([scriptblock]$Action, [string]$Pattern) {
 $routerTestRoot = Join-Path ([IO.Path]::GetTempPath()) ('router-start-test-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $routerTestRoot | Out-Null
 try {
-    $routerTestExecutable = Join-Path $routerTestRoot 'api-router.exe'
+    $routerTestExecutable = Join-Path $routerTestRoot 'wefto.exe'
     [IO.File]::WriteAllText($routerTestExecutable, 'not executed: native CLI is replaced by a test double')
     $routerTestState = Join-Path $routerTestRoot 'state'
     New-Item -ItemType Directory -Path $routerTestState | Out-Null
     $routerTestAppData = Join-Path $routerTestRoot 'roaming'
     $routerTestLocalAppData = Join-Path $routerTestRoot 'local'
-    New-Item -ItemType Directory -Path (Join-Path $routerTestAppData 'api-router') | Out-Null
-    [IO.File]::WriteAllText((Join-Path $routerTestAppData 'api-router\config.json'), '{"listen":{"address":"127.0.0.1:13145"}}')
+    New-Item -ItemType Directory -Path (Join-Path $routerTestAppData 'wefto') | Out-Null
+    [IO.File]::WriteAllText((Join-Path $routerTestAppData 'wefto\config.json'), '{"listen":{"address":"127.0.0.1:13145"}}')
     $routerTestHost = Join-Path $routerTestRoot 'workbuddy'
     New-Item -ItemType Directory -Path $routerTestHost | Out-Null
     $routerTestModels = Join-Path $routerTestHost 'models.json'
@@ -41,18 +41,18 @@ try {
     $routerTestTokenFile = Join-Path $routerTestRoot 'token'
     [IO.File]::WriteAllText($routerTestTokenFile, 'fixture-token')
     $routerTestCommands = New-Object 'Collections.Generic.List[string]'
-    function Invoke-ApiRouterCommand {
+    function Invoke-WeftoCommand {
         param([string]$Executable, [string[]]$Arguments)
         Assert-True ($env:APPDATA -eq $routerTestAppData -and $env:LOCALAPPDATA -eq $routerTestLocalAppData) 'Startup inherited a test instance environment'
         $routerTestCommands.Add(($Arguments -join ' '))
         if ($Arguments[0] -eq 'dirs') {
-            return @{config = (Join-Path $routerTestAppData 'api-router'); data = (Join-Path $routerTestLocalAppData 'api-router'); state = $routerTestState}
+            return @{config = (Join-Path $routerTestAppData 'wefto'); data = (Join-Path $routerTestLocalAppData 'wefto'); state = $routerTestState}
         }
         return @{running = $true; executable = $routerTestExecutable; pid = 123; version = 'fixture'; managementURL = 'http://127.0.0.1:13145/'; tokenFile = $routerTestTokenFile}
     }
     function Invoke-RestMethod {
         param($Uri, $TimeoutSec, $Proxy, $Headers)
-        if ($Uri.EndsWith('/healthz')) { return @{service = 'api-router'; status = 'ok'; pid = 123} }
+        if ($Uri.EndsWith('/healthz')) { return @{service = 'wefto'; status = 'ok'; pid = 123} }
         Assert-True ($Uri -eq 'http://127.0.0.1:13145/api/apps') 'Token sent to an unexpected endpoint'
         Assert-True ($Headers.Authorization -eq 'Bearer fixture-token') 'Missing management authorization'
         return @{apps = @()}
@@ -62,11 +62,11 @@ try {
     try {
         $env:APPDATA = 'unrelated-test-instance-roaming'
         $env:LOCALAPPDATA = 'unrelated-test-instance-local'
-        Start-ApiRouterProject -Executable $routerTestExecutable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -CheckOnly -NoBrowser
+        Start-WeftoProject -Executable $routerTestExecutable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -CheckOnly -NoBrowser
         Assert-True (($routerTestCommands -join ',') -eq 'dirs,service status') 'Read-only startup check started a service'
         Assert-True ($env:APPDATA -eq 'unrelated-test-instance-roaming' -and $env:LOCALAPPDATA -eq 'unrelated-test-instance-local') 'Caller environment was not restored'
         $routerTestCommands.Clear()
-        Start-ApiRouterProject -Executable $routerTestExecutable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -NoBrowser
+        Start-WeftoProject -Executable $routerTestExecutable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -NoBrowser
         Assert-True (($routerTestCommands -join ',') -eq 'dirs,service start') 'Startup did not use the native service start command'
     } finally {
         $env:APPDATA = $routerTestSavedAppData

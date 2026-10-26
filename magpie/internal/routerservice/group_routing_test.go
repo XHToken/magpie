@@ -47,7 +47,7 @@ func newGroupRoutingEnv(t *testing.T, opts ModelOptions) (http.Handler, *routerc
 	t.Cleanup(func() {
 		closeServiceGroupRedactors(store, opts.LocalRuntime)
 	})
-	info := Info{Service: "api-router", Address: "127.0.0.1:13145", PID: 42}
+	info := Info{Service: "wefto", Address: "127.0.0.1:13145", PID: 42}
 	return handlerWithModelOptions(info, "mgmt-secret-token", store, opts), store
 }
 

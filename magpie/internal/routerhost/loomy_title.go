@@ -11,10 +11,22 @@ import (
 	"github.com/yetone/magpie/internal/edit"
 )
 
+// Keep the released filename so an existing title extension remains owned by
+// the same recovery record through the product rename.
 const loomyTitleFile = "api-router-title.mjs"
 
 //go:embed loomy_title.mjs
 var loomyTitleSource []byte
+
+// Frozen metadata for the API-router v2 adapter, before Wefto added its own
+// provider namespace. Wefto's earlier v2 adapter owned only opencode.json.
+func legacyLoomyTitleContract() AdapterContract {
+	c := loomyV1Contract()
+	c.Version = 2
+	c.Files[0].Fields = append(c.Files[0].Fields, "plugin (API-Router title entry only)")
+	c.Files = append(c.Files, FileSpec{Name: loomyTitleFile, Fields: []string{"API-Router title extension source"}})
+	return c
+}
 
 func loomyV1Contract() AdapterContract {
 	return AdapterContract{ID: "loomy", Version: 1, Files: []FileSpec{{

@@ -18,13 +18,13 @@ import (
 	"strings"
 )
 
-const ReceiptName = ".api-router-install.json"
+const ReceiptName = ".wefto-install.json"
 const maxPackage = 256 << 20
 const maxManifest = 64 << 10
 
 var versionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?(?:\+[A-Za-z0-9.-]+)?$`)
 var hashPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
-var packageFiles = []string{"api-router.exe", "README-windows.md", "install-windows.ps1", "uninstall-windows.ps1"}
+var packageFiles = []string{"wefto.exe", "README-windows.md", "install-windows.ps1", "uninstall-windows.ps1"}
 
 type File struct {
 	Name   string `json:"name"`
@@ -75,8 +75,8 @@ func ReadManifest(name string) (Manifest, error) {
 }
 
 func validateManifest(m Manifest) error {
-	if m.SchemaVersion != 1 || m.Product != "api-router" || !versionPattern.MatchString(m.Version) {
-		return errors.New("manifest requires api-router schema 1 and an explicit fixed version")
+	if m.SchemaVersion != 1 || m.Product != "wefto" || !versionPattern.MatchString(m.Version) {
+		return errors.New("manifest requires wefto schema 1 and an explicit fixed version")
 	}
 	if m.OS != "windows" || m.Architecture != "amd64" {
 		return errors.New("unsupported package platform: this installer requires windows amd64")
@@ -142,7 +142,7 @@ func Install(ctx context.Context, opts InstallOptions) (InstallResult, error) {
 		return result, fmt.Errorf("installation is busy or its lock is unavailable: %w", err)
 	}
 	defer os.Remove(lock)
-	stage, err := os.MkdirTemp(filepath.Dir(root), ".api-router-install-")
+	stage, err := os.MkdirTemp(filepath.Dir(root), ".wefto-install-")
 	if err != nil {
 		return result, err
 	}
@@ -150,7 +150,7 @@ func Install(ctx context.Context, opts InstallOptions) (InstallResult, error) {
 	if err := extract(ctx, m, opts.PackagePath, stage); err != nil {
 		return result, fmt.Errorf("package validation failed; existing installation preserved: %w", err)
 	}
-	result = InstallResult{InstallDir: root, Executable: filepath.Join(root, "api-router.exe"), Version: m.Version}
+	result = InstallResult{InstallDir: root, Executable: filepath.Join(root, "wefto.exe"), Version: m.Version}
 	if _, err := os.Lstat(root); err == nil {
 		r, err := readReceipt(root)
 		if err != nil {
@@ -236,13 +236,13 @@ func verifyTree(ctx context.Context, root string, m Manifest) error {
 			return err
 		}
 	}
-	f, err := pe.Open(filepath.Join(root, "api-router.exe"))
+	f, err := pe.Open(filepath.Join(root, "wefto.exe"))
 	if err != nil {
-		return fmt.Errorf("api-router.exe is not a valid Windows PE executable: %w", err)
+		return fmt.Errorf("wefto.exe is not a valid Windows PE executable: %w", err)
 	}
 	defer f.Close()
 	if f.Machine != pe.IMAGE_FILE_MACHINE_AMD64 || f.Characteristics&pe.IMAGE_FILE_EXECUTABLE_IMAGE == 0 || f.Characteristics&pe.IMAGE_FILE_DLL != 0 {
-		return errors.New("api-router.exe has the wrong PE architecture or executable type; windows amd64 required")
+		return errors.New("wefto.exe has the wrong PE architecture or executable type; windows amd64 required")
 	}
 	return nil
 }

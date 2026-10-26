@@ -19,7 +19,7 @@ func newFastHealthServer(t *testing.T) (*httptest.Server, *atomic.Int32) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/healthz" {
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"service":"api-router","status":"ok"}`)
+			_, _ = io.WriteString(w, `{"service":"wefto","status":"ok"}`)
 			return
 		}
 		unexpectedCalls.Add(1)
@@ -68,13 +68,13 @@ func TestLoomyMultiModelConnectRetireAndRestore(t *testing.T) {
 	if err := json.Unmarshal(afterFirst, &doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc["model"] != "api_router/group/coding-hybrid" || doc["small_model"] != "api_router/group/coding-hybrid" {
+	if doc["model"] != "wefto/group/coding-hybrid" || doc["small_model"] != "wefto/group/coding-hybrid" {
 		t.Fatalf("unexpected primary model in opencode.json: model=%v small_model=%v", doc["model"], doc["small_model"])
 	}
-	modelsMap := doc["provider"].(map[string]any)["api_router"].(map[string]any)["models"].(map[string]any)
+	modelsMap := doc["provider"].(map[string]any)["wefto"].(map[string]any)["models"].(map[string]any)
 	for _, m := range firstModels {
 		if _, ok := modelsMap[m]; !ok {
-			t.Fatalf("expected model %q in provider.api_router.models, got %v", m, modelsMap)
+			t.Fatalf("expected model %q in provider.wefto.models, got %v", m, modelsMap)
 		}
 	}
 
@@ -95,10 +95,10 @@ func TestLoomyMultiModelConnectRetireAndRestore(t *testing.T) {
 	if err := json.Unmarshal(afterSecond, &doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc["model"] != "api_router/openai/gpt-4o" {
-		t.Fatalf("expected updated primary model api_router/openai/gpt-4o, got %v", doc["model"])
+	if doc["model"] != "wefto/openai/gpt-4o" {
+		t.Fatalf("expected updated primary model wefto/openai/gpt-4o, got %v", doc["model"])
 	}
-	modelsMap = doc["provider"].(map[string]any)["api_router"].(map[string]any)["models"].(map[string]any)
+	modelsMap = doc["provider"].(map[string]any)["wefto"].(map[string]any)["models"].(map[string]any)
 	if _, exists := modelsMap["group/coding-hybrid"]; exists {
 		t.Fatalf("expected retired model group/coding-hybrid to be removed, got %v", modelsMap)
 	}

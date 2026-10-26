@@ -12,11 +12,11 @@ const http = require('node:http');
 const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { chromium, webkit } = require('playwright');
-const binary = process.env.API_ROUTER_BINARY || path.resolve(__dirname, '../../..', 'dist/api-router');
+const binary = process.env.WEFTO_BINARY || path.resolve(__dirname, '../../..', 'dist/wefto');
 
 for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 'webkit'])) {
   test(`persisted product request observations (${engine})`, { timeout: 180000 }, async t => {
-    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'api-router-observation-ui-'));
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'wefto-observation-ui-'));
     let service, exited, browser, upstream, releaseHeld;
     t.after(async () => {
       releaseHeld?.();

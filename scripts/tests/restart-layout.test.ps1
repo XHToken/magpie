@@ -34,14 +34,14 @@ try {
     $routerTestListener.Start()
     $routerTestPort = $routerTestListener.LocalEndpoint.Port
     $routerTestListener.Stop()
-    $routerTestConfigPath = Join-Path $routerTestAppData 'api-router\config.json'
+    $routerTestConfigPath = Join-Path $routerTestAppData 'wefto\config.json'
     $routerTestConfig = Get-Content -LiteralPath $routerTestConfigPath -Raw | ConvertFrom-Json
     $routerTestConfig.listen.address = "127.0.0.1:$routerTestPort"
     [IO.File]::WriteAllText($routerTestConfigPath, ($routerTestConfig | ConvertTo-Json -Depth 30))
-    $routerTestFirst = Invoke-ApiRouterCommand -Executable $Executable -Arguments @('service', 'start')
+    $routerTestFirst = Invoke-WeftoCommand -Executable $Executable -Arguments @('service', 'start')
     Assert-LayoutInstance $routerTestFirst $routerTestConfig.instanceId "127.0.0.1:$routerTestPort" $routerTestConfigPath 'Initial startup'
     $routerTestPort = ([Uri]$routerTestFirst.managementURL).Port
-    $null = Invoke-ApiRouterCommand -Executable $Executable -Arguments @('service', 'stop')
+    $null = Invoke-WeftoCommand -Executable $Executable -Arguments @('service', 'stop')
     if ($OccupyRestartPort) {
         # Own the released fixture port to reproduce a competing listener
         # deterministically, without touching any existing process.
@@ -68,12 +68,12 @@ try {
     if ($routerTestAgain.pid -ne $routerTestRestart.pid) { throw 'Repeated startup created another instance.' }
     Write-Host 'PASS: copied restart preserves configuration and reports its actual port; repeated start reuses its PID'
 
-    Start-ApiRouterProject -Executable $Executable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -NoBrowser -CheckOnly
+    Start-WeftoProject -Executable $Executable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -NoBrowser -CheckOnly
     $routerTestConfig.listen.address = '127.0.0.1:1'
     [IO.File]::WriteAllText($routerTestConfigPath, ($routerTestConfig | ConvertTo-Json -Depth 30))
     $routerTestMismatch = $false
     try {
-        Start-ApiRouterProject -Executable $Executable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -NoBrowser -CheckOnly
+        Start-WeftoProject -Executable $Executable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -NoBrowser -CheckOnly
     } catch {
         if ($_.Exception.Message -notmatch 'saved listen address differs') { throw }
         $routerTestMismatch = $true
@@ -91,10 +91,10 @@ try {
     $routerTestProcess.Kill()
     if (-not $routerTestProcess.WaitForExit(5000)) { throw 'Owned test service did not exit.' }
     $routerTestProcess.Dispose()
-    Start-ApiRouterProject -Executable $Executable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -NoBrowser
-    $routerTestRecovered = Invoke-ApiRouterCommand -Executable $Executable -Arguments @('service', 'status')
+    Start-WeftoProject -Executable $Executable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -NoBrowser
+    $routerTestRecovered = Invoke-WeftoCommand -Executable $Executable -Arguments @('service', 'status')
     Assert-LayoutInstance $routerTestRecovered $routerTestFirst.instanceId $routerTestRestart.address $routerTestConfigPath 'Crash recovery'
-    $routerTestState = Join-Path $routerTestLocalAppData 'api-router\state'
+    $routerTestState = Join-Path $routerTestLocalAppData 'wefto\state'
     $routerTestArchives = @(Get-ChildItem -LiteralPath $routerTestState -Directory -Filter 'router.lock.exited-*')
     if ($routerTestArchives.Count -ne 1) { throw 'Crash recovery lost the old lock.' }
     Write-Host 'PASS: forced-exit recovery preserves the old lock and the selected layout, allowing a verified port fallback'
@@ -104,7 +104,7 @@ try {
     try {
         $env:APPDATA = $routerTestAppData
         $env:LOCALAPPDATA = $routerTestLocalAppData
-        $null = Invoke-ApiRouterCommand -Executable $Executable -Arguments @('service', 'stop')
+        $null = Invoke-WeftoCommand -Executable $Executable -Arguments @('service', 'stop')
         $routerTestCleanup = $true
     } finally {
         $env:APPDATA = $routerTestSavedAppData

@@ -49,7 +49,7 @@ func portServiceFixture(t *testing.T) (dirs.Layout, string, map[string]string, *
 		if host == "workbuddy" {
 			t.Setenv("WORKBUDDY_CONFIG_DIR", root)
 			paths[host] = filepath.Join(root, "models.json")
-			raw, _ = json.Marshal([]any{map[string]any{"id": "fixture-model", "name": "API Router", "url": "http://" + address + "/app/workbuddy/v1", "apiKey": routerhost.PlaceholderAPIKey, "supportsToolCall": true, "useCustomProtocol": false, "later": "keep"}})
+			raw, _ = json.Marshal([]any{map[string]any{"id": "fixture-model", "name": "Wefto", "url": "http://" + address + "/app/workbuddy/v1", "apiKey": routerhost.PlaceholderAPIKey, "supportsToolCall": true, "useCustomProtocol": false, "later": "keep"}})
 			if err := os.WriteFile(filepath.Join(root, "settings.json"), []byte(`{"model":"custom-local:fixture-model","theme":"dark"}`), 0o600); err != nil {
 				t.Fatal(err)
 			}
@@ -57,7 +57,7 @@ func portServiceFixture(t *testing.T) (dirs.Layout, string, map[string]string, *
 			t.Setenv("LOOMY_CONFIG_DIR", root)
 			paths[host] = filepath.Join(root, "opencode.json")
 			raw = []byte(fmt.Sprintf(`{// keep comment
-"provider":{"api_router":{"npm":"@ai-sdk/openai-compatible","name":"API Router","options":{"baseURL":%q,"apiKey":%q,"useSessionAuth":false,"timeout":1200000},"models":{"fixture-model":{"name":"fixture-model","tool_call":true}}}},"model":"api_router/fixture-model","later":"keep"}`, "http://"+address+"/app/loomy/v1", routerhost.PlaceholderAPIKey))
+"provider":{"wefto":{"npm":"@ai-sdk/openai-compatible","name":"Wefto","options":{"baseURL":%q,"apiKey":%q,"useSessionAuth":false,"timeout":1200000},"models":{"fixture-model":{"name":"fixture-model","tool_call":true}}}},"model":"wefto/fixture-model","later":"keep"}`, "http://"+address+"/app/loomy/v1", routerhost.PlaceholderAPIKey))
 		}
 		if err := os.WriteFile(paths[host], raw, 0o600); err != nil {
 			t.Fatal(err)

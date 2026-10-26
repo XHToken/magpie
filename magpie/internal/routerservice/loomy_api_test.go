@@ -46,7 +46,7 @@ func newLoomyAPIFixture(t *testing.T) loomyAPIFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.handler = handlerWithModelOptions(Info{Service: "api-router", Address: "127.0.0.1:13145"},
+	f.handler = handlerWithModelOptions(Info{Service: "wefto", Address: "127.0.0.1:13145"},
 		f.token, routerconfig.New(layout), ModelOptions{HostStateDir: f.state})
 	return f
 }

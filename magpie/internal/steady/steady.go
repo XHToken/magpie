@@ -37,10 +37,10 @@ const (
 // windows is whether files behave as Windows' do; a test sets it.
 var windows = runtime.GOOS == "windows"
 
-// stat and readFile are os.Stat and os.ReadFile; a test stands in for them.
+// stat and readFile perform one stat or shared read; tests stand in for them.
 var (
-	stat     = os.Stat
-	readFile = os.ReadFile
+	stat     = statOnce
+	readFile = readOnce
 )
 
 func retry(f func() error) error {
@@ -90,6 +90,10 @@ func Stat(p string) (fs.FileInfo, error) {
 	return fi, err
 }
 
+// StatOnce makes one metadata lookup with the platform's replacement sharing.
+// A caller that already found a path absent can use it without retrying absence.
+func StatOnce(p string) (fs.FileInfo, error) { return stat(p) }
+
 // ReadThere is ReadFile of a file just found there (Stat): not there now is
 // it being replaced, waited out.
 func ReadThere(p string) ([]byte, error) {
@@ -120,9 +124,11 @@ func ReadFileContext(ctx context.Context, p string) ([]byte, error) {
 	return b, err
 }
 
-// Rename is os.Rename, waiting out a reader holding newpath open.
+// Rename replaces sibling files through the platform's native replacement
+// operation, waiting out a reader that refuses replacement. Other moves use
+// os.Rename with the same retry policy.
 func Rename(oldpath, newpath string) error {
-	return retry(func() error { return os.Rename(oldpath, newpath) })
+	return retry(func() error { return rename(oldpath, newpath) })
 }
 
 // Sync is (*os.File).Sync; a test stands in for it to make a flush fail.
@@ -163,7 +169,7 @@ func WriteFileContext(ctx context.Context, p string, b []byte, perm fs.FileMode)
 		err = cerr
 	}
 	if err == nil {
-		err = retryContext(ctx, func() error { return os.Rename(tmp.Name(), p) })
+		err = retryContext(ctx, func() error { return rename(tmp.Name(), p) })
 	}
 	if err != nil {
 		os.Remove(tmp.Name())

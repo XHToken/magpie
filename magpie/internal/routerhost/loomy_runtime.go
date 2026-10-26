@@ -6,17 +6,18 @@ import (
 	"strings"
 
 	"github.com/yetone/magpie/internal/edit"
+	"github.com/yetone/magpie/internal/product"
 	"github.com/yetone/magpie/internal/steady"
 )
 
 const loomySidecarFile = "loomy-config.json"
 
 func loomyExtraManagedModelPath(path []string, bok, aok, cok bool) bool {
-	return len(path) == 5 && path[0] == "provider" && path[1] == loomyProvider && path[2] == "models" && !bok && !aok && cok
+	return len(path) == 5 && path[0] == "provider" && product.IsProvider(path[1]) && path[2] == "models" && !bok && !aok && cok
 }
 
 func loomyModelsCatalogCleared(doc map[string]any) bool {
-	v, ok := lookup(doc, []string{"provider", loomyProvider, "models"})
+	v, ok := lookup(doc, []string{"provider", providerID(doc, "provider"), "models"})
 	if !ok {
 		return true
 	}
@@ -25,13 +26,19 @@ func loomyModelsCatalogCleared(doc map[string]any) bool {
 }
 
 func loomyReconnectableConflict(path []string, aok, cok bool, current any, _ map[string]any) bool {
+	if len(path) == 3 && path[0] == "provider" && product.IsProvider(path[1]) && path[2] == "name" {
+		return aok && product.IsProviderName(current)
+	}
+	if len(path) == 4 && path[0] == "provider" && product.IsProvider(path[1]) && path[2] == "options" && path[3] == "apiKey" {
+		return aok && product.IsPlaceholder(current)
+	}
 	if len(path) == 1 && path[0] == "model" {
 		return loomyRouterSelection(current)
 	}
 	if len(path) == 1 && path[0] == "small_model" {
 		return loomyRouterSelection(current) || loomyPreservedSelector(current)
 	}
-	if len(path) == 5 && path[0] == "provider" && path[1] == loomyProvider && path[2] == "models" {
+	if len(path) == 5 && path[0] == "provider" && product.IsProvider(path[1]) && path[2] == "models" {
 		if !cok {
 			return true
 		}
@@ -93,7 +100,7 @@ func syncLoomySidecar(root string, opencodeRaw []byte) bool {
 	model, _ := doc["model"].(string)
 	var set []edit.KV
 	var del []string
-	if strings.HasPrefix(model, loomyProvider+"/") {
+	if loomyRouterSelection(model) {
 		if enabled, ok := sidecarDoc["customModelsEnabled"].(bool); !ok || !enabled {
 			set = append(set, edit.KV{Path: "customModelsEnabled", Value: true})
 		}
@@ -103,7 +110,7 @@ func syncLoomySidecar(root string, opencodeRaw []byte) bool {
 		if backup, _ := sidecarDoc["customModelBackup"].(string); backup != model {
 			set = append(set, edit.KV{Path: "customModelBackup", Value: model})
 		}
-	} else if backup, ok := sidecarDoc["customModelBackup"].(string); ok && strings.HasPrefix(backup, loomyProvider+"/") {
+	} else if backup, ok := sidecarDoc["customModelBackup"].(string); ok && loomyRouterSelection(backup) {
 		if strings.TrimSpace(model) != "" {
 			set = append(set, edit.KV{Path: "customModelBackup", Value: model})
 		} else {

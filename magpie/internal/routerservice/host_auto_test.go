@@ -63,7 +63,7 @@ func TestHostAutoAPIUpdatesPreviouslyConnectedModel(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/healthz":
-					_, _ = io.WriteString(w, `{"service":"api-router","status":"ok"}`)
+					_, _ = io.WriteString(w, `{"service":"wefto","status":"ok"}`)
 				case "/app/" + host + "/v1/chat/completions":
 					probes.Add(1)
 					http.Error(w, "unexpected model probe", http.StatusInternalServerError)
@@ -73,7 +73,7 @@ func TestHostAutoAPIUpdatesPreviouslyConnectedModel(t *testing.T) {
 			}))
 			defer server.Close()
 			address := server.Listener.Addr().String()
-			h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, token, nil, ModelOptions{HostStateDir: state})
+			h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, token, nil, ModelOptions{HostStateDir: state})
 			for _, selected := range []string{"deepseek-flash", "spark-x2.5"} {
 				raw, _ := json.Marshal(map[string]string{"host": host, "model": selected})
 				req := httptest.NewRequest(http.MethodPost, server.URL+"/api/hosts/auto", bytes.NewReader(raw))
@@ -109,14 +109,14 @@ func TestHostAutoAPIAppliesWorkBuddyConfigurationAfterRealChecks(t *testing.T) {
 	t.Setenv("WORKBUDDY_CONFIG_DIR", root)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/healthz" {
-			_, _ = io.WriteString(w, `{"service":"api-router","status":"ok"}`)
+			_, _ = io.WriteString(w, `{"service":"wefto","status":"ok"}`)
 			return
 		}
 		http.NotFound(w, r)
 	}))
 	defer server.Close()
 	address := server.Listener.Addr().String()
-	info := Info{Service: "api-router", Address: address}
+	info := Info{Service: "wefto", Address: address}
 	h := handlerWithModelOptions(info, token, nil, ModelOptions{HostStateDir: state})
 	raw, _ := json.Marshal(map[string]any{"host": "workbuddy", "model": model})
 	req := httptest.NewRequest(http.MethodPost, "http://"+address+"/api/hosts/auto", bytes.NewReader(raw))
@@ -169,7 +169,7 @@ func TestHostAutoAPIMultiModelConnectInspectAndDisconnectRestore(t *testing.T) {
 	var probes atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/healthz" {
-			_, _ = io.WriteString(w, `{"service":"api-router","status":"ok"}`)
+			_, _ = io.WriteString(w, `{"service":"wefto","status":"ok"}`)
 			return
 		}
 		probes.Add(1)
@@ -177,7 +177,7 @@ func TestHostAutoAPIMultiModelConnectInspectAndDisconnectRestore(t *testing.T) {
 	}))
 	defer server.Close()
 	address := server.Listener.Addr().String()
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, token, store, ModelOptions{HostStateDir: state})
+	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, token, store, ModelOptions{HostStateDir: state})
 
 	callJSON := func(method, path string, body any) *httptest.ResponseRecorder {
 		t.Helper()
@@ -280,7 +280,7 @@ func TestHostAutoAPIMultiModelConnectInspectAndDisconnectRestore(t *testing.T) {
 	}); w.Code != http.StatusOK {
 		t.Fatalf("reconnect loomy failed: %d %s", w.Code, w.Body.String())
 	}
-	loomyRuntimeRaw := []byte(`{"model":"api_router/` + prov.ID + `/deepseek-flash","small_model":"imodel/qwen3.8-flash","provider":{"api_router":{"models":{},"name":"API Router","npm":"@ai-sdk/openai-compatible","options":{"apiKey":"api-router-local-placeholder","baseURL":"http://` + address + `/app/loomy/v1","useSessionAuth":false}}}}`)
+	loomyRuntimeRaw := []byte(`{"model":"wefto/` + prov.ID + `/deepseek-flash","small_model":"imodel/qwen3.8-flash","provider":{"wefto":{"models":{},"name":"Wefto","npm":"@ai-sdk/openai-compatible","options":{"apiKey":"wefto-local-placeholder","baseURL":"http://` + address + `/app/loomy/v1","useSessionAuth":false}}}}`)
 	if err := os.WriteFile(filepath.Join(loomyRoot, "opencode.json"), loomyRuntimeRaw, 0o600); err != nil {
 		t.Fatal(err)
 	}

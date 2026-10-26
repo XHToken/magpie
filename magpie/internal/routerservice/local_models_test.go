@@ -148,7 +148,7 @@ func TestLocalRuntimeSettingsAPIIsReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer local.Manager.Close(context.Background())
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "settings-fixture", store, ModelOptions{LocalRuntime: local})
+	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "settings-fixture", store, ModelOptions{LocalRuntime: local})
 	request := func(method, auth string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "http://"+address+"/api/local-model/settings", strings.NewReader("{}"))
 		r.RemoteAddr = "127.0.0.1:2345"
@@ -200,7 +200,7 @@ func testLocalModelManagement(t *testing.T, modelID string) {
 	device := routerdevice.New(routerdevice.ProviderFunc(func(context.Context, string) (routerdevice.Snapshot, error) {
 		return routerdevice.Snapshot{System: routerdevice.Known(routerdevice.System{OS: "windows", Version: routerdevice.Known("10.0.26200"), Architecture: routerdevice.Known("amd64")}), MemoryBytes: routerdevice.Known(uint64(32) * routerdevice.GiB), DiskFreeBytes: routerdevice.Known(uint64(1) << 40), Backends: routerdevice.Known([]routerdevice.Backend{{Kind: routerdevice.CPU, State: routerdevice.Available}})}, nil
 	}))
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "management-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
+	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "management-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
 	request := func(method, path, body, auth, origin string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "http://"+address+path, strings.NewReader(body))
 		r.RemoteAddr = "127.0.0.1:2345"
@@ -325,7 +325,7 @@ func TestLocalModelTierEnablementBoundaries(t *testing.T) {
 	device := routerdevice.New(routerdevice.ProviderFunc(func(context.Context, string) (routerdevice.Snapshot, error) {
 		return snap, nil
 	}))
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "tier-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
+	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "tier-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
 	auth := "Bearer tier-fixture"
 	request := func(path, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest("POST", "http://"+address+path, strings.NewReader(body))
@@ -392,7 +392,7 @@ func TestLocalModelInstallOtherModelWhileRunning(t *testing.T) {
 			Backends:             routerdevice.Known([]routerdevice.Backend{{Kind: routerdevice.CPU, State: routerdevice.Available}}),
 		}, nil
 	}))
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "install-other-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
+	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "install-other-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
 	auth := "Bearer install-other-fixture"
 	request := func(path, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest("POST", "http://"+address+path, strings.NewReader(body))
@@ -536,7 +536,7 @@ func TestLocalModelStartupAutoLoadAndUserDisablePersistence(t *testing.T) {
 	}
 
 	// 2. User explicitly disables local model via HTTP API.
-	h1 := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "autoload-fixture", store, ModelOptions{LocalRuntime: local1})
+	h1 := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "autoload-fixture", store, ModelOptions{LocalRuntime: local1})
 	req := httptest.NewRequest("POST", "http://"+address+"/api/local-model/disable", strings.NewReader("{}"))
 	req.RemoteAddr = "127.0.0.1:2345"
 	req.Header.Set("Authorization", "Bearer autoload-fixture")
@@ -564,7 +564,7 @@ func TestLocalModelStartupAutoLoadAndUserDisablePersistence(t *testing.T) {
 	}
 
 	// 4. User manually re-enables local model via HTTP API; subsequent startup auto-loads again.
-	h2 := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "autoload-fixture", store, ModelOptions{LocalRuntime: local2})
+	h2 := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "autoload-fixture", store, ModelOptions{LocalRuntime: local2})
 	reqEnable := httptest.NewRequest("POST", "http://"+address+"/api/local-model/enable", strings.NewReader("{}"))
 	reqEnable.RemoteAddr = "127.0.0.1:2345"
 	reqEnable.Header.Set("Authorization", "Bearer autoload-fixture")

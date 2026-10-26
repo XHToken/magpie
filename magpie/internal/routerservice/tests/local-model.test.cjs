@@ -8,10 +8,10 @@ const net = require('node:net');
 const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { chromium, webkit } = require('playwright');
-const binary = process.env.API_ROUTER_BINARY || path.resolve(__dirname, '../../..', 'dist/api-router');
+const binary = process.env.WEFTO_BINARY || path.resolve(__dirname, '../../..', 'dist/wefto');
 
 test(`local model consent and management (${process.env.BROWSER || 'chromium'})`, { timeout: 180000 }, async t => {
-  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'api-router-local-model-ui-'));
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'wefto-local-model-ui-'));
   let service, exited, browser;
   t.after(async () => {
     if (browser) await browser.close();
@@ -63,7 +63,7 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       const startupResponses = [], startupFailures = [];
       page.on('response', response => {
         const url = new URL(response.url());
-        if (url.origin === base && (url.pathname.endsWith('.js') || ['/api/management/session', '/api/service'].includes(url.pathname))) startupResponses.push({ path: url.pathname, status: response.status() });
+        if (url.origin === base && (url.pathname.endsWith('.js') || ['/api/management/session', '/api/service', '/api/local-model', '/api/local-model/detect'].includes(url.pathname))) startupResponses.push({ path: url.pathname, status: response.status() });
       });
       page.on('requestfailed', request => {
         const url = new URL(request.url());
@@ -97,7 +97,31 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 1, device: report }) });
       });
       await skipTutorial(page);
-      await page.goto(`${base}/?locale=${language}&view=local-model`);
+      if (pageIndex === 1) {
+        // Reproduce a fast connection finishing before a slow view module
+        // registers. Both deferred bootstrap and a module catch-up must load
+        // the initial view without a second navigation or manual refresh.
+        let releaseModule, moduleRequested;
+        const released = new Promise(resolve => { releaseModule = resolve; });
+        const requested = new Promise(resolve => { moduleRequested = resolve; });
+        await page.route('**/local-model.js', async route => {
+          moduleRequested();
+          await released;
+          await route.continue();
+        });
+        const navigation = page.goto(`${base}/?locale=${language}&view=local-model`);
+        try {
+          await requested;
+          await page.waitForFunction(() => typeof window.routerObservationsOpen === 'function');
+          const connecting = await page.evaluate(() => !!managementToken || !!managementSession);
+          if (connecting) await page.waitForFunction(() => !!managementToken && healthy && !busy);
+        } finally {
+          releaseModule();
+          await navigation;
+        }
+      } else {
+        await page.goto(`${base}/?locale=${language}&view=local-model`);
+      }
       try {
         await page.waitForFunction(() => document.querySelector('#service').classList.contains('ok'));
         await page.waitForFunction(() => !!managementToken && !!serviceInfo);

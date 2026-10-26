@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/yetone/magpie/internal/product"
 )
 
 type loomyChecker struct{ managementToken string }
@@ -67,8 +69,8 @@ func (c loomyChecker) Check(ctx context.Context, o Options) (result error) {
 		return err
 	}
 	var h struct{ Service, Status string }
-	if json.Unmarshal(health, &h) != nil || h.Service != "api-router" || h.Status != "ok" {
-		return errors.New("Loomy endpoint is not a healthy API-router service")
+	if json.Unmarshal(health, &h) != nil || !product.IsService(h.Service) || h.Status != "ok" {
+		return errors.New("Loomy endpoint is not a healthy Wefto service")
 	}
 	apps, err := request(http.MethodGet, "/api/apps", nil, true)
 	if err != nil {

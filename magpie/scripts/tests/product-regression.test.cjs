@@ -81,7 +81,7 @@ function fixture(t) {
     options: { output: path.join(directory, 'output'), env: {
       ...process.env, CODEX_HOME: 'DO-NOT-READ', OPENAI_API_KEY: 'DO-NOT-SEND',
       HTTPS_PROXY: 'DO-NOT-USE', NODE_OPTIONS: 'DO-NOT-INHERIT', GOOS: 'foreign',
-      API_ROUTER_BINARY: 'stale-binary', BROWSER: 'chromium', PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: 'ubuntu24.04-x64'
+      WEFTO_BINARY: 'stale-binary', BROWSER: 'chromium', PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: 'ubuntu24.04-x64'
     } }, calls,
     dependencies: {
       goEnvironment: () => ({ GOVERSION: 'go1.26.8', GOPATH: directory, GOMODCACHE: directory, GOCACHE: directory }),
@@ -91,14 +91,14 @@ function fixture(t) {
   };
 }
 
-test('default gate retains all product packages and ten pages, including onboarding and acceptance checks', async t => {
+test('default gate retains all product packages and every product page, including onboarding and acceptance checks', async t => {
   const f = fixture(t);
   const { code, summary } = await runRegression(f.options, f.dependencies);
   assert.equal(code, 0); assert.equal(summary.status, 'passed'); assert.equal(summary.complete, true);
   assert.deepEqual(summary.steps.map(step => step.status), Array(5).fill('passed'));
   const commands = f.calls.filter(call => call.args);
   assert.equal(commands.length, 5);
-  assert.equal(packages.length, 26);
+  assert.equal(packages.length, 27);
   assert.ok(packages.includes('./internal/routerredact'));
   assert.ok(packages.includes('./cmd/model-fetch'));
   assert.ok(packages.includes('./cmd/real-model-check'));
@@ -121,7 +121,7 @@ test('default gate retains all product packages and ten pages, including onboard
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/routing-groups.test.cjs'));
     assert.deepEqual(call.args.filter(arg => arg.endsWith('.test.cjs')), summary.browserFiles);
     assert.ok(call.args.includes('--test-concurrency=1'));
-    assert.ok(path.isAbsolute(call.env.API_ROUTER_BINARY));
+    assert.ok(path.isAbsolute(call.env.WEFTO_BINARY));
   }
   const env = commands[0].env;
   for (const key of ['CODEX_HOME', 'OPENAI_API_KEY', 'HTTPS_PROXY', 'NODE_OPTIONS', 'GOOS']) assert.equal(env[key], undefined, key);

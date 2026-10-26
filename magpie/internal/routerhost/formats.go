@@ -17,9 +17,10 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/jsonc"
 	"github.com/yetone/magpie/internal/edit"
+	"github.com/yetone/magpie/internal/product"
 )
 
-const codexProvider = "api_router"
+const codexProvider = "wefto"
 
 // BuildFiles reads only the explicitly selected host configuration directory.
 // It returns a byte-level plan and never writes files or imports credentials.
@@ -61,7 +62,11 @@ func hostBaseURL(host, raw string) (string, error) {
 	return u.String(), nil
 }
 
-func hostFields(host string) [][]string {
+func hostFields(host string, providers ...string) [][]string {
+	codexProvider := codexProvider
+	if len(providers) > 0 {
+		codexProvider = providers[0]
+	}
 	if host == "claude-code" {
 		return [][]string{{"env", "ANTHROPIC_BASE_URL"}, {"env", "ANTHROPIC_AUTH_TOKEN"}, {"env", "ANTHROPIC_MODEL"}}
 	}
@@ -73,13 +78,14 @@ func buildCodex(raw []byte, o Options, base string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	codexProvider := providerID(doc, "model_providers")
 	for _, key := range []string{"env_key", "auth", "http_headers", "env_http_headers", "query_params"} {
 		if _, ok := lookup(doc, []string{"model_providers", codexProvider, key}); ok {
-			return nil, errors.New("Codex api_router provider has conflicting authentication or request overrides; rename that provider before applying")
+			return nil, errors.New("Codex wefto provider has conflicting authentication or request overrides; rename that provider before applying")
 		}
 	}
-	fields := hostFields("codex")
-	values := []any{o.Model, codexProvider, "API Router", base, "responses", PlaceholderAPIKey, false, false}
+	fields := hostFields("codex", codexProvider)
+	values := []any{o.Model, codexProvider, "Wefto", base, "responses", PlaceholderAPIKey, false, false}
 	out := append([]byte(nil), raw...)
 	for i, p := range fields {
 		out, err = patchTOML(out, p, values[i], false)
@@ -147,7 +153,8 @@ func RestoreContent(host string, f FilePlan, current []byte) ([]byte, error) {
 		return f.Before, nil
 	}
 	out := append([]byte(nil), current...)
-	for _, p := range hostFields(host) {
+	codexProvider := providerID(after, "model_providers")
+	for _, p := range hostFields(host, codexProvider) {
 		b, bok := lookup(before, p)
 		a, aok := lookup(after, p)
 		c, cok := lookup(now, p)
@@ -190,7 +197,7 @@ func RestoreContent(host string, f FilePlan, current []byte) ([]byte, error) {
 			out, err = edit.PatchJSON(out, nil, []string{"env"})
 		}
 	} else {
-		out, err = removeEmptyCodexTable(out, before)
+		out, err = removeEmptyCodexTable(out, before, codexProvider)
 	}
 	if err != nil {
 		return nil, errors.New("cannot safely clean restored host configuration")
@@ -298,19 +305,21 @@ func readTOML(raw []byte) (map[string]any, error) {
 			return nil, errors.New("Codex model_providers must be a table")
 		}
 	}
-	if provider, ok := lookup(doc, []string{"model_providers", codexProvider}); ok {
-		if _, ok := provider.(map[string]any); !ok {
-			return nil, errors.New("Codex api_router provider must be a table")
+	for _, codexProvider := range []string{product.ID, product.LegacyProviderID} {
+		if provider, ok := lookup(doc, []string{"model_providers", codexProvider}); ok {
+			if _, ok := provider.(map[string]any); !ok {
+				return nil, errors.New("Codex wefto provider must be a table")
+			}
 		}
-	}
-	for _, p := range hostFields("codex") {
-		if value, ok := lookup(doc, p); ok {
-			if len(p) == 3 && (p[2] == "requires_openai_auth" || p[2] == "supports_websockets") {
-				if _, ok := value.(bool); !ok {
-					return nil, errors.New("Codex provider protocol switches must be booleans")
+		for _, p := range hostFields("codex", codexProvider) {
+			if value, ok := lookup(doc, p); ok {
+				if len(p) == 3 && (p[2] == "requires_openai_auth" || p[2] == "supports_websockets") {
+					if _, ok := value.(bool); !ok {
+						return nil, errors.New("Codex provider protocol switches must be booleans")
+					}
+				} else if _, ok := value.(string); !ok {
+					return nil, errors.New("Codex connection fields must be strings")
 				}
-			} else if _, ok := value.(string); !ok {
-				return nil, errors.New("Codex connection fields must be strings")
 			}
 		}
 	}
@@ -344,8 +353,8 @@ func scanTOML(raw []byte) (tomlLayout, error) {
 		switch n.Kind {
 		case unstable.Table, unstable.ArrayTable:
 			table = nodeKeys(n)
-			if len(table) >= 2 && table[0] == "model_providers" && table[1] == codexProvider && n.Kind == unstable.ArrayTable {
-				return d, errors.New("Codex api_router must not be an array table")
+			if len(table) >= 2 && table[0] == "model_providers" && product.IsProvider(table[1]) && n.Kind == unstable.ArrayTable {
+				return d, errors.New("Codex wefto must not be an array table")
 			}
 			keys := n.Key()
 			keys.Next()
@@ -469,7 +478,11 @@ func spliceBytes(raw []byte, start, end int, value []byte) []byte {
 	out = append(out, value...)
 	return append(out, raw[end:]...)
 }
-func removeEmptyCodexTable(raw []byte, before map[string]any) ([]byte, error) {
+func removeEmptyCodexTable(raw []byte, before map[string]any, providers ...string) ([]byte, error) {
+	codexProvider := codexProvider
+	if len(providers) > 0 {
+		codexProvider = providers[0]
+	}
 	if _, had := lookup(before, []string{"model_providers", codexProvider}); had {
 		return raw, nil
 	}

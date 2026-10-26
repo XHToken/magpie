@@ -12,11 +12,11 @@ const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { chromium, webkit } = require('playwright');
 
-const binary = process.env.API_ROUTER_BINARY || path.resolve(__dirname, '../../..', 'dist/api-router');
+const binary = process.env.WEFTO_BINARY || path.resolve(__dirname, '../../..', 'dist/wefto');
 
 for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 'webkit'])) {
   test(`agents page multi-select picker and one-click host switch (${engine})`, { timeout: 180000 }, async (t) => {
-    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'api-router-agents-'));
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), 'wefto-agents-'));
     let service, exited, browser;
     t.after(async () => {
       if (browser) await browser.close();
@@ -168,8 +168,8 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     assert.equal(generationRequests, 0, 'connecting Loomy must not trigger upstream generation probe');
 
     const loomyCfg = JSON.parse(await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8'));
-    assert.equal(loomyCfg.model, 'api_router/group/coding-hybrid');
-    assert.deepEqual(Object.keys(loomyCfg.provider.api_router.models).sort(), ['group/coding-hybrid', 'local/spark-x2.5-1.7b', 'openai/gpt-4o']);
+    assert.equal(loomyCfg.model, 'wefto/group/coding-hybrid');
+    assert.deepEqual(Object.keys(loomyCfg.provider.wefto.models).sort(), ['group/coding-hybrid', 'local/spark-x2.5-1.7b', 'openai/gpt-4o']);
 
     // A failed clear must retain the connected selection and configuration.
     await page.route('**/api/hosts/auto', async route => {
@@ -193,7 +193,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     await page.waitForFunction(() => document.querySelector('#agents [data-app="loomy"] .lib-switch.ag-conn').getAttribute('aria-checked') === 'false');
     const restoredLoomyCfg = JSON.parse(await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8'));
     assert.equal(restoredLoomyCfg.model, 'anthropic/claude-original');
-    assert.equal(Object.hasOwn(restoredLoomyCfg.provider || {}, 'api_router'), false);
+    assert.equal(Object.hasOwn(restoredLoomyCfg.provider || {}, 'wefto'), false);
     assert.equal(await loomyMenuBtn.locator('.v').textContent(), 'coding-hybrid, gpt-4o +1');
 
     // 4. WorkBuddy empty-model guard, multi-select reorder, one-click switch ON & OFF

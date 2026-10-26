@@ -24,6 +24,7 @@ import (
 
 	"github.com/yetone/magpie/internal/dirs"
 	"github.com/yetone/magpie/internal/proc"
+	"github.com/yetone/magpie/internal/product"
 	"github.com/yetone/magpie/internal/steady"
 )
 
@@ -147,6 +148,22 @@ func Verify(r Record) error {
 	return nil
 }
 func samePath(a, b string) bool {
+	if !filepath.IsAbs(a) || !filepath.IsAbs(b) {
+		return false
+	}
+	// OS process queries can retain Windows 8.3 names or a symlinked macOS
+	// temporary root, while LaunchRecord stores the resolved executable path.
+	// Compare resolved paths, not file IDs: another hard-linked installation
+	// is still another executable path. Unavailable paths remain unknown.
+	var err error
+	a, err = filepath.EvalSymlinks(a)
+	if err != nil {
+		return false
+	}
+	b, err = filepath.EvalSymlinks(b)
+	if err != nil {
+		return false
+	}
 	if runtime.GOOS == "windows" {
 		return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
 	}
@@ -212,7 +229,7 @@ func request(ctx context.Context, l dirs.Layout, r Record, action string) ([]byt
 	}
 	decodeErr := json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&health)
 	resp.Body.Close()
-	if decodeErr != nil || resp.StatusCode != 200 || health.Service != "api-router" || health.Status != "ok" || health.PID != r.PID || !health.StartedAt.Equal(r.StartedAt) {
+	if decodeErr != nil || resp.StatusCode != 200 || !product.IsService(health.Service) || health.Status != "ok" || health.PID != r.PID || !health.StartedAt.Equal(r.StartedAt) {
 		return nil, errors.New("endpoint identity differs; management token was not sent")
 	}
 	token, err := readRegular(filepath.Join(l.ServiceLock(), "management-token"))
@@ -228,7 +245,7 @@ func request(ctx context.Context, l dirs.Layout, r Record, action string) ([]byt
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(string(token)))
-	req.Header.Set("X-API-Router-Instance", r.ProcessStamp)
+	req.Header.Set("X-Wefto-Instance", r.ProcessStamp)
 	resp, err = client().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("service not reachable; no process was changed: %w", err)
@@ -570,5 +587,9 @@ func SpawnRestart(l dirs.Layout) (<-chan error, error) {
 }
 func entryName(l dirs.Layout) string {
 	sum := sha256.Sum256([]byte(strings.ToLower(filepath.Clean(l.State))))
-	return "API-router-" + hex.EncodeToString(sum[:8])
+	prefix := product.Name
+	if dirs.UsesLegacyStorage(l) {
+		prefix = product.LegacyAutostartPrefix
+	}
+	return prefix + "-" + hex.EncodeToString(sum[:8])
 }

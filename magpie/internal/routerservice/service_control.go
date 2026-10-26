@@ -3,11 +3,13 @@ package routerservice
 import (
 	_ "embed"
 	"encoding/json"
-	"github.com/yetone/magpie/internal/dirs"
-	"github.com/yetone/magpie/internal/routercontrol"
 	"io"
 	"net/http"
 	"sync"
+
+	"github.com/yetone/magpie/internal/dirs"
+	"github.com/yetone/magpie/internal/product"
+	"github.com/yetone/magpie/internal/routercontrol"
 )
 
 type serviceController struct {
@@ -29,7 +31,7 @@ func serviceControlAPI(w http.ResponseWriter, r *http.Request, info Info, contro
 		providerJSON(w, 409, map[string]string{"error": "service_control_unavailable", "message": "Use the standalone CLI to manage this service."})
 		return
 	}
-	if expected := r.Header.Get("X-API-Router-Instance"); expected != "" && expected != info.ProcessStamp {
+	if expected, legacy := r.Header.Get(product.InstanceHeader), r.Header.Get(product.LegacyInstanceHeader); expected != "" && expected != info.ProcessStamp || legacy != "" && legacy != info.ProcessStamp {
 		providerJSON(w, 409, map[string]string{"error": "service_instance_changed"})
 		return
 	}

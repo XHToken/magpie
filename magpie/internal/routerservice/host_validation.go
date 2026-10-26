@@ -11,6 +11,7 @@ import (
 
 	"github.com/tidwall/jsonc"
 	"github.com/yetone/magpie/internal/edit"
+	"github.com/yetone/magpie/internal/product"
 	"github.com/yetone/magpie/internal/routerconfig"
 	"github.com/yetone/magpie/internal/routerhost"
 )
@@ -94,7 +95,7 @@ func hostConnectionMatches(host, root, origin string, models []string) error {
 			return err
 		}
 		small, _ := doc["small_model"].(string)
-		if id, managed := strings.CutPrefix(small, "api_router/"); managed {
+		if provider, id, slash := strings.Cut(small, "/"); slash && product.IsProvider(provider) {
 			bound := false
 			for _, model := range models {
 				bound = bound || model == id
@@ -103,7 +104,7 @@ func hostConnectionMatches(host, root, origin string, models []string) error {
 				return errors.New("host small model is not bound to its Router Profile")
 			}
 			var err error
-			files[0].Before, err = edit.PatchJSON(files[0].Before, []edit.KV{{Path: "small_model", Value: "api_router/" + models[0]}}, nil)
+			files[0].Before, err = edit.PatchJSON(files[0].Before, []edit.KV{{Path: "small_model", Value: provider + "/" + models[0]}}, nil)
 			if err != nil {
 				return err
 			}

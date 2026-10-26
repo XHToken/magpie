@@ -34,13 +34,13 @@ endif
 
 .PHONY: build cli install test test-ui app icons release release-cli release-windows release-linux clean dev dev-once
 
-# API-router's product entry point never links the Magpie CLI or plugin registry.
+# Wefto's product entry point never links the Magpie CLI or plugin registry.
 # Keep the original targets for upstream reference; product builds use this one.
 ROUTER_VERSION ?= 0.1.0-dev+i0
-.DEFAULT_GOAL := api-router
-.PHONY: api-router test-router vet-router test-router-ui test-product
-api-router:
-	CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -X main.version=$(ROUTER_VERSION)' -o dist/api-router ./cmd/api-router
+.DEFAULT_GOAL := wefto
+.PHONY: wefto test-router vet-router test-router-ui test-product
+wefto:
+	CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -X main.version=$(ROUTER_VERSION)' -o dist/wefto ./cmd/wefto
 
 # Serialize packages: retained host-format tests include wall-clock bounds.
 test-router:

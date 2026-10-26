@@ -237,7 +237,7 @@ func TestRedactionMultiTurnSessionCacheHitAndIncrementalExtraction(t *testing.T)
 
 	redactor := newRuntimeRedactor(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, false)
 	defer redactor.close()
-	h := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "management-token", store, ModelOptions{
+	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "management-token", store, ModelOptions{
 		LocalRuntime: &LocalModels{Manager: manager, Layout: layout, Catalog: catalog},
 		Routing:      &RoutingOptions{Judge: RuntimeJudge{Manager: manager, PromptVersion: defaultPromptVersion}, LocalInvoker: manager, Redactor: redactor, PromptVersion: defaultPromptVersion},
 	})

@@ -1,4 +1,4 @@
-// Package routerconfig stores API-router's configuration independently of
+// Package routerconfig stores Wefto's configuration independently of
 // Magpie settings, accounts, plugins and migrations.
 package routerconfig
 

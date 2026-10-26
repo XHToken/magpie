@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/tidwall/jsonc"
+	"github.com/yetone/magpie/internal/product"
 	"github.com/yetone/magpie/internal/routerconfig"
 	"github.com/yetone/magpie/internal/routerhost"
 )
@@ -147,6 +148,16 @@ func hostAutoAPI(w http.ResponseWriter, r *http.Request, info Info, token string
 	}
 	effective := o.EffectiveModels()
 	primary := o.PrimaryModel()
+	selection := "custom-local:" + primary
+	if in.Host == "loomy" {
+		raw, readErr := os.ReadFile(filepath.Join(root, "opencode.json"))
+		var doc map[string]any
+		if readErr != nil || json.Unmarshal(raw, &doc) != nil {
+			fail(http.StatusConflict, "host_config_unavailable", "Connection was applied but its selected model cannot be read; inspect the retained recovery record")
+			return
+		}
+		selection, _ = doc["model"].(string)
+	}
 	providerJSON(w, http.StatusOK, map[string]any{
 		"connected":  true,
 		"enabled":    true,
@@ -154,7 +165,7 @@ func hostAutoAPI(w http.ResponseWriter, r *http.Request, info Info, token string
 		"model":      primary,
 		"models":     effective,
 		"configRoot": root,
-		"selection":  map[string]string{"workbuddy": "custom-local:" + primary, "loomy": "api_router/" + primary}[in.Host],
+		"selection":  selection,
 		"plan":       p.Summary(),
 	})
 }
@@ -281,13 +292,13 @@ func inspectHostLiveFiles(host, root string) (bool, []string) {
 			return false, nil
 		}
 		sel, _ := doc["model"].(string)
-		primary := strings.TrimPrefix(sel, "api_router/")
-		if primary == "" || primary == sel {
+		provider, primary, hasProvider := strings.Cut(sel, "/")
+		if !hasProvider || !product.IsProvider(provider) || primary == "" {
 			return false, nil
 		}
 		models := []string{primary}
 		if prov, ok := doc["provider"].(map[string]any); ok {
-			if ar, ok := prov["api_router"].(map[string]any); ok {
+			if ar, ok := prov[provider].(map[string]any); ok {
 				if mMap, ok := ar["models"].(map[string]any); ok {
 					var extra []string
 					for k := range mMap {
@@ -326,7 +337,7 @@ func inspectHostLiveFiles(host, root string) (bool, []string) {
 		}
 		for _, item := range entries {
 			id, _ := item["id"].(string)
-			if id != "" && id != primary && item["name"] == "API Router" {
+			if id != "" && id != primary && product.IsProviderName(item["name"]) {
 				models = append(models, id)
 			}
 		}

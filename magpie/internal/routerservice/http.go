@@ -235,7 +235,7 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 				return
 			}
 			if r.URL.Path == "/healthz" {
-				_ = json.NewEncoder(w).Encode(map[string]any{"service": "api-router", "status": "ok", "pid": info.PID, "startedAt": info.StartedAt})
+				_ = json.NewEncoder(w).Encode(map[string]any{"service": "wefto", "status": "ok", "pid": info.PID, "startedAt": info.StartedAt})
 			} else {
 				current := info
 				if options.serviceControl != nil {

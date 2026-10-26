@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/yetone/magpie/internal/product"
 )
 
 func restoreContent(a Adapter, f FilePlan, current []byte) ([]byte, error) {
@@ -218,7 +220,7 @@ func retireWorkBuddyModels(o Options, raw []byte, j *journal) ([]byte, error) {
 		entry := entries[i]
 		id := entry["id"].(string)
 		url, ok := entry["url"].(string)
-		if keep[id] || strings.TrimSpace(id) == "" || strings.ContainsAny(id, "\r\n\x00") || len(entry) != 6 || entry["name"] != "API Router" || entry["apiKey"] != PlaceholderAPIKey || entry["supportsToolCall"] != true || entry["useCustomProtocol"] != false || !ok {
+		if keep[id] || strings.TrimSpace(id) == "" || strings.ContainsAny(id, "\r\n\x00") || len(entry) != 6 || !product.IsProviderName(entry["name"]) || !product.IsPlaceholder(entry["apiKey"]) || entry["supportsToolCall"] != true || entry["useCustomProtocol"] != false || !ok {
 			continue
 		}
 		origin := strings.TrimSuffix(url, "/app/workbuddy/v1")
@@ -257,6 +259,7 @@ func retireLoomyModels(o Options, raw []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	loomyProvider := providerID(doc, "provider")
 	value, _ := lookup(doc, []string{"provider", loomyProvider, "models"})
 	models, ok := value.(map[string]any)
 	if !ok {

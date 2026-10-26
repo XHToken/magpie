@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if (-not [IO.Path]::IsPathRooted($InstallDir)) { throw 'InstallDir must be absolute.' }
 $InstallDir = [IO.Path]::GetFullPath($InstallDir)
-$exe = Join-Path $InstallDir 'api-router.exe'
+$exe = Join-Path $InstallDir 'wefto.exe'
 $action = 'preview'
 if ($Execute) { $action = 'execute' }
 & $exe uninstall $action --install-dir $InstallDir

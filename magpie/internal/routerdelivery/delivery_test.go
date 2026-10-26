@@ -38,8 +38,8 @@ type zipItem struct {
 func fixture(t *testing.T, change func(*Manifest, *[]zipItem)) InstallOptions {
 	t.Helper()
 	dir := t.TempDir()
-	items := []zipItem{{"api-router.exe", executable(pe.IMAGE_FILE_MACHINE_AMD64), false}, {"README-windows.md", []byte("user guide"), false}, {"install-windows.ps1", []byte("# explicit installer"), false}, {"uninstall-windows.ps1", []byte("# explicit uninstaller"), false}}
-	m := Manifest{SchemaVersion: 1, Product: "api-router", Version: "0.1.0-round4", OS: "windows", Architecture: "amd64"}
+	items := []zipItem{{"wefto.exe", executable(pe.IMAGE_FILE_MACHINE_AMD64), false}, {"README-windows.md", []byte("user guide"), false}, {"install-windows.ps1", []byte("# explicit installer"), false}, {"uninstall-windows.ps1", []byte("# explicit uninstaller"), false}}
+	m := Manifest{SchemaVersion: 1, Product: "wefto", Version: "0.1.0-round4", OS: "windows", Architecture: "amd64"}
 	for _, item := range items {
 		m.Files = append(m.Files, pin(item.name, item.data))
 	}
@@ -66,8 +66,8 @@ func fixture(t *testing.T, change func(*Manifest, *[]zipItem)) InstallOptions {
 	if err := z.Close(); err != nil {
 		t.Fatal(err)
 	}
-	m.Package = pin("api-router-0.1.0-round4-windows-amd64.zip", buf.Bytes())
-	opts := InstallOptions{ManifestPath: filepath.Join(dir, "fixed.manifest.json"), PackagePath: filepath.Join(dir, m.Package.Name), InstallDir: filepath.Join(dir, "用户 program files", "API-router")}
+	m.Package = pin("wefto-0.1.0-round4-windows-amd64.zip", buf.Bytes())
+	opts := InstallOptions{ManifestPath: filepath.Join(dir, "fixed.manifest.json"), PackagePath: filepath.Join(dir, m.Package.Name), InstallDir: filepath.Join(dir, "用户 program files", "Wefto")}
 	write(t, opts.PackagePath, buf.Bytes())
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -119,7 +119,7 @@ func TestDamagedSameVersionAndInvalidPackagePreserveInstallation(t *testing.T) {
 	if _, err := Install(context.Background(), opts); err != nil {
 		t.Fatal(err)
 	}
-	exe := filepath.Join(opts.InstallDir, "api-router.exe")
+	exe := filepath.Join(opts.InstallDir, "wefto.exe")
 	original, _ := os.ReadFile(exe)
 	packageBytes, _ := os.ReadFile(opts.PackagePath)
 	packageBytes[0] ^= 1
@@ -148,7 +148,7 @@ func TestRejectUnsafeAndIncompletePackagesBeforePublication(t *testing.T) {
 		"traversal":          func(_ *Manifest, v *[]zipItem) { (*v)[1].name = "../escaped.txt" },
 		"windows alias":      func(_ *Manifest, v *[]zipItem) { (*v)[1].name = "README-windows.md:evil" },
 		"backslash":          func(_ *Manifest, v *[]zipItem) { (*v)[1].name = `..\escaped.txt` },
-		"duplicate":          func(_ *Manifest, v *[]zipItem) { (*v)[1].name = "api-router.exe" },
+		"duplicate":          func(_ *Manifest, v *[]zipItem) { (*v)[1].name = "wefto.exe" },
 		"link":               func(_ *Manifest, v *[]zipItem) { (*v)[1].link = true },
 		"missing executable": func(_ *Manifest, v *[]zipItem) { *v = (*v)[1:] },
 		"wrong file hash":    func(_ *Manifest, v *[]zipItem) { (*v)[1].data = []byte("USER guide") },
@@ -156,15 +156,15 @@ func TestRejectUnsafeAndIncompletePackagesBeforePublication(t *testing.T) {
 		"wrong architecture": func(m *Manifest, _ *[]zipItem) { m.Architecture = "arm64" },
 		"wrong PE architecture": func(m *Manifest, v *[]zipItem) {
 			(*v)[0].data = executable(pe.IMAGE_FILE_MACHINE_I386)
-			m.Files[0] = pin("api-router.exe", (*v)[0].data)
+			m.Files[0] = pin("wefto.exe", (*v)[0].data)
 		},
 		"not PE": func(m *Manifest, v *[]zipItem) {
 			(*v)[0].data = []byte("not a Windows executable")
-			m.Files[0] = pin("api-router.exe", (*v)[0].data)
+			m.Files[0] = pin("wefto.exe", (*v)[0].data)
 		},
 		"wrong PE type": func(m *Manifest, v *[]zipItem) {
 			binary.LittleEndian.PutUint16((*v)[0].data[150:], pe.IMAGE_FILE_EXECUTABLE_IMAGE|pe.IMAGE_FILE_DLL)
-			m.Files[0] = pin("api-router.exe", (*v)[0].data)
+			m.Files[0] = pin("wefto.exe", (*v)[0].data)
 		},
 		"unpinned version": func(m *Manifest, _ *[]zipItem) { m.Version = "latest" },
 	}
@@ -304,7 +304,7 @@ func TestUninstallRefusesDamagedRecoveryToolBeforeDeletingFiles(t *testing.T) {
 	if _, err := Install(context.Background(), opts); err != nil {
 		t.Fatal(err)
 	}
-	write(t, filepath.Join(opts.InstallDir, "api-router.exe"), []byte("damaged recovery executable"))
+	write(t, filepath.Join(opts.InstallDir, "wefto.exe"), []byte("damaged recovery executable"))
 	if _, err := Uninstall(context.Background(), opts.InstallDir, true); err == nil || !strings.Contains(err.Error(), "recovery executable is damaged") {
 		t.Fatalf("damaged recovery tool=%v", err)
 	}

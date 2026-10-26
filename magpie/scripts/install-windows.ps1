@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$ManifestPath,
     [Parameter(Mandatory = $true)][string]$PackagePath,
-    [string]$InstallDir = (Join-Path $env:LOCALAPPDATA 'Programs/API-router')
+    [string]$InstallDir = (Join-Path $env:LOCALAPPDATA 'Programs/Wefto')
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -32,9 +32,9 @@ $ManifestPath = [IO.Path]::GetFullPath($ManifestPath); $PackagePath = [IO.Path]:
 $manifestFile = Get-Item -LiteralPath $ManifestPath
 if ($manifestFile.PSIsContainer -or $manifestFile.Length -le 0 -or $manifestFile.Length -gt 65536) { throw 'Invalid manifest file size or type.' }
 $m = [IO.File]::ReadAllText($ManifestPath) | ConvertFrom-Json
-if ($m.schemaVersion -ne 1 -or $m.product -cne 'api-router' -or $m.version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?(?:\+[A-Za-z0-9.-]+)?$') { throw 'An explicit fixed api-router schema 1 manifest is required.' }
+if ($m.schemaVersion -ne 1 -or $m.product -cne 'wefto' -or $m.version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?(?:\+[A-Za-z0-9.-]+)?$') { throw 'An explicit fixed wefto schema 1 manifest is required.' }
 if ($m.os -cne 'windows' -or $m.architecture -cne 'amd64') { throw 'Wrong package platform; Windows amd64 is required.' }
-$names = @('api-router.exe', 'README-windows.md', 'install-windows.ps1', 'uninstall-windows.ps1')
+$names = @('wefto.exe', 'README-windows.md', 'install-windows.ps1', 'uninstall-windows.ps1')
 if (@($m.files).Count -ne 4) { throw 'Manifest must contain the four exact managed files.' }
 $pins = @{}; [long]$total = 0
 foreach ($pin in $m.files) {
@@ -47,7 +47,7 @@ if ($packageFile.PSIsContainer) { throw 'Package must be a regular ZIP file.' }
 Assert-Pin $packageFile $m.package
 $bootstrapTempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 Assert-PlainPath $bootstrapTempRoot
-$stage = Join-Path $bootstrapTempRoot ('api-router-bootstrap-' + [Guid]::NewGuid().ToString('N'))
+$stage = Join-Path $bootstrapTempRoot ('wefto-bootstrap-' + [Guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($stage) | Out-Null
 try {
     Add-Type -AssemblyName System.IO.Compression
@@ -76,7 +76,7 @@ try {
             Assert-Pin (Get-Item -LiteralPath $target) $pin
         }
     } finally { $archive.Dispose(); $stream.Dispose() }
-    $exe = Join-Path $stage 'api-router.exe'
+    $exe = Join-Path $stage 'wefto.exe'
     $reader = New-Object IO.BinaryReader([IO.File]::OpenRead($exe))
     try {
         if ($reader.ReadUInt16() -ne 23117) { throw 'Executable is not Windows PE.' }
@@ -90,12 +90,12 @@ try {
     & $exe install --manifest $ManifestPath --package $PackagePath --install-dir $InstallDir
     if ($LASTEXITCODE -ne 0) { throw 'Verified product installer failed; existing installation was preserved.' }
     Write-Output "Installed into: $InstallDir"
-    Write-Output 'Login autostart is not enabled by installation. Choose explicitly with: api-router.exe service autostart enable; disable it with: api-router.exe service autostart disable.'
-    Write-Output 'Installation never downloads, enables or loads a model. Start with: api-router.exe service start'
+    Write-Output 'Login autostart is not enabled by installation. Choose explicitly with: wefto.exe service autostart enable; disable it with: wefto.exe service autostart disable.'
+    Write-Output 'Installation never downloads, enables or loads a model. Start with: wefto.exe service start'
 } finally {
     if (Test-Path -LiteralPath $stage) {
         $cleanupTarget = [IO.Path]::GetFullPath($stage)
-        if ([IO.Path]::GetDirectoryName($cleanupTarget).TrimEnd('\', '/') -ine $bootstrapTempRoot.TrimEnd('\', '/') -or [IO.Path]::GetFileName($cleanupTarget) -notmatch '^api-router-bootstrap-[0-9a-f]{32}$') { throw "Refusing cleanup outside the expected bootstrap stage: $cleanupTarget" }
+        if ([IO.Path]::GetDirectoryName($cleanupTarget).TrimEnd('\', '/') -ine $bootstrapTempRoot.TrimEnd('\', '/') -or [IO.Path]::GetFileName($cleanupTarget) -notmatch '^wefto-bootstrap-[0-9a-f]{32}$') { throw "Refusing cleanup outside the expected bootstrap stage: $cleanupTarget" }
         Assert-PlainPath $cleanupTarget
         foreach ($child in (Get-ChildItem -LiteralPath $cleanupTarget -Force)) {
             if ($child.PSIsContainer -or ($child.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "Refusing cleanup of unexpected stage contents: $($child.FullName)" }

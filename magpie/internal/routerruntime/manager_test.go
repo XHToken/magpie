@@ -20,7 +20,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	if os.Getenv("API_ROUTER_RUNTIME_TEST_HELPER") == "1" {
+	if os.Getenv("WEFTO_RUNTIME_TEST_HELPER") == "1" {
 		fakeserver.Main()
 		return
 	}

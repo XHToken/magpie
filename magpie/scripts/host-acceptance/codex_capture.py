@@ -47,7 +47,7 @@ def main():
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=False)
     # Preserve runtime PATH, but no user's credentials, proxy or CLI settings.
-    with tempfile.TemporaryDirectory(prefix="api-router-codex-0161-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="wefto-codex-0161-") as tmp:
         root = Path(tmp)
         for name in ("home", "codex", "project"):
             (root / name).mkdir()
@@ -82,7 +82,7 @@ def main():
                     body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                     auth = self.headers.get("Authorization", "")
                     expected = "Bearer " + ("synthetic-upstream-key" if args.router_binary else
-                                             "api-router-local-placeholder")
+                                             "wefto-local-placeholder")
                     if auth != expected:
                         raise AssertionError("unexpected upstream authorization source")
                     record = {"method": "POST", "path": self.path,
@@ -168,7 +168,7 @@ def main():
         try:
             base = f"http://127.0.0.1:{server.server_port}/app/codex/v1"
             if args.router_binary:
-                snapshot = root / "api-router"
+                snapshot = root / "wefto"
                 shutil.copy2(args.router_binary.resolve(), snapshot)
                 router_sha = hashlib.sha256(snapshot.read_bytes()).hexdigest()
                 binary = str(snapshot)
@@ -203,16 +203,16 @@ def main():
                 management("/api/apps", {"id": "codex", "name": "Codex", "revision": 0,
                     "cloud": {"providerId": provider["id"], "model": args.model}, "credentialMode": "stored"})
                 base = origin + "/app/codex/v1"
-            config_text = f'''model_provider = "api_router"
+            config_text = f'''model_provider = "wefto"
 model = {json.dumps(args.model)}
 web_search = "disabled"
-[model_providers.api_router]
-name = "API Router"
+[model_providers.wefto]
+name = "Wefto"
 base_url = {json.dumps(base)}
 wire_api = "responses"
 requires_openai_auth = false
 supports_websockets = false
-experimental_bearer_token = "api-router-local-placeholder"
+experimental_bearer_token = "wefto-local-placeholder"
 request_max_retries = 0
 stream_max_retries = 0
 '''

@@ -1,4 +1,4 @@
-> **Upstream archive:** This README describes Magpie at the imported baseline `707fbb249df755423d3b2b77c6f001dd376d75c4`. Its downloads, installers and releases belong to Magpie. For API-router, start with the [project README](../README.md); the upstream site and workflows are omitted from this public source snapshot.
+> **Upstream archive:** This README describes Magpie at the imported baseline `707fbb249df755423d3b2b77c6f001dd376d75c4`. Its downloads, installers and releases belong to Magpie. For Wefto, start with the [project README](../README.md); the upstream site and workflows are omitted from this public source snapshot.
 
 <div align="center">
 

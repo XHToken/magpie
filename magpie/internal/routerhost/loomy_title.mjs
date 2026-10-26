@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = path.dirname(fileURLToPath(import.meta.url));
 const sessionID = /^ses_[a-zA-Z0-9]+$/;
 const defaultTitle = /^New session - \d{4}-\d{2}-\d{2}T[\d:.]+Z$/;
+const isRouterProvider = id => id === "wefto" || id === "api_router";
 
 async function readJSON(filename, limit) {
   const stat = await fs.lstat(filename);
@@ -38,7 +39,7 @@ export default async ({ client, directory }) => {
     "chat.message": async (input, output) => {
       const source = await sourceSession(input.sessionID);
       if (!source) return;
-      if (output.message.model?.providerID === "api_router" && source === input.sessionID) {
+      if (isRouterProvider(output.message.model?.providerID) && source === input.sessionID) {
         const current = await get(source);
         if (current && !current.parentID && defaultTitle.test(current.title)) {
           // Before OpenCode starts ensureTitle: Loomy's milestone writer now owns
@@ -53,7 +54,7 @@ export default async ({ client, directory }) => {
       const response = await client.session.messages({ path: { id: source }, query: { directory }, throwOnError: true });
       const users = (response.data || []).filter(item => item.info?.role === "user");
       const model = users.at(-1)?.info?.model;
-      if (model?.providerID !== "api_router" || !model.modelID) return;
+      if (!isRouterProvider(model?.providerID) || !model.modelID) return;
       const texts = users.slice(-8).map(item => item.parts
         .filter(part => part.type === "text" && !part.ignored && !part.synthetic)
         .map(part => part.text).join("\n\n"));
@@ -66,7 +67,7 @@ export default async ({ client, directory }) => {
       output.parts.splice(0, output.parts.length, { ...first, text });
     },
     "chat.headers": async (input, output) => {
-      if (input.agent === "title" && input.model.providerID === "api_router") {
+      if (input.agent === "title" && isRouterProvider(input.model.providerID)) {
         output.headers["X-Api-Router-Purpose"] = "chat.title";
       }
     },

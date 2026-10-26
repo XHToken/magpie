@@ -33,7 +33,7 @@ func TestLoomyStatusAllowsIndependentBoundSmallModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, err := edit.PatchJSON(files[0].After, []edit.KV{{Path: "model", Value: "api_router/provider/second"}}, nil)
+	raw, err := edit.PatchJSON(files[0].After, []edit.KV{{Path: "model", Value: "wefto/provider/second"}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

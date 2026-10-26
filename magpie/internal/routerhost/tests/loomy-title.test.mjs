@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-test("Loomy title bridge scopes requests to the actual source session and preserves manual titles", async t => {
+for (const providerID of ["api_router", "wefto"]) test(`Loomy title bridge scopes ${providerID} requests to the source session and preserves manual titles`, async t => {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), "router-title-test-"));
   t.after(() => fs.rm(home, { recursive: true, force: true }));
   const root = path.join(home, "opencode");
@@ -21,7 +21,7 @@ test("Loomy title bridge scopes requests to the actual source session and preser
   }
   await fs.writeFile(path.join(home, "share", "chat-session-map.json"), JSON.stringify({ "chat-shared": { sessionId: source } }));
   let title = "New session - 2026-10-23T01:14:39.730Z";
-  let selected = { providerID: "api_router", modelID: "group/2222" };
+  let selected = { providerID, modelID: "group/2222" };
   const updates = [];
   const client = { session: {
     get: async ({ path: p }) => ({ data: { title: p.id === temp ? "__title_generation__" : title } }),
@@ -32,7 +32,7 @@ test("Loomy title bridge scopes requests to the actual source session and preser
     ] }] }),
   } };
   const hooks = await create({ client, directory: home });
-  const main = () => ({ message: { model: { providerID: "api_router", modelID: "group/2222" } }, parts: [] });
+  const main = () => ({ message: { model: { providerID, modelID: "group/2222" } }, parts: [] });
   await hooks["chat.message"]({ sessionID: source, agent: "loomy" }, main());
   assert.deepEqual(updates, ["新任务"]);
   title = "用户手动标题";
