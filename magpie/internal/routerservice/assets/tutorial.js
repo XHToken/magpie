@@ -285,8 +285,8 @@
         ['Restart the app and start a new session', state.app === 'loomy'
           ? 'Restart Loomy, choose Wefto and start a new session. Existing sessions and project-level .opencode settings may keep a different model or provider.'
           : 'Finish existing tasks, restart WorkBuddy and choose the Wefto model. Send your first request in a new session.'],
-      ]), note('If automatic connection fails, the saved Profile remains. Close the app and use its setup guide to specify a directory or retry; saving alone is not proof of a host request.'));
-      if (state.app === 'loomy') fragment.append(note('Verification sends a small text request and may incur charges.'), details('Advanced: explicit Loomy forwarding', 'Only choose forward mode intentionally. It forwards business Authorization supplied by Loomy; stored-key verification and automatic host connection do not apply. Verify from the connected host. The management token must never be used for inference.'));
+      ]), note('Only selected models appear in the app. Open Details to review the model list and new-session default. Changes while connected also update the host configuration; fully quit and reopen the app to reload it.'));
+      if (state.app === 'loomy') fragment.append(note('Loomy uses the provider credentials stored in Router. If connection is rejected because of a host extension, inspect the reported extension conflict before retrying.'));
     } else if (state.step === 3) {
       fragment.append(paragraph('A local model can judge and answer suitable requests on this computer. Successful local completion may reduce cloud calls; speed, quality and actual savings depend on the device and task.'));
       const model = el('div', 'tutorial-model');
