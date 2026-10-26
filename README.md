@@ -4,9 +4,13 @@
 
 Wefto（织流）是运行在本机的 AI 模型路由服务。在一个网页中管理云端 API、本地小模型和路由策略，再将 WorkBuddy、Loomy 接入同一服务。项目基于固定版本的 Magpie 源码改造，产品入口为 `magpie/cmd/wefto`。
 
-**[下载 Windows x64 预览版](https://github.com/xyzane54/magpie/releases/tag/wefto-v0.1.0-beta.2)** · [浏览 Wefto 源码](https://github.com/xyzane54/magpie/tree/codex/wefto-rename)
+**[下载 macOS / Linux / Windows 预览版](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.4)** · [浏览 Wefto 源码](https://github.com/XHToken/magpie/tree/main)
 
-当前版本为 **0.1.0-beta.2**，优先适配 WorkBuddy 与 Loomy 的本机模式。预编译包适用于 Windows x64；macOS、Linux 可从源码构建。仓库中的其他预置应用和协议适配器不表示全部宿主、版本、平台或模型已经通过兼容验收。
+当前版本为 **0.1.0-beta.4**，优先适配 WorkBuddy 与 Loomy 的本机模式。提供 Windows x64、macOS Apple Silicon / Intel、Linux x64 / ARM64 预编译包。仓库中的其他预置应用和协议适配器不表示全部宿主、版本、平台或模型已经通过兼容验收。
+
+## macOS / Linux 解压启动
+
+从上面的 Release 下载对应架构的 `*.tar.gz`，校验 SHA256 后解压，进入文件夹运行 `./start.sh`。macOS 也可双击 `start.command`。无需 Go、Node 或 Python；打开终端显示的管理地址，按 Ctrl+C 停止。详见 [Unix 使用说明](magpie/docs/unix-delivery.md)。macOS 包未进行 Developer ID 签名或公证，首次启动可能需要在系统设置中允许打开。
 
 ## 下载与安装（Windows x64）
 
@@ -14,15 +18,15 @@ Wefto（织流）是运行在本机的 AI 模型路由服务。在一个网页�
 
 | 文件 | 用途 |
 | --- | --- |
-| `wefto-0.1.0-beta.2-windows-amd64.zip` | 程序、内嵌管理页面和安装/卸载说明 |
-| `wefto-0.1.0-beta.2-windows-amd64.manifest.json` | 安装器使用的文件大小与 SHA256 清单 |
+| `wefto-0.1.0-beta.4-windows-amd64.zip` | 程序、内嵌管理页面和安装/卸载说明 |
+| `wefto-0.1.0-beta.4-windows-amd64.manifest.json` | 安装器使用的文件大小与 SHA256 清单 |
 | `install-windows.ps1` | 独立安装脚本 |
 | `SHA256SUMS` | ZIP、manifest 和独立安装脚本的 SHA256 校验值 |
 
 在该文件夹中打开 PowerShell，执行：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -ManifestPath "$PWD\wefto-0.1.0-beta.2-windows-amd64.manifest.json" -PackagePath "$PWD\wefto-0.1.0-beta.2-windows-amd64.zip"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -ManifestPath "$PWD\wefto-0.1.0-beta.4-windows-amd64.manifest.json" -PackagePath "$PWD\wefto-0.1.0-beta.4-windows-amd64.zip"
 
 $router = Join-Path $env:LOCALAPPDATA 'Programs\Wefto\wefto.exe'
 & $router service start
@@ -117,7 +121,7 @@ node magpie/scripts/product-regression.cjs
 
 入口包含产品构建、产品及共享包的 race / vet、Chromium 与 WebKit 页面测试；任一步失败返回非零。旧 `make test-ui` 覆盖上游 Magpie GUI，产品页面使用上述统一入口。自动化回归使用隔离目录与模拟上游，不能替代真实模型、真实宿主及各平台验收。
 
-Windows x64 固定版本包由 `magpie/scripts/package-windows.ps1` 生成，必须提供明确的语义版本；安装器只接收本地包。预览包发布在[本仓库的 Releases](https://github.com/xyzane54/magpie/releases)，安装器不会自行查询或下载 latest。用法、校验和安装/卸载边界见 [Windows 交付文档](magpie/docs/windows-delivery.md)与[交付子系统](magpie/docs/subsystems/wefto-delivery.md)。
+Windows x64 固定版本包由 `magpie/scripts/package-windows.ps1` 生成，必须提供明确的语义版本；安装器只接收本地包。预览包发布在[本仓库的 Releases](https://github.com/XHToken/magpie/releases)，安装器不会自行查询或下载 latest。用法、校验和安装/卸载边界见 [Windows 交付文档](magpie/docs/windows-delivery.md)与[交付子系统](magpie/docs/subsystems/wefto-delivery.md)。
 
 ## 代码与文档
 
@@ -130,6 +134,6 @@ Windows x64 固定版本包由 `magpie/scripts/package-windows.ps1` 生成，必
 
 ## 来源与许可证
 
-本项目导入的 Magpie 基线为 [`707fbb249df755423d3b2b77c6f001dd376d75c4`](https://github.com/yetone/magpie/commit/707fbb249df755423d3b2b77c6f001dd376d75c4)。本地导入记录中的来源仓库为 [`xyzane54/magpie`](https://github.com/xyzane54/magpie)，原始项目与模块路径为 [`yetone/magpie`](https://github.com/yetone/magpie)。Wefto 与上游 Magpie 的产品发布分别管理。
+本项目导入的 Magpie 基线为 [`707fbb249df755423d3b2b77c6f001dd376d75c4`](https://github.com/yetone/magpie/commit/707fbb249df755423d3b2b77c6f001dd376d75c4)。本地导入记录中的来源仓库为 [`xyzane54/magpie`](https://github.com/XHToken/magpie)，原始项目与模块路径为 [`yetone/magpie`](https://github.com/yetone/magpie)。Wefto 与上游 Magpie 的产品发布分别管理。
 
 根目录 [LICENSE](LICENSE) 原样保留 Magpie 的 MIT 许可证和 `Copyright (c) 2026 yetone` 声明，与 [magpie/LICENSE](magpie/LICENSE) 一致。保留的第三方组件及资源以其自身许可证和声明为准；模型与推理运行时通过产品配置的来源另行下载，不包含在本源码仓库中。

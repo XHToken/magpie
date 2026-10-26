@@ -1,0 +1,68 @@
+name: Wefto portable packages
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Native package (${{ matrix.os }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, os: linux, arch: amd64}
+          - {runner: ubuntu-24.04-arm, os: linux, arch: arm64}
+          - {runner: macos-15, os: darwin, arch: arm64}
+          - {runner: macos-15-intel, os: darwin, arch: amd64}
+          - {runner: windows-2025, os: windows, arch: amd64}
+    env:
+      GOENV: 'off'
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: magpie/go.mod
+          cache: false
+      - name: Provision locked Go dependencies
+        working-directory: magpie
+        run: go mod download
+      - name: Build Unix archive offline and verify reproducibility
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          PACKAGE_OS: ${{ matrix.os }}
+          PACKAGE_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          version="$(cat VERSION | tr -d '\r\n')"
+          python3 magpie/scripts/package-unix.py --version "$version" --os "$PACKAGE_OS" --arch "$PACKAGE_ARCH" --output "$RUNNER_TEMP/package"
+          python3 magpie/scripts/package-unix.py --version "$version" --os "$PACKAGE_OS" --arch "$PACKAGE_ARCH" --output "$RUNNER_TEMP/repeat"
+          diff -r "$RUNNER_TEMP/package" "$RUNNER_TEMP/repeat"
+          python3 magpie/scripts/verify-portable-package.py "$RUNNER_TEMP/package/wefto-$version-$PACKAGE_OS-$PACKAGE_ARCH.manifest.json"
+      - name: Build and verify Windows package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content VERSION -Raw).Trim()
+          $env:GOPROXY = 'off'
+          $env:GOSUMDB = 'off'
+          ./magpie/scripts/package-windows.ps1 -Version $version -OutputDir "$env:RUNNER_TEMP/package"
+          python magpie/scripts/verify-portable-package.py "$env:RUNNER_TEMP/package/wefto-$version-windows-amd64.manifest.json"
+          if ($LASTEXITCODE -ne 0) { throw 'Native package acceptance failed' }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wefto-${{ matrix.os }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/package/*
+          if-no-files-found: error
+          retention-days: 14

@@ -9,7 +9,7 @@ These pages describe current responsibilities, runtime paths, state, and contrac
 | Wefto pinned artifacts, resumable installer, single model process, queue and explicit lifecycle | [Local model runtime](wefto-runtime.md) |
 | Wefto private redaction preparation, history cache, deterministic mapping and JSON/SSE restoration | [Redaction engineering](wefto-redaction.md) |
 | Wefto startup, local access, embedded page and disabled background jobs | [Wefto service shell](wefto-service.md) |
-| Wefto fixed Windows package, local installer and retained recovery tool | [Windows delivery](wefto-delivery.md) |
+| Wefto Windows installer, retained recovery tool and Unix portable archives | [Binary delivery](wefto-delivery.md) |
 | Wefto API-key provider editor, private credentials and explicit model lists | [Wefto providers](wefto-providers.md) |
 | Wefto application registry, independent Profiles, credentials and request context | [Wefto applications](wefto-apps.md) |
 | Wefto pure shared wire codecs and legacy compatibility aliases | [Shared cloud codecs](wefto-codec.md) |

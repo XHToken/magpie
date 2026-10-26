@@ -1,4 +1,4 @@
-# Wefto fixed Windows delivery
+# Wefto fixed binary delivery
 
 [`routerdelivery`](../../internal/routerdelivery/delivery.go) owns a local,
 explicitly chosen Windows amd64 package manifest and receipt-managed program
@@ -41,8 +41,8 @@ excess expansion, missing members, wrong sizes, corrupt hashes and non-amd64 PE
 payloads fail before installation publication. These checks defend trusted
 local inputs from damage and unsafe layouts; they are not an OS access-control
 boundary against another process running as the same user and racing filesystem
-changes. Packages are published in the personal fork's
-[GitHub Releases](https://github.com/xyzane54/magpie/releases) with an
+changes. Packages are published in the project's
+[GitHub Releases](https://github.com/XHToken/magpie/releases) with an
 `wefto-v` tag prefix; no publisher code signature is included. The installer
 does not contact GitHub or trust a moving latest-release URL.
 
@@ -72,3 +72,9 @@ bootstrap under a PATH without Go/Node, Unicode/spaces, repeat/corruption,
 unsafe ZIP/platform rejection and receipt-managed uninstall. Exact candidate,
 hashes, platform evidence and limitations are recorded in
 `round4-B/delivery.md` (historical development record; not distributed).
+
+## macOS and Linux portable archives
+
+[`package-unix.py`](../../scripts/package-unix.py) builds the same standalone `cmd/wefto` with CGO disabled and fixed version/build flags. Each deterministic tar.gz contains one top-level directory with the executable, executable `start.sh`, README and MIT LICENSE; macOS also includes executable `start.command`. The launchers locate the bundled executable independently of the working directory and exec foreground `serve`, forwarding arguments. Python is required only when building, not when running the package.
+
+The schema-1 external manifest records archive and member sizes/hashes plus Unix modes. No installer or user-data relocation is involved. These archives do not implement macOS background service control, login startup, Developer ID signing or notarization. The [Unix guide](../unix-delivery.md) documents first launch and storage. Native package CI is configured for all four OS/CPU combinations, reproducible archive bytes, isolated user data, embedded assets, authenticated API, occupied-port fallback and graceful signal shutdown. When hosted Actions is unavailable, the same builder can cross-compile locally; release notes must distinguish archive/architecture checks from actual native startup tests. Windows retains its separate receipt-managed installer. Publication combines all platform manifests and archives into one SHA256SUMS; the scripts never upload or replace a release.
