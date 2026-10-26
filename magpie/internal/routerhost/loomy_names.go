@@ -43,6 +43,7 @@ func synchronizeLoomyModelNames(o Options, group *portGroup) error {
 	if err != nil {
 		return err
 	}
+	loomyProvider := providerID(current, "provider")
 	var patches, managedPatches []edit.KV
 	for _, id := range o.EffectiveModels() {
 		name := strings.TrimSpace(o.ModelNames[id])
