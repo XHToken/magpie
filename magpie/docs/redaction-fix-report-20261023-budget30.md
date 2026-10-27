@@ -73,7 +73,7 @@
 
 - 新增回归在旧代码上实际失败：直接抽取及经 Pipeline 抽取仅取得约 15 秒预算；旧策略仍继承 v5 标识。日志为 `baseline.log`。
 - 首轮相关 8 包 `-race -count=1`：2,285 项测试及子测试通过，0 失败。覆盖同一截止时间跨批次传递、旧策略绑定拒绝、原有取消和异常结果阻断。
-- 相关包 Linux/Windows 静态检查、Linux/Windows API-router 构建通过；`gofmt` 和 `git diff --check` 通过。
+- 相关包 Linux/Windows 静态检查、Linux/Windows 端云协同 构建通过；`gofmt` 和 `git diff --check` 通过。
 - 全仓库 `go test -tags nogui ./...` 已执行，记录 14,110 项测试及子测试通过，但整条命令未通过，不能记为完整产品门禁通过。
 
 全仓库运行中的 4 个产品测试失败如下。这些模块不属于本次修改范围，问题未在本轮修复：

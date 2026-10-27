@@ -1,4 +1,4 @@
-# Wefto fixed binary delivery
+# 端云协同 fixed binary delivery
 
 [`routerdelivery`](../../internal/routerdelivery/delivery.go) owns a local,
 explicitly chosen Windows amd64 package manifest and receipt-managed program

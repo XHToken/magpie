@@ -85,7 +85,7 @@ func buildCodex(raw []byte, o Options, base string) ([]byte, error) {
 		}
 	}
 	fields := hostFields("codex", codexProvider)
-	values := []any{o.Model, codexProvider, "Wefto", base, "responses", PlaceholderAPIKey, false, false}
+	values := []any{o.Model, codexProvider, "端云协同", base, "responses", PlaceholderAPIKey, false, false}
 	out := append([]byte(nil), raw...)
 	for i, p := range fields {
 		out, err = patchTOML(out, p, values[i], false)

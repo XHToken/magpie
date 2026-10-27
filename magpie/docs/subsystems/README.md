@@ -4,21 +4,21 @@ These pages describe current responsibilities, runtime paths, state, and contrac
 
 | Subsystem | Reference |
 | --- | --- |
-| Wefto independent directories, schema and config persistence | [Wefto storage](wefto-storage.md) |
-| Wefto read-only device providers, model recommendation and separate device checks | [Device detection and recommendation](wefto-device.md) |
-| Wefto pinned artifacts, resumable installer, single model process, queue and explicit lifecycle | [Local model runtime](wefto-runtime.md) |
-| Wefto private redaction preparation, history cache, deterministic mapping and JSON/SSE restoration | [Redaction engineering](wefto-redaction.md) |
-| Wefto startup, local access, embedded page and disabled background jobs | [Wefto service shell](wefto-service.md) |
-| Wefto Windows installer, retained recovery tool and Unix portable archives | [Binary delivery](wefto-delivery.md) |
-| Wefto API-key provider editor, private credentials and explicit model lists | [Wefto providers](wefto-providers.md) |
-| Wefto application registry, independent Profiles, credentials and request context | [Wefto applications](wefto-apps.md) |
-| Wefto pure shared wire codecs and legacy compatibility aliases | [Shared cloud codecs](wefto-codec.md) |
-| Wefto three-protocol codec seam and bounded single-target cloud execution | [Wefto cloud execution](wefto-cloud.md) |
-| Wefto bounded persistent request records, safe queries and retention | [Request ledger](wefto-request-ledger.md) |
-| Wefto management request APIs and five-language observation pages | [Request management](wefto-requests.md) |
-| Wefto safe execution events, completion and actual per-field usage | [Execution observation](wefto-observe.md) |
-| Wefto explicit Codex/Claude configuration, private backups and offline recovery | [Host configuration and recovery](wefto-host-config.md) |
-| Wefto Loomy local OpenCode Provider and explicit offline recovery | [Loomy integration](wefto-loomy.md) |
+| 端云协同 independent directories, schema and config persistence | [端云协同 storage](wefto-storage.md) |
+| 端云协同 read-only device providers, model recommendation and separate device checks | [Device detection and recommendation](wefto-device.md) |
+| 端云协同 pinned artifacts, resumable installer, single model process, queue and explicit lifecycle | [Local model runtime](wefto-runtime.md) |
+| 端云协同 private redaction preparation, history cache, deterministic mapping and JSON/SSE restoration | [Redaction engineering](wefto-redaction.md) |
+| 端云协同 startup, local access, embedded page and disabled background jobs | [端云协同 service shell](wefto-service.md) |
+| 端云协同 Windows installer, retained recovery tool and Unix portable archives | [Binary delivery](wefto-delivery.md) |
+| 端云协同 API-key provider editor, private credentials and explicit model lists | [端云协同 providers](wefto-providers.md) |
+| 端云协同 application registry, independent Profiles, credentials and request context | [端云协同 applications](wefto-apps.md) |
+| 端云协同 pure shared wire codecs and legacy compatibility aliases | [Shared cloud codecs](wefto-codec.md) |
+| 端云协同 three-protocol codec seam and bounded single-target cloud execution | [端云协同 cloud execution](wefto-cloud.md) |
+| 端云协同 bounded persistent request records, safe queries and retention | [Request ledger](wefto-request-ledger.md) |
+| 端云协同 management request APIs and five-language observation pages | [Request management](wefto-requests.md) |
+| 端云协同 safe execution events, completion and actual per-field usage | [Execution observation](wefto-observe.md) |
+| 端云协同 explicit Codex/Claude configuration, private backups and offline recovery | [Host configuration and recovery](wefto-host-config.md) |
+| 端云协同 Loomy local OpenCode Provider and explicit offline recovery | [Loomy integration](wefto-loomy.md) |
 | Built-in subscriptions moving to plugins | [Provider and plugin ownership](provider-plugins.md) |
 | Built-in plugins: registry, lifecycle, plugins.yml, presets, settings schemas, the window's kernel (slots, error boundary, kit) | [Plugin runtime](plugin-runtime.md) |
 | Plugins that run on the gateway's requests and replies | [Gateway middleware](gateway-middleware.md) |

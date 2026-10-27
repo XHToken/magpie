@@ -1,4 +1,4 @@
-# Wefto storage and runtime state
+# 端云协同 storage and runtime state
 
 [`dirs.Layout`](../../internal/dirs/dirs.go) resolves the product paths once at startup. [`product`](../../internal/product/identity.go) owns new names and explicit legacy identifiers. Resolution is read-only; `Layout.Ensure` creates writable directories with private modes. Product storage is separate from Magpie settings, accounts and plugin migrations.
 
@@ -38,6 +38,6 @@ Windows [`steady` readers and publishers](../../internal/steady/guard_windows.go
 
 Recognized records are archived only after their process is proven exited or its PID reused. Live and unknown locks remain intact. Legacy storage keeps the old Windows autostart entry name so an existing entry can be inspected; entries belonging to another executable are never adopted or overwritten.
 
-Host recovery records retain the original root, first snapshot, checksum and declared adapter contract. The Codex version-2 adapter reads its frozen v1 contract. The Loomy version-3 adapter reads frozen API-router v1/v2 and Wefto v2 contracts without losing their first snapshot; arbitrary versions or fields are rejected. Host transactions acquire both new and legacy writer locks. Details belong to [host configuration](wefto-host-config.md) and [Loomy](wefto-loomy.md).
+Host recovery records retain the original root, first snapshot, checksum and declared adapter contract. The Codex version-2 adapter reads its frozen v1 contract. The Loomy version-3 adapter reads frozen API-router v1/v2 and 端云协同 v2 contracts without losing their first snapshot; arbitrary versions or fields are rejected. Host transactions acquire both new and legacy writer locks. Details belong to [host configuration](wefto-host-config.md) and [Loomy](wefto-loomy.md).
 
 Verification: `go test ./internal/dirs ./internal/routerconfig ./internal/routerhost ./internal/routercontrol ./internal/steady ./internal/filememo`, then the [complete product gate](../product-regression.md). Rename tests cover all platform layouts, retained credentials/models/recovery sentinels, dual-layout conflicts, unknown roots and legacy host restore/reconnect. Native Windows replacement tests keep an old reader open through both publication paths, reject missing sources and read-only destinations without losing the previous generation, and exercise concurrent replacement under `-race`.

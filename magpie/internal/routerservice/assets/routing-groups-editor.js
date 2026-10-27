@@ -1,4 +1,4 @@
-// Routing Group Editor & Model Picker Popover for Wefto.
+// Routing Group Editor & Model Picker Popover for 端云协同.
 (function () {
   var rg = window.__weftoRoutingGroups;
   if (!rg) return;

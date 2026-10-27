@@ -1,4 +1,4 @@
-# Wefto host configuration contracts
+# 端云协同 host configuration contracts
 
 WorkBuddy 5.3.8 is pinned to the installed Desktop/Agent artifacts, separately
 from Magpie's retired subscription provider. Its [`WorkBuddyAdapter`](../../internal/routerhost/workbuddy.go)

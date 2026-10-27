@@ -60,7 +60,7 @@ func (WorkBuddyAdapter) Build(o Options, files []FilePlan) ([]FilePlan, error) {
 		}
 		entry, index := workBuddyModel(doc, m)
 		if entry == nil {
-			entry = map[string]any{"id": m, "name": "Wefto"}
+			entry = map[string]any{"id": m, "name": "端云协同"}
 			if name := strings.TrimSpace(o.ModelNames[m]); name != "" {
 				entry["name"] = name
 			}

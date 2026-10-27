@@ -27,7 +27,7 @@ purpose 标为 `chat.title`。本地调用生产端原先将所有非 `generatio
 - Windows：交叉编译的 `routerservice.test.exe` 原生执行整包测试通过；
   单独运行新增回归测试也通过。
 - Linux `go vet -tags nogui ./...`、Windows `GOOS=windows go vet ./...` 通过。
-- Windows 及 Linux nogui 的 API-router 与根程序构建通过；格式与 diff 检查通过。
+- Windows 及 Linux nogui 的 端云协同 与根程序构建通过；格式与 diff 检查通过。
 
 ## 当前实例
 

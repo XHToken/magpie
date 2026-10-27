@@ -1,12 +1,12 @@
-# Wefto
+# 端云协同
 
 [简体中文](README.md) | [English](README.en.md)
 
-Wefto (织流) is a local service for routing AI model requests. Manage cloud APIs, local models, and routing policies in one web console, then connect WorkBuddy and Loomy to the same service. It is derived from a fixed Magpie source snapshot; the product entry point is `magpie/cmd/wefto`.
+端云协同 is a local service for routing AI model requests. Manage cloud APIs, local models, and routing policies in one web console, then connect WorkBuddy and Loomy to the same service. It is derived from a fixed Magpie source snapshot; the product entry point is `magpie/cmd/wefto`.
 
-**[Download for macOS / Linux / Windows](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.6)** · [Browse the Wefto source](https://github.com/XHToken/magpie/tree/main)
+**[Download for macOS / Linux / Windows](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.7)** · [Browse the 端云协同 source](https://github.com/XHToken/magpie/tree/main)
 
-The current version is **0.1.0-beta.6**, with initial support focused on WorkBuddy and Loomy running on the same machine. Prebuilt packages cover Windows x64, macOS Apple Silicon / Intel, and Linux x64 / ARM64; the other host presets and protocol adapters in this repository do not imply that every client, version, or platform has been verified.
+The current version is **0.1.0-beta.7**, with initial support focused on WorkBuddy and Loomy running on the same machine. Prebuilt packages cover Windows x64, macOS Apple Silicon / Intel, and Linux x64 / ARM64; the other host presets and protocol adapters in this repository do not imply that every client, version, or platform has been verified.
 
 ## macOS / Linux quick start
 
@@ -18,15 +18,15 @@ The package includes the executable and embedded web console. Go, Node.js, and P
 
 | File | Purpose |
 | --- | --- |
-| `wefto-0.1.0-beta.6-windows-amd64.zip` | Executable, web console, Windows guide, and installation scripts |
-| `wefto-0.1.0-beta.6-windows-amd64.manifest.json` | File sizes and SHA256 hashes checked by the installer |
+| `wefto-0.1.0-beta.7-windows-amd64.zip` | Executable, web console, Windows guide, and installation scripts |
+| `wefto-0.1.0-beta.7-windows-amd64.manifest.json` | File sizes and SHA256 hashes checked by the installer |
 | `install-windows.ps1` | Standalone installer |
 | `SHA256SUMS` | SHA256 hashes for the ZIP, manifest, and standalone installer |
 
 Open PowerShell in that folder and run:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -ManifestPath "$PWD\wefto-0.1.0-beta.6-windows-amd64.manifest.json" -PackagePath "$PWD\wefto-0.1.0-beta.6-windows-amd64.zip"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -ManifestPath "$PWD\wefto-0.1.0-beta.7-windows-amd64.manifest.json" -PackagePath "$PWD\wefto-0.1.0-beta.7-windows-amd64.zip"
 
 $router = Join-Path $env:LOCALAPPDATA 'Programs\Wefto\wefto.exe'
 & $router service start
@@ -118,7 +118,7 @@ The gate builds the product and runs race tests, vet, and Chromium/WebKit page t
 Build a fixed Windows package in PowerShell:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File magpie/scripts/package-windows.ps1 -Version 0.1.0-beta.6 -OutputDir "$PWD\dist\release\0.1.0-beta.6"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File magpie/scripts/package-windows.ps1 -Version 0.1.0-beta.7 -OutputDir "$PWD\dist\release\0.1.0-beta.7"
 ```
 
 The installer accepts explicitly supplied local files. It does not fetch a latest release, update automatically, or roll back data schemas. Preview packages are published in [this repository's Releases](https://github.com/XHToken/magpie/releases).
@@ -135,6 +135,6 @@ The `magpie/` directory retains upstream source, tests, and reference material, 
 
 ## Origin and license
 
-Wefto is derived from Magpie commit [`707fbb249df755423d3b2b77c6f001dd376d75c4`](https://github.com/yetone/magpie/commit/707fbb249df755423d3b2b77c6f001dd376d75c4). The original project and Go module path are [`yetone/magpie`](https://github.com/yetone/magpie); Wefto releases are managed separately in [`xyzane54/magpie`](https://github.com/XHToken/magpie).
+端云协同 is derived from Magpie commit [`707fbb249df755423d3b2b77c6f001dd376d75c4`](https://github.com/yetone/magpie/commit/707fbb249df755423d3b2b77c6f001dd376d75c4). The original project and Go module path are [`yetone/magpie`](https://github.com/yetone/magpie); Wefto releases are managed separately in [`xyzane54/magpie`](https://github.com/XHToken/magpie).
 
 The root [LICENSE](LICENSE) retains the original MIT license and `Copyright (c) 2026 yetone` notice, matching [magpie/LICENSE](magpie/LICENSE). Third-party components retain their own license terms. Model weights and inference runtimes are downloaded separately from their configured sources and are not bundled with the executable or source snapshot.

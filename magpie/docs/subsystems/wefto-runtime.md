@@ -369,7 +369,7 @@ Changing selection resets conclusions; restart resets them to unknown. `state`
 is the sample result; `ready` is effective enable/installation/runtime gating.
 An untested model never inherits results from a different revision.
 
-The Wefto 1.7B and 4B routing and execution checks use the same experimental
+The 端云协同 1.7B and 4B routing and execution checks use the same experimental
 trial checks. They retain `state:"unknown"` and a separate `trialEvidence`;
 they become usable only after an authenticated user calls
 `/api/local-model/trial/enable` following a current `/check`. The resulting

@@ -257,7 +257,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     assert.equal(await wbSwitch.getAttribute('aria-checked'), 'false');
     await page.unroute('**/api/hosts/auto');
 
-    // Reproduce Loomy's stale model menu after its Router Profile was cleared.
+    // Reproduce Loomy's stale model menu after its 端云协同 Profile was cleared.
     await loomySwitch.click();
     await page.waitForFunction(() => document.querySelector('#agents [data-app="loomy"] .lib-switch.ag-conn').getAttribute('aria-checked') === 'true');
     const authHeaders = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
@@ -276,6 +276,62 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       assert.equal(await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8'), orphanedConfig, 'inspection must not rewrite the host');
     }
 
+    // Long provider IDs and wrapped model names must fit their own rows.
+    const providerId = 'p_061adbf19e0d938b7bdec787c296c9a2';
+    const modelNames = ['spark-x2.5-4B', 'spark-x2.5-1.7b', 'deepseek-reasoner-with-a-long-model-name'];
+    await page.route('**/api/cloud-providers', route => route.fulfill({ json: {
+      providers: [{ id: providerId, name: '讯飞星辰 MaaS', enabled: true, models: modelNames }], localModels: [],
+    } }));
+    await page.route('**/api/apps', async route => {
+      assert.equal(route.request().method(), 'GET', 'layout inspection must not save selections');
+      const response = await route.fetch(), data = await response.json();
+      for (const app of data.apps) app.models = modelNames.map(name => `${providerId}/${name}`);
+      await route.fulfill({ response, json: data });
+    });
+    for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) {
+      for (const width of [1440, 375]) {
+        await page.setViewportSize({ width, height: width === 375 ? 667 : 900 });
+        await page.goto(`http://${address}/?locale=${language}&view=agents`);
+        await page.waitForFunction(() => !!managementToken && !!serviceInfo);
+        await page.evaluate(() => window.routerAppsOpen());
+        for (const host of ['loomy', 'workbuddy']) {
+          await page.locator(`#agents [data-app="${host}"] .field.ag-menu`).click();
+          await page.locator(`.am-mr[data-model="${providerId}/${modelNames[0]}"] .am-order`).waitFor();
+          await page.locator('.am-pop').evaluate(pop => Promise.all(pop.getAnimations().map(animation => animation.finished)));
+          const issues = await page.locator('.am-pop').evaluate(pop => {
+            const issues = [], bounds = pop.getBoundingClientRect();
+            if (bounds.left < 0 || bounds.right > innerWidth + 1 || bounds.bottom > innerHeight + 1) issues.push('popover outside viewport');
+            for (const row of pop.querySelectorAll('.am-mr')) {
+              const box = row.getBoundingClientRect(), name = row.querySelector('.am-mn');
+              const range = document.createRange(); range.selectNodeContents(name);
+              for (const text of range.getClientRects()) {
+                if (text.top < box.top - 1 || text.bottom > box.bottom + 1) issues.push(`model text outside row: ${row.dataset.model}`);
+              }
+              const children = [...row.children].map(child => child.getBoundingClientRect());
+              for (let i = 1; i < children.length; i++) {
+                if (children[i].left < children[i - 1].right - 1 || children[i].right > box.right + 1) issues.push(`overlapping columns: ${row.dataset.model}`);
+              }
+            }
+            return issues;
+          });
+          assert.deepEqual(issues, [], `${language}/${width}/${host}: model rows stay aligned`);
+          if (process.env.ARTIFACT_DIR && language === 'zh' && host === 'loomy') {
+            await fs.mkdir(process.env.ARTIFACT_DIR, { recursive: true });
+            await page.screenshot({ path: path.join(process.env.ARTIFACT_DIR, `agent-model-layout-${width}.png`), fullPage: true });
+          }
+          await page.locator('.am-pop [data-action="hide-all"]').click();
+          assert.equal(await page.locator('.am-pop .am-mr:visible').count(), 0, 'folded sections hide their rows');
+          const folded = await page.locator('.am-pop .am-gh').evaluateAll(heads => heads.map(head => {
+            const box = head.getBoundingClientRect(); return { left: box.left, right: box.right, top: box.top, bottom: box.bottom };
+          }));
+          for (let i = 1; i < folded.length; i++) {
+            assert.ok(Math.abs(folded[i].left - folded[0].left) < 1 && Math.abs(folded[i].right - folded[0].right) < 1, 'folded headers keep the same columns');
+            assert.ok(folded[i].top >= folded[i - 1].bottom, 'folded headers remain in separate rows');
+          }
+          await page.keyboard.press('Escape');
+        }
+      }
+    }
     assert.deepEqual(errors, []);
     await page.close();
   });

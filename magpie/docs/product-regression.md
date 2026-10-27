@@ -1,4 +1,4 @@
-# Wefto 产品统一回归（T9.1.1）
+# 端云协同 产品统一回归（T9.1.1）
 
 从仓库根运行固定入口（Windows PowerShell、macOS、Linux 均不要求 make）：
 

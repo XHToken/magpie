@@ -1,4 +1,4 @@
-# Wefto Loomy host integration
+# 端云协同 Loomy host integration
 
 Loomy runs an embedded OpenCode server. Its model menu, `opencode.json`,
 `loomy-config.json` sidecar and Router's `apps.loomy` Profile are separate state.
@@ -35,6 +35,7 @@ active members. Direct cloud providers require saved credentials. Local IDs
 must belong to the supplied service catalog. `FastChecker` independently checks
 Router health; health alone does not establish model readiness.
 
+The provider display name is `端云协同`; its `api_router` routing identity is stable.
 The provider uses `npm: "@ai-sdk/openai-compatible"`,
 `options.baseURL: "<origin>/app/loomy/v1"`,
 `options.apiKey: "wefto-local-placeholder"` and `useSessionAuth: false`.
@@ -67,6 +68,13 @@ provider is preserved. Existing sidecar custom-model flags and selection backup
 are synchronized so Loomy retains the primary selection on startup.
 An explicit reconnect repairs existing sidecar flags even when `opencode.json`
 already matches the requested connection.
+If Loomy has switched its primary selection back to a native provider while
+retaining the Router catalog, explicit reconnect can select the saved Router
+target again. It validates the existing Router provider before reconciling the
+selection against the original journal, retains an independently selected
+small model, and preserves the first recovery snapshot. Provider conflicts
+still block the transaction; a failed Profile save restores the actual native
+selection and journal bytes.
 
 The host write transaction includes saving the captured Profile revision.
 A failed save, stale revision or host write rolls back host and journal bytes
@@ -156,3 +164,5 @@ Agents browser suite checks the labels written by the model picker.
 Title tests cover hidden input removal, model-generated greetings, stream/error
 boundaries, plugin scoping, manual titles, v1 upgrades and offline removal.
 Run `node --test internal/routerhost/tests/loomy-title.test.mjs` as well.
+
+Explicit reconnect also accepts a native primary model with a retained, validated Router catalog. It selects the requested Router target, preserves an independent small_model and the first recovery baseline, and rolls back host and journal bytes when the Profile save fails. Generated provider labels upgrade from API Router or Wefto to 端云协同 in the existing transaction; provider IDs and user aliases retain their compatibility rules.

@@ -104,6 +104,10 @@
 .local-device-message { margin: 12px 0 0; font-size: 15px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
 .local-device-guide .router-note { margin: 8px 0 0; overflow-wrap: anywhere; }
 #localModelChoices { max-width: 100%; justify-content: flex-start; }
+#localModelContent .local-model-status { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 6px 16px; }
+#localModelContent .local-model-status .name { white-space: normal; overflow-wrap: anywhere; }
+#localModelContent .local-model-status > .router-state { min-width: 0; text-align: right; line-height: 1.6; overflow-wrap: anywhere; }
+#localModelContent .local-backend-hint { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); }
 .request-choices.local-model-actions { gap: 8px; margin-top: 16px; }
 .local-model-action { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; max-width: 100%; padding: 8px 15px; border: 1px solid var(--pill-line, var(--line)); border-radius: 999px; background: var(--card); color: var(--fg-2); box-shadow: var(--pill-shadow, 0 1px 1px rgba(0, 0, 0, .04)); font-weight: 500; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
 .local-model-action:hover:not(:disabled) { background: var(--pill-hover); border-color: var(--muted); color: var(--fg); }
@@ -153,14 +157,31 @@ button:disabled { cursor: default; opacity: .45; }
 .row.agent.conn .ag-actions { display: inline-flex; align-items: center; gap: 10px; justify-self: end; }
 .am-pop .am-custom { display: flex; gap: 6px; padding: 6px 10px 4px; }
 .am-pop .am-custom input { flex: 1; min-width: 0; height: 26px; padding: 0 8px; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); }
-.am-pop .am-mr { cursor: pointer; user-select: none; }
-.am-pop .am-order { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; }
+.am-pop .am-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.am-pop .am-count { padding: 1px 6px; border-radius: 5px; background: var(--pill); color: var(--muted); font-size: 11px; }
+.am-pop .am-head, .am-pop .am-tools, .am-pop .am-custom, .am-pop .am-foot { flex-shrink: 0; }
+.am-pop .am-tools { flex-wrap: wrap; }
+.am-pop .am-search { flex-basis: 140px; }
+.am-pop .am-gn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.am-pop .am-gc { flex: none; font-variant-numeric: tabular-nums; }
+.am-pop .am-arr { flex: none; width: 6px; height: 6px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); margin: -3px 2px 0; }
+.am-pop .am-g.fold { display: block; margin: 0; padding: 0; border-radius: 0; background: none; color: inherit; }
+.am-pop .am-g.fold .am-arr { transform: rotate(-45deg); margin-top: 0; }
+.am-pop .am-g.fold .am-rows { display: none; }
+.am-pop .am-mr { display: grid; grid-template-columns: 16px minmax(0, 1fr) minmax(0, 104px) 45px; gap: 8px; height: auto; min-height: 36px; padding: 6px 10px; line-height: 1.5; cursor: pointer; user-select: none; }
+.am-pop .am-mn { min-width: 0; overflow-wrap: anywhere; }
+.am-pop .am-mr > .am-tag { min-width: 0; margin-left: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.am-pop .am-order { display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px; margin-left: 0; padding-top: 0; }
 .am-pop .am-mv { padding: 0 5px; height: 20px; font-size: 11px; line-height: 1; border: 1px solid var(--line); border-radius: 4px; background: var(--card); color: var(--fg-2); cursor: pointer; }
 .am-pop .am-mv:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .am-pop .am-tag.is-primary { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.am-pop .am-note { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 760px) {
  #agents .row { flex-wrap: wrap; }
  #agents .router-state { width: 100%; }
+}
+@media (max-width: 480px) {
+ .am-pop .am-mr { grid-template-columns: 16px minmax(0, 1fr) minmax(0, 74px) 45px; gap: 6px; }
 }
 
 .request-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 12px 0; }

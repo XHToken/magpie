@@ -2,7 +2,7 @@
 
 进入安装/启动分支后，按用户请求和现有授权完成下载、安装和启动。默认先启动已有安装；仅在用户明确要求更新或指定其他版本时准备新版本。不为已授权的普通安装重复请求确认。
 
-源码：[XHToken/magpie，main 分支](https://github.com/XHToken/magpie/tree/main)。发布来源仅限该仓库 `wefto-v*` Releases。产品现名 Wefto，命令为 `wefto`，源码入口为 `magpie/cmd/wefto`；保留本 skill 的 `$api-router-start` 调用名。不使用旧仓库或上游 Magpie 安装器。
+源码：[XHToken/magpie，main 分支](https://github.com/XHToken/magpie/tree/main)。发布来源仅限该仓库 `wefto-v*` Releases。说明中项目称为“端云协同”，既有发布包使用 `wefto` 技术标识，命令为 `wefto`，源码入口为 `magpie/cmd/wefto`；保留本 skill 的 `$api-router-start` 调用名。不使用旧仓库或上游 Magpie 安装器。
 
 每次需要下载安装时，实时查询 [项目 Releases](https://github.com/XHToken/magpie/releases)，按 `published_at` 从新到旧筛选 `wefto-v*`、非草稿、当前系统/架构的发布。默认包含预览版，不使用仅面向正式版的 `/releases/latest` 代替筛选。默认不传 `-Tag` 或 `--tag`，不固定任何历史版本。以下为已支持的包类型，具体版本号及文件 URL 始终取自本次查询结果：
 
@@ -28,7 +28,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File '<SKILL_DIR>\scripts\sta
 
 复用 `%LOCALAPPDATA%\Programs\Wefto`；未安装则选择最新发布且附件完整的兼容版本（包含预览版），下载同一 Release 的 ZIP、manifest、安装器、SHA256SUMS，校验后调用官方安装器，再 `service start`。无需 Go、Node、Python 或管理员权限。
 
-默认未找到 Wefto 时，若存在标准路径的旧 API-router 安装，先复用它；不隐式更名升级。用户明确要求切换新仓库版本时按更新文档迁移。
+默认未找到端云协同时，若存在标准路径的旧 API-router 安装，先复用它；不隐式更名升级。用户明确要求切换新仓库版本时按更新文档迁移。
 
 - `-Plan`：仅检查安装或查询候选 Release，不下载、不启动。
 - `-DownloadOnly`：仅下载和校验，输出版本及缓存路径。
@@ -49,9 +49,9 @@ python3 '<SKILL_DIR>/scripts/prepare-unix.py' --no-browser
 
 应用包本身无需 Go、Node 或 Python。若环境没有现成 Python，用现有下载工具、系统 `shasum -a 256`（macOS）/`sha256sum`（Linux）与 `tar` 完成相同校验，再在独立程序目录运行包内 `./start.sh`；macOS 也支持 `start.command`。不为安装预编译包要求用户安装开发工具。
 
-只有对应系统/架构确实没有发布包时才从固定源码构建：固定 API 返回的 `main` 提交，或用户指定的 Wefto Release 标签，只构建 `magpie/cmd/wefto`。此时需 Git 和源码 `go.mod` 要求的 Go，允许 Go 下载自身工具链，不调用系统包管理器。缺依赖时说明缺什么及下一步。
+只有对应系统/架构确实没有发布包时才从固定源码构建：固定 API 返回的 `main` 提交，或用户指定的端云协同 Release 标签，只构建 `magpie/cmd/wefto`。此时需 Git 和源码 `go.mod` 要求的 Go，允许 Go 下载自身工具链，不调用系统包管理器。缺依赖时说明缺什么及下一步。
 
-未指定目录/版本且没有 Wefto 时，也可复用 `~/.local/opt/api-router/api-router` 的旧安装。需要更名升级时按更新文档处理，不合并新旧配置根。
+未指定目录/版本且没有端云协同时，也可复用 `~/.local/opt/api-router/api-router` 的旧安装。需要更名升级时按更新文档处理，不合并新旧配置根。
 
 参数：`--plan` 仅查询、`--download-only` 仅下载校验、`--prepare-only` 仅安装/构建、`--check-only` 仅检查、`--stable-only` 排除预览版、`--tag wefto-vVERSION`、`--install-dir ABSOLUTE_DIR`、`--no-browser`。默认启动并验证后台进程，返回包标签（源码构建时返回提交）、版本、程序位置及实际管理 URL。手动运行 `./start.sh` 为前台模式，保持终端打开，Ctrl+C 停止。
 

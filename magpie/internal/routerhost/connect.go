@@ -148,7 +148,11 @@ func (e Engine) prepareConnection(o Options) (*portGroup, AdapterContract, error
 			}
 			curBytes := input[i].Before
 			if j.Host == "loomy" && f.Name == "opencode.json" {
-				if nowDoc, err := readJSON(curBytes); err == nil && loomyModelsCatalogCleared(nowDoc) && loomyPreservedSelector(nowDoc["model"]) {
+				// Explicit reconnect replaces a native primary selection after the
+				// existing Router provider has passed checkConnectedFiles above.
+				// Normalize only the recovery input; keep the actual file snapshot
+				// for stale-write checks and transaction rollback.
+				if nowDoc, err := readJSON(curBytes); err == nil && loomyPreservedSelector(nowDoc["model"]) {
 					if afterDoc, err := readJSON(f.After); err == nil {
 						if afterModel, ok := afterDoc["model"].(string); ok && loomyRouterSelection(afterModel) {
 							if patched, err := edit.PatchJSON(curBytes, []edit.KV{{Path: "model", Value: afterModel}}, nil); err == nil {

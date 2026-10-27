@@ -1,4 +1,4 @@
-# Wefto Privacy Redaction and Reversible Restoration
+# 端云协同 Privacy Redaction and Reversible Restoration
 
 ## Purpose
 

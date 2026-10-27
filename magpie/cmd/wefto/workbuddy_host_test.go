@@ -204,7 +204,7 @@ func TestWorkBuddyHostCLIProductionApplyRepeatAndStoppedRestore(t *testing.T) {
 			if err := run(append(workBuddyCLIArgs("restore", root, state, ""), "--plan-digest", restoreDigest), &output); err != nil {
 				t.Fatal(err)
 			}
-			if !strings.Contains(output.String(), "bypasses Wefto") {
+			if !strings.Contains(output.String(), "bypasses 端云协同") {
 				t.Fatal("recovery omitted its bypass notice")
 			}
 			settings, err = os.ReadFile(filepath.Join(root, "settings.json"))

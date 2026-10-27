@@ -69,7 +69,7 @@ func TestWorkBuddyNamesUpgradeV1RollbackAndAlias(t *testing.T) {
 }
 
 func TestWorkBuddyNamesRestoreExistingLabels(t *testing.T) {
-	for _, label := range []string{"API Router", "My endpoint"} {
+	for _, label := range []string{"API Router", "Wefto", "端云协同", "My endpoint"} {
 		t.Run(label, func(t *testing.T) {
 			e, o := workBuddySetup(t)
 			path := hostPath(o.ConfigRoot, "models.json")
@@ -80,7 +80,7 @@ func TestWorkBuddyNamesRestoreExistingLabels(t *testing.T) {
 				t.Fatal(err)
 			}
 			want := label
-			if label == "API Router" {
+			if label == "API Router" || label == "Wefto" || label == "端云协同" {
 				want = o.ModelNames[o.Model]
 			}
 			if workBuddyTarget(t, get(t, path), o.Model)["name"] != want {

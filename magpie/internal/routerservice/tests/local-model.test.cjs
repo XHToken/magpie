@@ -138,7 +138,7 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
         throw error;
       }
       const recommendation = async model => page.evaluate(({ key, model }) => t(key).replace('{model}', model), { key: recommendationKey, model });
-      assert.equal(await page.locator('#localModelLifecycle').textContent(), await page.evaluate(() => t('Enabled models stay loaded while Router runs. Your on/off choice is remembered at the next startup.')), 'lifecycle copy explains residency and restart persistence');
+      assert.equal(await page.locator('#localModelLifecycle').textContent(), await page.evaluate(() => t('Enabled models stay loaded while 端云协同 runs. Your on/off choice is remembered at the next startup.')), 'lifecycle copy explains residency and restart persistence');
       await page.waitForFunction(key => document.querySelector('#localDeviceMessage')?.textContent === t(key).replace('{model}', 'Spark-X2.6-4B-Q4_K_M'), recommendationKey);
       await page.waitForFunction(() => !document.querySelector('#localDeviceGuide [data-action=detect]').disabled);
       assert.equal(await page.evaluate(() => [...document.querySelectorAll('#localModelContent .row b')].some(el => el.textContent === t('Downloading'))), false, `${installation} never renders a stale Downloading progress row`);
@@ -157,6 +157,23 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       backendFixture.testHealthy = false;
       await page.evaluate(() => window.routerLocalOpen());
       assert.ok((await page.locator('#localModelBackend').textContent()).includes(await page.evaluate(() => t('Acceleration not verified'))), 'a stale GPU name never proves acceleration');
+      backendFixture = { mode: 'auto', state: 'cpu', fallbackReason: 'accelerator_not_installed', testHealthy: true };
+      await page.evaluate(() => window.routerLocalOpen());
+      const alignment = await page.locator('#localModelBackend').evaluate(row => {
+        const hint = row.querySelector('.local-backend-hint');
+        if (!hint) return { contained: false };
+        const box = row.getBoundingClientRect(), label = row.querySelector('.name').getBoundingClientRect();
+        const note = hint.getBoundingClientRect(), value = row.querySelector('.router-state').getBoundingClientRect();
+        const next = document.querySelector('#localModelDependencies').getBoundingClientRect();
+        return { contained: note.left >= box.left && note.right <= box.right && note.bottom <= box.bottom,
+          inset: Math.abs(note.left - label.left) < 1,
+          below: note.top >= Math.max(label.bottom, value.bottom), separated: box.bottom <= next.top + 1 };
+      });
+      assert.deepEqual(alignment, { contained: true, inset: true, below: true, separated: true }, `${language}/${width}: GPU hint aligns inside its backend row`);
+      if (process.env.ARTIFACT_DIR && language === 'zh') {
+        await fs.mkdir(process.env.ARTIFACT_DIR, { recursive: true });
+        await page.screenshot({ path: path.join(process.env.ARTIFACT_DIR, `local-backend-layout-${width}.png`), fullPage: true });
+      }
       backendFixture = null;
       await page.evaluate(() => window.routerLocalOpen());
 
@@ -394,7 +411,7 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       await page.evaluate(() => window.routerLocalDisconnected());
       await page.unrouteAll({ behavior: 'wait' });
       await page.close();
-      assert.equal((await fetch(base + '/healthz')).status, 200, 'closing page keeps Router alive');
+      assert.equal((await fetch(base + '/healthz')).status, 200, 'closing page keeps 端云协同 alive');
     }
   }
   const installedPage = await browser.newPage({ locale: 'en-US' });

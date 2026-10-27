@@ -1,4 +1,4 @@
-# Wefto device detection and model recommendation
+# 端云协同 device detection and model recommendation
 
 [`internal/routerdevice`](../../internal/routerdevice/device.go) owns T3.1's
 read-only device observations, hardware tier recommendation and device check.

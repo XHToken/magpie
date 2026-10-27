@@ -77,7 +77,7 @@ func runContext(ctx context.Context, args []string, out io.Writer) error {
 	}
 	if command == "serve" {
 		return routerservice.RunWithModelOptions(ctx, layout, version, func(info routerservice.Info) error {
-			_, err := fmt.Fprintf(out, "Wefto %s\nManagement: http://%s/\nManagement token file: %s\n", version, info.Address, routerservice.TokenFile(layout))
+			_, err := fmt.Fprintf(out, "端云协同 %s\nManagement: http://%s/\nManagement token file: %s\n", version, info.Address, routerservice.TokenFile(layout))
 			if err == nil && experimentalRedaction {
 				_, err = fmt.Fprintln(out, "Experimental redaction trial: enabled; 30-second total budget; recognition quality not formally accepted. Invalid results block cloud requests.")
 			}

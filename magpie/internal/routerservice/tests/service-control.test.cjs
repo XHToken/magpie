@@ -136,7 +136,7 @@ for (const engine of process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 
       const beforeCancel = controls.length; await page.locator('#serviceControlCancel').click(); assert.equal(controls.length, beforeCancel);
       await page.locator('#serviceControl-stop').click();
       await page.locator('#serviceControlAck').check(); await page.locator('#serviceControlExecute').click();
-      await page.waitForFunction(() => document.querySelector('#serviceControlMessage').textContent === t('Stop requested. Start Router again using your usual launcher.'));
+      await page.waitForFunction(() => document.querySelector('#serviceControlMessage').textContent === t('Stop requested. Start 端云协同 again using your usual launcher.'));
       assert.equal(await page.locator('#serviceControl-stop').isDisabled(), true);
       assert.equal(await page.locator('#serviceStartCommand, .router-service-command').count(), 0);
       assert.equal((await page.locator('#serviceControl').innerText()).includes(startCommand), false);
@@ -146,7 +146,7 @@ for (const engine of process.env.BROWSER ? [process.env.BROWSER] : ['chromium', 
       await connect();
       await page.locator('#serviceControl-restart').click();
       await page.locator('#serviceControlAck').check(); await page.locator('#serviceControlExecute').click();
-      await page.waitForFunction(() => document.querySelector('#serviceControlMessage').textContent === t('Restart requested. Waiting for a new Router process…'));
+      await page.waitForFunction(() => document.querySelector('#serviceControlMessage').textContent === t('Restart requested. Waiting for a new 端云协同 process…'));
       assert.equal(await page.locator('#serviceControl-restart').isDisabled(), true);
       await page.waitForFunction(() => serviceInfo?.pid === 10002 && !!managementToken && !document.querySelector('#serviceControl-restart').disabled);
       assert.ok(polls >= 2, 'an unchanged old PID cannot confirm restart');
