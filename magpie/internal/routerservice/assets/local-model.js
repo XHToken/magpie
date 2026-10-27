@@ -19,6 +19,7 @@
     ["Close some apps and detect again, or continue using cloud models.", "可关闭部分应用后重新检测，或继续使用云端模型。", "可關閉部分應用後重新偵測，或繼續使用雲端模型。", "アプリを閉じて再検出するか、クラウドモデルを使ってください。", "Schließen Sie einige Anwendungen und prüfen Sie erneut oder nutzen Sie Cloud-Modelle."],
     ["Installation space for {model}: {required} GiB required, {available} GiB available.", "{model} 安装空间：需要 {required} GiB，可用 {available} GiB。", "{model} 安裝空間：需要 {required} GiB，可用 {available} GiB。", "{model} の導入領域: 必要 {required} GiB、空き {available} GiB。", "Installationsplatz für {model}: {required} GiB benötigt, {available} GiB verfügbar."],
     ["Some required device or disk information is unavailable. Detect again before downloading.", "暂时无法确认必要的设备或磁盘信息，请重新检测后再下载。", "暫時無法確認必要的裝置或磁碟資訊，請重新偵測後再下載。", "必要な端末情報またはディスク情報が不明です。再検出してからダウンロードしてください。", "Erforderliche Geräte- oder Datenträgerinformationen fehlen. Prüfen Sie vor dem Download erneut."],
+    ["Available memory could not be read. Detect again before downloading.", "无法读取当前可用内存，请重新检测后再下载。", "無法讀取目前可用記憶體，請重新偵測後再下載。", "現在の利用可能なメモリを取得できません。再検出してからダウンロードしてください。", "Der verfügbare Arbeitsspeicher konnte nicht gelesen werden. Prüfen Sie vor dem Download erneut."],
     ["An existing healthy model is being reused.", "优先复用当前已健康运行的模型。", "優先重用目前正常執行的模型。", "正常に稼働している既存モデルを再利用します。", "Das bereits laufende, gesunde Modell wird wiederverwendet."],
     ["Q8_0 may respond more slowly on CPU.", "Q8_0 在 CPU 上响应可能更慢。", "Q8_0 在 CPU 上的回應可能較慢。", "CPU では Q8_0 の応答が遅くなる場合があります。", "Q8_0 kann auf der CPU langsamer antworten."],
     ["You can manually try this model, but automatic installation is not recommended.", "可手动试用此模型，但不建议自动安装。", "可手動試用此模型，但不建議自動安裝。", "手動で試用できますが、自動導入は推奨しません。", "Sie können dieses Modell manuell testen; eine automatische Installation wird jedoch nicht empfohlen."],
@@ -118,7 +119,8 @@
     ['Enabled models stay loaded while 端云协同 runs. Your on/off choice is remembered at the next startup.', '模型开启后保持加载，空闲时不会自动卸载。下次启动会记住您的开关选择。', '模型開啟後保持載入，閒置時不會自動卸載。下次啟動會記住您的開關選擇。', '有効なモデルは端云协同の実行中に保持され、アイドル時も解放されません。次回起動時もオン・オフの選択が保存されます。', 'Aktivierte Modelle bleiben geladen, solange 端云协同 läuft. Ihre Ein-/Aus-Auswahl wird beim nächsten Start beibehalten.'],
   ]) for (const [lang, text] of [['zh', zh], ['zh-TW', tw], ['ja', ja], ['de', de]]) (I18N[lang] ||= {})[key] = text;
 
-  let data = null, device = null, working = false, timer;
+  let data = null, device = null, working = false;
+  let stream, refreshController, retryTimer, readGeneration = 0, retryDelay = 1000, redactionKey = '';
   let detectionAttempted = false, detecting = false, detectionFailed = false, connection = 0, selectedModelId = '';
   const stateNames = { not_installed: 'Not installed', installed: 'Installed and verified', downloading: 'Downloading', canceled: 'Canceled', failed: 'Failed', unloaded: 'Unloaded', loading: 'Loading model', ready: 'Ready', busy: 'In use', idle: 'Idle', unloading: 'Unloading', fault: 'Fault', unknown: 'Unknown', available: 'Ready', unavailable: 'Unavailable' };
   const label = value => t(stateNames[value] || 'Unknown');
@@ -273,7 +275,8 @@
         guide.append(el('p', 'hint router-note', t('Close some apps and detect again, or continue using cloud models.')));
       }
       if (assessment?.issues?.some(item => item.code === 'gpu_memory_insufficient')) guide.append(el('p', 'hint router-note', t('Available GPU memory is low. Close GPU-intensive apps and detect again.')));
-      if (assessment?.issues?.some(item => item.code.endsWith('_unknown') || item.code === 'backend_unconfirmed')) guide.append(el('p', 'hint router-note', t('Some required device or disk information is unavailable. Detect again before downloading.')));
+      if (assessment?.issues?.some(item => item.code === 'available_memory_unknown')) guide.append(el('p', 'hint router-note', t('Available memory could not be read. Detect again before downloading.')));
+      if (assessment?.issues?.some(item => (item.code.endsWith('_unknown') && item.code !== 'available_memory_unknown') || item.code === 'backend_unconfirmed')) guide.append(el('p', 'hint router-note', t('Some required device or disk information is unavailable. Detect again before downloading.')));
       if (advice.state !== 'recommended' && assessment?.manual === 'passed') guide.append(el('p', 'hint router-note', t('You can manually try this model, but automatic installation is not recommended.')));
       if (assessment?.quantization === 'Q8_0' && assessment?.issues?.some(item => item.code === 'q8_acceleration_required')) guide.append(el('p', 'hint router-note', t('Q8_0 may respond more slowly on CPU.')));
       for (const candidate of advice.assessments || []) {
@@ -418,8 +421,8 @@
     root.append(buttons);
     if (status.error) root.append(el('p', 'editor-error local-status-error', statusErrorMessage(status)));
   }
-  async function request(endpoint, body) {
-    const response = await managementFetch('/api/local-model' + (endpoint ? '/' + endpoint : ''), { method: endpoint ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + managementToken, ...(endpoint ? { 'Content-Type': 'application/json' } : {}) }, ...(endpoint ? { body: JSON.stringify(body || {}) } : {}), cache: 'no-store', credentials: 'omit', redirect: 'error' });
+  async function request(endpoint, body, signal) {
+    const response = await managementFetch('/api/local-model' + (endpoint ? '/' + endpoint : ''), { method: endpoint ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + managementToken, ...(endpoint ? { 'Content-Type': 'application/json' } : {}) }, ...(endpoint ? { body: JSON.stringify(body || {}) } : {}), cache: 'no-store', credentials: 'omit', redirect: 'error', signal });
     const result = await response.json();
     if (!response.ok) {
       const code = result.error?.code;
@@ -430,14 +433,90 @@
     }
     return result;
   }
+  function isChanging(status) {
+    return status?.installation === 'downloading' || ['loading', 'unloading'].includes(status?.runtime) || status?.dependencies?.state === 'preparing';
+  }
+  function canObserve() { return view === 'local-model' && managementToken && !document.hidden; }
+  function stopObserving() {
+    clearTimeout(retryTimer);
+    stream?.abort(); stream = null;
+    refreshController?.abort(); refreshController = null;
+    readGeneration++;
+  }
+  function retryObservation() {
+    if (!canObserve() || !isChanging(data?.status)) return;
+    retryTimer = setTimeout(open, retryDelay);
+    retryDelay = Math.min(retryDelay * 2, 30000);
+  }
+  async function refreshRedaction(status, force = false) {
+    // Progress, queue occupancy and busy/idle transitions do not change privacy
+    // readiness. Keep these out of the key so downloads do not query redaction.
+    const key = JSON.stringify([status.intent, status.installation, status.dependencies, status.capabilities?.redaction, status.performance?.state, status.runtime === 'fault']);
+    if (!force && key === redactionKey) return;
+    await window.routerRedactionRefresh?.();
+    redactionKey = key;
+  }
+  function watchStatus() {
+    if (stream || !canObserve() || !isChanging(data?.status)) return;
+    const controller = new AbortController(), current = connection;
+    stream = controller;
+    (async () => {
+      let reader;
+      try {
+        // fetch keeps the management token in an Authorization header. Native
+        // EventSource cannot set that header; tokens must never enter a URL.
+        const response = await managementFetch('/api/local-model/events', { signal: controller.signal });
+        if (!response.ok || !response.headers.get('Content-Type')?.startsWith('text/event-stream') || !response.body) throw new Error('Connection unavailable');
+        reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let pending = '';
+        while (!controller.signal.aborted) {
+          const chunk = await reader.read();
+          if (chunk.done) throw new Error('Connection unavailable');
+          pending += decoder.decode(chunk.value, { stream: true });
+          if (pending.length > 1024 * 1024) throw new Error('Connection unavailable');
+          let end;
+          while ((end = pending.indexOf('\n\n')) !== -1) {
+            const frame = pending.slice(0, end); pending = pending.slice(end + 2);
+            const json = frame.split('\n').filter(line => line.startsWith('data: ')).map(line => line.slice(6)).join('\n');
+            if (!json) continue; // Heartbeats carry no state.
+            const value = JSON.parse(json);
+            if (value.schemaVersion !== 1 || !value.status) throw new Error('Connection unavailable');
+            if (controller.signal.aborted || current !== connection || !canObserve()) return;
+            retryDelay = 1000;
+            if ($('#localModelError').textContent === t('Connection unavailable')) $('#localModelError').textContent = '';
+            if (working) continue; // The action's final refresh owns its result.
+            if (!isChanging(value.status) || value.status.intent?.selected !== data?.status?.intent?.selected) {
+              // Terminal transitions need one full read to update installed
+              // candidates as well as status, including a different model's install.
+              void open();
+              return;
+            }
+            data.status = value.status; render();
+            await refreshRedaction(value.status);
+          }
+        }
+      } catch {
+        if (!controller.signal.aborted && current === connection && canObserve()) {
+          $('#localModelError').textContent = t('Connection unavailable');
+          retryObservation();
+        }
+      } finally {
+        if (stream === controller) stream = null;
+        if (reader) { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+      }
+    })();
+  }
   async function open() {
-    clearTimeout(timer);
-    if (view !== 'local-model' || !managementToken) { render(); return; }
-    const current = connection;
+    stopObserving();
+    if (!canObserve()) { render(); return; }
+    const current = connection, generation = readGeneration, controller = new AbortController();
+    refreshController = controller;
     try {
-      const result = await request('');
-      if (current !== connection) return;
+      const result = await request('', undefined, controller.signal);
+      if (current !== connection || generation !== readGeneration) return;
       data = result;
+      if ($('#localModelError').textContent === t('Connection unavailable')) $('#localModelError').textContent = '';
       if (!selectedModelId) selectedModelId = data?.status?.installingModel || data?.status?.intent?.selected || '';
       render();
       // One local probe per authenticated page session while no selected
@@ -445,10 +524,18 @@
       const skipDetection = window.routerLocalSkipDetectionOnce === true;
       window.routerLocalSkipDetectionOnce = false;
       if (!skipDetection && !detectionAttempted && !working && ['not_installed', 'canceled', 'failed'].includes(data.status.installation)) await detectDevice();
-      if (current === connection && (['downloading'].includes(data.status.installation) || ['loading', 'unloading'].includes(data.status.runtime) || data.status.dependencies?.state === 'preparing')) timer = setTimeout(open, 1500);
+      if (current !== connection || generation !== readGeneration || !canObserve()) return;
+      await refreshRedaction(data.status, true);
+      if (generation === readGeneration) watchStatus();
     }
-    catch { if (current === connection) { data = null; render(); } }
-    await window.routerRedactionRefresh?.();
+    catch {
+      if (current === connection && generation === readGeneration && !controller.signal.aborted) {
+        if (!data) render();
+        $('#localModelError').textContent = t('Connection unavailable');
+        retryObservation();
+      }
+    }
+    finally { if (refreshController === controller) refreshController = null; }
   }
   async function detectDevice() {
     if (working || !managementToken) return;
@@ -570,6 +657,9 @@
   }
   window.routerLocalOpen = open;
   window.routerLocalRender = render;
-  window.routerLocalDisconnected = () => { clearTimeout(timer); connection++; data = null; device = null; working = false; detectionAttempted = false; detecting = false; detectionFailed = false; selectedModelId = ''; render(); };
+  window.routerLocalDisconnected = () => { stopObserving(); connection++; data = null; device = null; working = false; detectionAttempted = false; detecting = false; detectionFailed = false; selectedModelId = ''; redactionKey = ''; render(); };
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopObserving(); else if (canObserve()) void open(); });
+  window.addEventListener('pagehide', stopObserving);
+  window.addEventListener('pageshow', event => { if (event.persisted && canObserve()) void open(); });
   render();
 })();

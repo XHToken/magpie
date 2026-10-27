@@ -103,6 +103,8 @@ test(`quantized model advice and conservative resource messages (${process.env.B
       report.advice.assessments[0].manual = 'unknown'; report.advice.assessments[0].issues = [{ code: 'available_memory_unknown' }];
       await check();
       assert.equal(await page.locator('#localDeviceMessage').textContent(), deferred);
+      const unavailableMemory = await page.evaluate(() => t('Available memory could not be read. Detect again before downloading.'));
+      assert.ok((await page.locator('#localDeviceGuide').textContent()).includes(unavailableMemory), 'missing available memory is identified separately from disk space');
       assert.equal(await page.locator('#localModelContent [data-action=install]').isDisabled(), true);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${language}/${width}: resource details fit the viewport`);
       assert.ok(actions.every(action => ['/api/local-model/detect', '/api/local-model/select'].includes(action)), 'advice never installs, enables or unloads a model');

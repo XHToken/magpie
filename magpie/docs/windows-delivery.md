@@ -8,7 +8,7 @@
 
 ## 安装固定版本
 
-从同一 [Wefto 发布版本](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.4)取得 `*.zip`、`*.manifest.json`、`SHA256SUMS` 和独立 `install-windows.ps1`，保存在同一个本地文件夹。`SHA256SUMS` 列出 ZIP、manifest 和独立安装脚本的校验值，可用 `Get-FileHash -Algorithm SHA256` 核对。安装器只接受明确给定的本地包，不执行网络脚本文本，不查询或隐式使用 latest；当前不实现自动升级、自动回滚或其他平台安装。
+从同一 [Wefto 发布版本](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.8)取得 `*.zip`、`*.manifest.json`、`SHA256SUMS` 和独立 `install-windows.ps1`，保存在同一个本地文件夹。`SHA256SUMS` 列出 ZIP、manifest 和独立安装脚本的校验值，可用 `Get-FileHash -Algorithm SHA256` 核对。安装器只接受明确给定的本地包，不执行网络脚本文本，不查询或隐式使用 latest；当前不实现自动升级、自动回滚或其他平台安装。
 
 在 PowerShell 中指定绝对路径（支持空格和中文）：
 

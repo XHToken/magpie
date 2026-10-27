@@ -16,7 +16,7 @@
 
 ## 入口
 
-识别真实 OS 和 CPU 架构。Windows ARM 不冒充 amd64，WSL 是独立 Linux 环境。若用户只是启动本项目源码工作区，且仓库有 `scripts/start-project.ps1`，遵循仓库 AGENTS.md，运行该入口 `-NoBrowser`。明确要求安装发布包时使用下文。
+识别真实 OS 和 CPU 架构。Windows ARM 不冒充 amd64，WSL 是独立 Linux 环境。若用户只是启动本项目源码工作区，且仓库有 `scripts/start-project.ps1`，遵循仓库 AGENTS.md，运行该入口 `-NoBrowser`。该入口优先通过正常用户布局中的实例记录复用标准安装的原程序，避免源码与安装版争用同一配置；没有记录时默认使用当前源码构建。明确要验证源码构建时用 `-UseProjectBuild`，遇到运行中的其他构建仍按原生保护报告冲突，不自动停服务。明确要求安装发布包时使用下文。
 
 以下 SKILL_DIR 指 skill 根目录（含 SKILL.md），不是 references 目录；执行时替换为实际绝对路径。
 
@@ -29,6 +29,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File '<SKILL_DIR>\scripts\sta
 复用 `%LOCALAPPDATA%\Programs\Wefto`；未安装则选择最新发布且附件完整的兼容版本（包含预览版），下载同一 Release 的 ZIP、manifest、安装器、SHA256SUMS，校验后调用官方安装器，再 `service start`。无需 Go、Node、Python 或管理员权限。
 
 默认未找到端云协同时，若存在标准路径的旧 API-router 安装，先复用它；不隐式更名升级。用户明确要求切换新仓库版本时按更新文档迁移。
+
+Windows 默认启动与只读检查会先读取正常用户目录的实例记录，只接受标准安装目录中的 Wefto/API-router（项目入口还接受自身构建）。记录只用于选择 CLI，随后仍由该 CLI 核验进程和认证身份。未知程序、损坏/缺失记录、双布局冲突会停止并保留现场，不再创建隔离数据目录、安装另一个副本或下载模型。指定版本/程序目录仍保持显式选择，不偷偷改用另一个构建。
 
 - `-Plan`：仅检查安装或查询候选 Release，不下载、不启动。
 - `-DownloadOnly`：仅下载和校验，输出版本及缓存路径。

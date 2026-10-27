@@ -177,6 +177,9 @@ func (f *FileInstaller) installWindowsDependencies(ctx context.Context, r router
 	reported := false
 	if err := downloader.Download(ctx, d.Artifact, archive, func(p routerdownload.Progress) {
 		reported = true
+		if p.Host != "" {
+			host = p.Host
+		}
 		if progress != nil {
 			progress(Progress{Artifact: d.Artifact.ID, Downloaded: p.Downloaded, Total: p.Total, Stage: "dependency", Step: 1, TotalSteps: 4, Host: host})
 		}

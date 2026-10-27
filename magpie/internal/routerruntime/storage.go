@@ -213,6 +213,9 @@ func (f *FileInstaller) Install(ctx context.Context, m routermanifest.Model, r r
 		reported := false
 		if err := downloader.Download(ctx, v.a, v.path, func(p routerdownload.Progress) {
 			reported = true
+			if p.Host != "" {
+				host = p.Host
+			}
 			if progress != nil {
 				progress(Progress{
 					Artifact:   v.a.ID,

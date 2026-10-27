@@ -1,4 +1,5 @@
 const { skipTutorial } = require('./returning-user.cjs');
+const { workBuddyDisplayName } = require('./workbuddy-display.cjs');
 // End-to-end Playwright suite for Stage 2 T2.2: Agent page refactor
 // (Loomy / WorkBuddy one-click connect switch + routing group / model multi-select picker UI).
 const { test } = require('node:test');
@@ -221,10 +222,10 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
 
     let wbModels = JSON.parse(await fs.readFile(path.join(workBuddyRoot, 'models.json'), 'utf8'));
     let wbSettings = JSON.parse(await fs.readFile(path.join(workBuddyRoot, 'settings.json'), 'utf8'));
-    assert.deepEqual(wbModels.models.map(m => m.id), ['group/coding-hybrid', 'openai/gpt-4o']);
-    assert.equal(wbModels.models.find(m => m.id === 'group/coding-hybrid').name, '端云编程主力组');
-    assert.equal(wbModels.models.find(m => m.id === 'openai/gpt-4o').name, 'gpt-4o · OpenAI');
-    assert.equal(wbSettings.model, 'custom-local:group/coding-hybrid');
+    assert.deepEqual(wbModels.models.map(m => m.id), ['端云编程主力组', 'gpt-4o · OpenAI']);
+    assert.ok(wbModels.models.every(m => m.id === m.name), 'WorkBuddy must not append routing IDs to labels');
+    assert.deepEqual(wbModels.models.map(workBuddyDisplayName), ['端云编程主力组', 'gpt-4o · OpenAI']);
+    assert.equal(wbSettings.model, 'custom-local:端云编程主力组');
 
     // Reorder while connected: move openai/gpt-4o up to index 0 (Primary)
     await wbMenuBtn.click();
@@ -232,7 +233,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     await page.locator('.pop.am-pop .am-mr[data-model="openai/gpt-4o"] [data-move="up"]').click();
     assert.equal((await reorderResp).status(), 200);
     wbSettings = JSON.parse(await fs.readFile(path.join(workBuddyRoot, 'settings.json'), 'utf8'));
-    assert.equal(wbSettings.model, 'custom-local:openai/gpt-4o');
+    assert.equal(wbSettings.model, 'custom-local:gpt-4o · OpenAI');
     await page.locator('#view-agents .row-head .label').click();
 
     // Disconnect WorkBuddy -> restores original settings.json and preserves selected models

@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\start-project.ps1')
 
@@ -16,7 +16,7 @@ New-Item -ItemType Directory -Path $routerTestRoot | Out-Null
 try {
     $routerTestExecutable = Join-Path $routerTestRoot 'wefto.exe'
     [IO.File]::WriteAllText($routerTestExecutable, 'not executed: native CLI is replaced by a test double')
-    $routerTestState = Join-Path $routerTestRoot 'state'
+    $routerTestState = Join-Path $routerTestRoot 'local/wefto/state'
     New-Item -ItemType Directory -Path $routerTestState | Out-Null
     $routerTestAppData = Join-Path $routerTestRoot 'roaming'
     $routerTestLocalAppData = Join-Path $routerTestRoot 'local'
@@ -38,7 +38,17 @@ try {
     Assert-True ([IO.File]::ReadAllText($routerTestModels) -eq $routerTestBefore) 'Endpoint check rewrote host configuration'
     Write-Host 'PASS: a stale WorkBuddy port fails visibly and preserves configuration'
 
-    $routerTestTokenFile = Join-Path $routerTestRoot 'token'
+    $routerAliasApps = '{"apps":[{"id":"workbuddy","configured":true,"cloud":{"model":"fixture-model"},"models":["fixture-model"],"modelAliases":{"Readable model":"fixture-model"}}]}' | ConvertFrom-Json
+    [IO.File]::WriteAllText($routerTestModels, '[{"id":"Readable model","url":"http://127.0.0.1:13145/app/workbuddy/v1"}]')
+    Assert-WorkBuddyRouterAddress $routerTestHost $routerAliasApps 'http://127.0.0.1:13145/'
+    [IO.File]::WriteAllText($routerTestModels, '[{"id":"Readable model","url":"http://127.0.0.1:58116/app/workbuddy/v1"}]')
+    $routerTestBefore = [IO.File]::ReadAllText($routerTestModels)
+    Assert-Fails { Assert-WorkBuddyRouterAddress $routerTestHost $routerAliasApps 'http://127.0.0.1:13145/' } 'endpoint differs'
+    Assert-True ([IO.File]::ReadAllText($routerTestModels) -eq $routerTestBefore) 'Alias endpoint check rewrote host configuration'
+    Write-Host 'PASS: readable WorkBuddy aliases resolve only the saved target and still reject stale endpoints'
+
+    $routerTestTokenFile = Join-Path $routerTestState 'router.lock/management-token'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $routerTestTokenFile) | Out-Null
     [IO.File]::WriteAllText($routerTestTokenFile, 'fixture-token')
     $routerTestCommands = New-Object 'Collections.Generic.List[string]'
     function Invoke-WeftoCommand {
@@ -48,17 +58,26 @@ try {
         if ($Arguments[0] -eq 'dirs') {
             return @{config = (Join-Path $routerTestAppData 'wefto'); data = (Join-Path $routerTestLocalAppData 'wefto'); state = $routerTestState}
         }
-        return @{running = $true; executable = $routerTestExecutable; pid = 123; version = 'fixture'; managementURL = 'http://127.0.0.1:13145/'; tokenFile = $routerTestTokenFile}
+        return @{running = $true; executable = $Executable; pid = 123; version = 'fixture'; managementURL = 'http://127.0.0.1:13145/'; tokenFile = $routerTestTokenFile; instanceId = 'fixture'; processStamp = 'stamp'}
     }
     function Invoke-RestMethod {
-        param($Uri, $TimeoutSec, $Proxy, $Headers)
-        if ($Uri.EndsWith('/healthz')) { return @{service = 'wefto'; status = 'ok'; pid = 123} }
+        param($Uri, $TimeoutSec, $Proxy, $Headers, $MaximumRedirection)
+        $product = if ($script:routerTestInstalledOwner) { 'wefto' } else { 'wefto' }
+        if ($Uri.EndsWith('/healthz')) { return @{service = $product; status = 'ok'; pid = 123} }
+        if ($Uri.EndsWith('/api/service')) {
+            $exe = if ($script:routerTestInstalledOwner) { $script:routerTestInstalledOwner } else { $routerTestExecutable }
+            return @{service = $product; running = $true; pid = 123; executable = $exe; instanceId = 'fixture'; processStamp = 'stamp'}
+        }
         Assert-True ($Uri -eq 'http://127.0.0.1:13145/api/apps') 'Token sent to an unexpected endpoint'
         Assert-True ($Headers.Authorization -eq 'Bearer fixture-token') 'Missing management authorization'
         return @{apps = @()}
     }
     $routerTestSavedAppData = $env:APPDATA
     $routerTestSavedLocalAppData = $env:LOCALAPPDATA
+    # The native CLI validates unknown locks. No record lets the launcher
+    # select its default; create our token only when the fake CLI is invoked.
+    $routerTestRecord = Join-Path $routerTestState 'router.lock/instance.json'
+    [IO.File]::WriteAllText($routerTestRecord, (@{pid=123; executable=$routerTestExecutable; instanceId='fixture'; processStamp='stamp'} | ConvertTo-Json))
     try {
         $env:APPDATA = 'unrelated-test-instance-roaming'
         $env:LOCALAPPDATA = 'unrelated-test-instance-local'
@@ -68,6 +87,32 @@ try {
         $routerTestCommands.Clear()
         Start-WeftoProject -Executable $routerTestExecutable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -NoBrowser
         Assert-True (($routerTestCommands -join ',') -eq 'dirs,service start') 'Startup did not use the native service start command'
+        $routerTestCommands.Clear()
+        $script:routerTestInstalledOwner = Join-Path $routerTestLocalAppData 'Programs/Wefto/wefto.exe'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $script:routerTestInstalledOwner) -Force | Out-Null
+        [IO.File]::WriteAllText($script:routerTestInstalledOwner, 'not executed')
+        [IO.File]::WriteAllText($routerTestRecord, (@{pid=123; executable=$script:routerTestInstalledOwner; instanceId='fixture'; processStamp='stamp'} | ConvertTo-Json))
+        # This used to select the project EXE and fail against the installed
+        # service. Check the CLI path, not just successful output.
+        function Invoke-WeftoCommand {
+            param([string]$Executable, [string[]]$Arguments)
+            Assert-True ($Executable -eq $script:routerTestInstalledOwner) 'Project launcher did not reuse the installed owner'
+            $routerTestCommands.Add(($Arguments -join ' '))
+            if ($Arguments[0] -eq 'dirs') {
+                return @{config=(Join-Path $routerTestAppData 'wefto'); data=(Join-Path $routerTestLocalAppData 'wefto'); state=$routerTestState}
+            }
+            return @{running=$true; executable=$Executable; pid=123; version='fixture'; managementURL='http://127.0.0.1:13145/'; tokenFile=$routerTestTokenFile; instanceId='fixture'; processStamp='stamp'}
+        }
+        Start-WeftoProject -Executable $routerTestExecutable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -CheckOnly -NoBrowser
+        Assert-True (($routerTestCommands -join ',') -eq 'dirs,service status') 'Owner reuse started another service'
+        Write-Host 'PASS: project startup reuses the installed owner and authenticates its service'
+        function Invoke-RestMethod {
+            param($Uri, $TimeoutSec, $Proxy, $Headers, $MaximumRedirection)
+            if ($Uri.EndsWith('/healthz')) { return @{service='wefto'; status='ok'; pid=123} }
+            return @{service='wefto'; running=$true; pid=123; executable=$script:routerTestInstalledOwner; instanceId='foreign'; processStamp='stamp'}
+        }
+        Assert-Fails { Start-WeftoProject -Executable $routerTestExecutable -AppData $routerTestAppData -LocalAppData $routerTestLocalAppData -WorkBuddyRoot $routerTestHost -CheckOnly -NoBrowser } 'Authenticated service identity mismatch'
+        Write-Host 'PASS: owner reuse rejects an authenticated instance mismatch'
     } finally {
         $env:APPDATA = $routerTestSavedAppData
         $env:LOCALAPPDATA = $routerTestSavedLocalAppData

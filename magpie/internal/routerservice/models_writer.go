@@ -79,7 +79,8 @@ func executePreparedModelBody(w http.ResponseWriter, prepared *http.Request, sub
 		Model string `json:"model"`
 	}
 	if json.Unmarshal(body, &selector) == nil {
-		if err := state.ValidateModel(selector.Model); err != nil {
+		model := hostRoutingModel(&state.Target.Profile, selector.Model)
+		if err := state.ValidateModel(model); err != nil {
 			if _, ok := resolveBoundTarget(selector.Model, state.Target, options); !ok {
 				return routercloud.Result{}, err
 			}

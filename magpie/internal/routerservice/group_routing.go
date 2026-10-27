@@ -31,6 +31,7 @@ func resolveBoundTarget(selectorModel string, target routerconfig.AppTarget, opt
 	if req == "" {
 		req = p.Models[0]
 	}
+	req = hostRoutingModel(&p, req)
 	reqBare := strings.TrimPrefix(req, routerconfig.GroupPrefix)
 	matched := ""
 	for _, m := range p.Models {

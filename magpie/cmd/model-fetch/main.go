@@ -70,7 +70,7 @@ func main() {
 			last := time.Time{}
 			err = d.Download(call, a, destination, func(p routerdownload.Progress) {
 				if time.Since(last) >= 5*time.Second || p.Downloaded == p.Total {
-					encoder.Encode(map[string]any{"event": "progress", "downloaded": p.Downloaded, "total": p.Total, "at": time.Now().UTC()})
+					encoder.Encode(map[string]any{"event": "progress", "downloaded": p.Downloaded, "total": p.Total, "host": p.Host, "at": time.Now().UTC()})
 					last = time.Now()
 				}
 			})

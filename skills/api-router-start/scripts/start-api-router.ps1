@@ -6,6 +6,7 @@ param(
     [switch]$InstallOnly, [switch]$CheckOnly, [switch]$StableOnly
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'resolve-router.ps1')
 
 function Assert-PlainRouterPath([string]$Path) {
     if ($Path -notmatch '^[A-Za-z]:[\\/]') { throw 'Use an absolute local drive path.' }
@@ -107,6 +108,7 @@ function Confirm-RouterBundle([string]$Directory, [string]$Version) {
 function Confirm-RouterService([string]$Exe, [switch]$OnlyCheck) {
     $product = if ([IO.Path]::GetFileName($Exe) -ieq 'api-router.exe') { 'api-router' } else { 'wefto' }
     $layout = Invoke-RouterJson $Exe @('dirs')
+    Assert-RouterUserLayout $layout $env:APPDATA $env:LOCALAPPDATA
     $action = if ($OnlyCheck) { 'status' } else { 'start' }
     $status = Invoke-RouterJson $Exe @('service', $action)
     if (-not $status.running -or $status.executable -ine $Exe) { throw 'Service stopped or owned by another executable.' }
@@ -143,6 +145,10 @@ function Start-RouterSkill {
         $targetDir = $legacyDir
         $exe = Join-Path $targetDir 'api-router.exe'
         Assert-PlainRouterPath $exe
+    }
+    if (-not $InstallDir -and -not $Tag -and -not $DownloadOnly) {
+        $exe = Resolve-RouterExecutable -DefaultExecutable $exe -LocalAppData $ordinaryLocal
+        $targetDir = Split-Path -Parent $exe
     }
     $savedRoaming = $env:APPDATA; $savedLocal = $env:LOCALAPPDATA; $savedTls = [Net.ServicePointManager]::SecurityProtocol
     try {

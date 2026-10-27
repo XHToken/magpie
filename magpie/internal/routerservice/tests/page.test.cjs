@@ -203,7 +203,8 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
           assert.equal(hostRes.status(), 200);
           assert.equal(generationRequests, 0, 'FastChecker connects host without upstream generation probe');
           const hostModels = JSON.parse(await fs.readFile(path.join(workBuddyRoot, 'models.json'), 'utf8'));
-          assert.ok(hostModels.models.some(m => m.id.endsWith('/cloud-model-b')));
+          const connectedProfile = (await (await fetch(`http://${address}/api/apps`, { headers: { Authorization: 'Bearer ' + token } })).json()).apps.find(app => app.id === 'workbuddy');
+          assert.ok(hostModels.models.some(m => m.id === m.name && connectedProfile.modelAliases[m.id]?.endsWith('/cloud-model-b')), 'readable host selector must resolve to the selected raw cloud model');
           await page.locator('#agents [data-app=workbuddy] .lib-switch.ag-conn').click();
           await page.waitForFunction(() => document.querySelector('#agents [data-app=workbuddy] .lib-switch.ag-conn').getAttribute('aria-checked') === 'false');
           await page.locator('#agents [data-app=workbuddy] .field.ag-menu').click();

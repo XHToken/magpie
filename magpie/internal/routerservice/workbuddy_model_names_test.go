@@ -2,6 +2,7 @@ package routerservice
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -10,7 +11,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/yetone/magpie/internal/edit"
 	"github.com/yetone/magpie/internal/routerconfig"
+	"github.com/yetone/magpie/internal/routerhost"
 	"github.com/yetone/magpie/internal/routermanifest"
 )
 
@@ -52,6 +55,13 @@ func TestWorkBuddyModelNamesConnectRenameRetireAndRestore(t *testing.T) {
 			}
 			models := []string{"group/coding", provider.ID + "/deepseek-chat", "local/spark-x2.6-4b"}
 			address := server.Listener.Addr().String()
+			if !arrayRoot {
+				// Upgrade a previously connected raw-ID catalog in the same journal.
+				e := routerhost.Engine{StateDir: state, Adapter: routerhost.WorkBuddyAdapter{}, Checker: routerhost.FastChecker("fixture-management")}
+				if _, err := e.ConnectAndCommit(context.Background(), routerhost.Options{Host: "workbuddy", ConfigRoot: root, RouterURL: server.URL, Models: models}, nil); err != nil {
+					t.Fatal(err)
+				}
+			}
 			product := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "fixture-management", store, ModelOptions{HostStateDir: state, LocalRuntime: &LocalModels{Catalog: routermanifest.Fixed()}})
 			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				r.Host, r.URL.Host = address, address
@@ -86,14 +96,49 @@ func TestWorkBuddyModelNamesConnectRenameRetireAndRestore(t *testing.T) {
 				t.Helper()
 				want := map[string]string{"group/coding": groupName, provider.ID + "/deepseek-chat": "deepseek-chat · DeepSeek", "local/spark-x2.6-4b": "Spark-X2.6-4B-Q4_K_M"}
 				entries := readModels()
+				saved := findSavedApp(context.Background(), store, "workbuddy")
 				if len(entries) != len(models) {
 					t.Fatalf("stale generated entries retained: %v", entries)
 				}
 				for _, entry := range entries {
 					id, _ := entry["id"].(string)
-					if entry["name"] != want[id] {
-						t.Errorf("WorkBuddy label for %s = %v; want %q", id, entry["name"], want[id])
+					target := saved.ModelAliases[id]
+					if target == "" || entry["name"] != want[target] || id != entry["name"] {
+						t.Errorf("WorkBuddy label must render without an ID suffix: id=%q name=%v target=%q", id, entry["name"], target)
 					}
+				}
+				targets, err := startupPortTargets(context.Background(), store, state)
+				if err != nil || len(targets) == 0 {
+					t.Fatalf("startup did not retain the readable host selection: %v %v", targets, err)
+				}
+				for _, target := range targets {
+					if target.Host != "workbuddy" || target.Model != entries[0]["id"] {
+						t.Fatalf("startup changed the readable host selection: %v", target)
+					}
+				}
+				// A user can select another bound model in WorkBuddy itself. Port
+				// synchronization must use that readable ID, not the Profile default.
+				settingsPath := filepath.Join(root, "settings.json")
+				current, err := os.ReadFile(settingsPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				alternate := entries[len(entries)-1]["id"].(string)
+				selected, err := edit.PatchJSON(current, []edit.KV{{Path: "model", Value: "custom-local:" + alternate}}, nil)
+				if err != nil || os.WriteFile(settingsPath, selected, 0o600) != nil {
+					t.Fatal("cannot select an alternate host model", err)
+				}
+				targets, err = startupPortTargets(context.Background(), store, state)
+				if err != nil || len(targets) == 0 {
+					t.Fatal("alternate host selection was not found", err)
+				}
+				for _, target := range targets {
+					if target.Model != alternate {
+						t.Fatalf("startup lost the user-selected alias: %q; want %q", target.Model, alternate)
+					}
+				}
+				if err := os.WriteFile(settingsPath, current, 0o600); err != nil {
+					t.Fatal(err)
 				}
 				w := providerRequest(t, h, "GET", "/api/hosts/auto", "fixture-management", nil)
 				var status struct {

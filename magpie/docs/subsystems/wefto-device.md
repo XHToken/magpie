@@ -170,7 +170,7 @@ architectures return an unsupported check; missing Windows/macOS versions stay u
 | Platform | Native observations | Limits |
 | --- | --- | --- |
 | Windows | Installed physical RAM (`GetPhysicallyInstalledSystemMemory` / `GlobalMemoryStatusEx`), real-time available physical RAM (`GlobalMemoryStatusEx.AvailPhys`), native architecture, OS version, read-only CPU name and logical thread count, caller-available disk; DXGI adapters plus D3D12 architecture query | Only non-UMA, non-software/remote adapters count as discrete. Failed D3D12 classification stays unknown even if DXGI returns a large reserved segment. Optional CUDA/Vulkan evidence remains unknown. |
-| macOS | `hw.memsize`, OS/CPU sysctl, process architecture, available filesystem blocks; Apple silicon unified GPU | Unified memory is never discrete VRAM. A cgo build queries `MTLCreateSystemDefaultDevice` without launching a runtime. A no-cgo build reports Metal unknown; CPU validation can still pass. |
+| macOS | `hw.memsize`, OS/CPU sysctl, process architecture, available filesystem blocks; Apple silicon unified GPU; current available physical RAM from Mach free + inactive pages | The detector and runtime headroom checks share `AvailableMemory`. Mach calls use purego in both cgo and no-cgo builds, without starting a process. Kernel page size is queried rather than assuming 4 KiB; speculative pages already belong to free pages and are not added again. Invalid counts, failed reads and cancellation stay unknown; known zero remains zero. Unified memory is never discrete VRAM. A cgo build queries `MTLCreateSystemDefaultDevice` without launching a runtime. A no-cgo build reports Metal unknown; CPU validation can still pass, but first-install automatic advice stays Q4 until Metal is verified by an installed engine. |
 | Linux | Sysinfo RAM with checked units, real-time available RAM (`/proc/meminfo` `MemAvailable:` with sysinfo fallback), uname/architecture, logical CPUs and caller-available filesystem blocks | GPU/CPU model details not read are unknown. Injectable fixtures validate the contract separately. Ubuntu/kernel/driver and physical CPU/GPU acceptance remain later native validation. |
 
 The product remains no-cgo. Legacy diagnostic callers may use
@@ -183,6 +183,10 @@ installed CUDA/Vulkan/Metal engine and validates real offload plus synthetic
 inference, as described in the [runtime reference](wefto-runtime.md).
 A no-cgo cross build proves compatibility only, not native Metal acceptance.
 No Linux GPU release work is included.
+
+The local-model page identifies `available_memory_unknown` as an unreadable
+available-memory observation instead of showing only the generic device/disk
+warning. Missing observations still block installation and load admission.
 
 ## Verification
 
