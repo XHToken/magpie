@@ -218,13 +218,13 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
           await page.waitForFunction(() => document.querySelector('#providerModal').hidden && document.querySelectorAll('#providers [data-provider]').length === 0);
           const cleanCfgRaw = await fs.readFile(configFile, 'utf8');
           const cfgWithLocal = JSON.parse(cleanCfgRaw);
-          cfgWithLocal.localModels = [{ id: 'spark-x2.5-1.7b', installed: true, enabled: true, status: 'ready' }];
+          cfgWithLocal.localModels = [{ id: 'spark-x2.6-4b', installed: true, enabled: true, status: 'ready' }];
           await fs.writeFile(configFile, JSON.stringify(cfgWithLocal), { mode: 0o600 });
           await page.evaluate(() => window.routerProvidersOpen());
           await page.waitForFunction(() => !document.querySelector('#localProvidersSection').hidden && document.querySelectorAll('#localProviders [data-local-model]').length === 1);
-          assert.equal(await page.locator('#localProviders [data-local-model="spark-x2.5-1.7b"] .name').textContent(), 'Spark-X2.5-1.7B');
-          assert.equal(await page.locator('#localProviders [data-local-model="spark-x2.5-1.7b"] .sub').textContent(), 'local/spark-x2.5-1.7b');
-          await page.locator('#localProviders [data-local-model="spark-x2.5-1.7b"] [data-action="open-local-model"]').click();
+          assert.equal(await page.locator('#localProviders [data-local-model="spark-x2.6-4b"] .name').textContent(), 'Spark-X2.6-4B-Q4_K_M');
+          assert.equal(await page.locator('#localProviders [data-local-model="spark-x2.6-4b"] .sub').textContent(), 'local/spark-x2.6-4b');
+          await page.locator('#localProviders [data-local-model="spark-x2.6-4b"] [data-action="open-local-model"]').click();
           assert.equal(await page.locator('#view-local-model').isVisible(), true);
           await fs.writeFile(configFile, cleanCfgRaw, { mode: 0o600 });
           await page.locator('#nav [data-view=providers]').click();
