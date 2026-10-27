@@ -144,7 +144,7 @@ func TestNativeManagerFakeGenerationSSECancelCrashAndClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	factory := &trackedFactory{}
-	o := Options{Catalog: routermanifest.Fixed(), RuntimeID: "windows-amd64-cpu", Store: &memoryIntent{i: Intent{Enabled: true, Selected: "spark-x2.5-1.7B"}}, Installer: nativeInstaller{routerprocess.Spec{Executable: executable, ModelPath: model, Backend: "cpu", Env: []string{"WEFTO_RUNTIME_TEST_HELPER=1"}}}, Factory: factory}
+	o := Options{Catalog: routermanifest.Fixed(), RuntimeID: "windows-amd64-cpu", Store: &memoryIntent{i: Intent{Enabled: true, Selected: "spark-x2.6-4B"}}, Installer: nativeInstaller{routerprocess.Spec{Executable: executable, ModelPath: model, Backend: "cpu", Env: []string{"WEFTO_RUNTIME_TEST_HELPER=1"}}}, Factory: factory}
 	m, err := New(context.Background(), o)
 	if err != nil {
 		t.Fatal(err)

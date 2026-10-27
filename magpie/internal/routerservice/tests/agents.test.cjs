@@ -72,8 +72,8 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     config.providers = {
       openai: { id: 'openai', revision: 1, name: 'OpenAI', preset: 'openai', protocol: 'chat', baseURL: upstreamBase, proxyMode: 'direct', credentialRef: 'cred_openai', discoveredModels: ['gpt-4o', 'gpt-4.1-mini'] }
     };
-    config.localModels = [{ id: 'spark-x2.5-1.7b', installed: true, enabled: true, status: 'ready' }];
-    config.groups = [{ id: 'coding-hybrid', name: '端云编程主力组', routing: 'order', members: ['local/spark-x2.5-1.7b', 'openai/gpt-4o'] }];
+    config.localModels = [{ id: 'spark-x2.6-4b', installed: true, enabled: true, status: 'ready' }];
+    config.groups = [{ id: 'coding-hybrid', name: '端云编程主力组', routing: 'order', members: ['local/spark-x2.6-4b', 'openai/gpt-4o'] }];
     await fs.writeFile(configFile, JSON.stringify(config), { mode: 0o600 });
     await fs.writeFile(path.join(layout.config, 'credentials.json'), JSON.stringify({
       schemaVersion: 1,
@@ -132,11 +132,11 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     assert.ok(sections.includes('provider-openai'), 'Enabled cloud provider section must be present');
     assert.ok(sections.includes('local-models'), 'Local models section must be present');
 
-    // Select 3 items: group/coding-hybrid, openai/gpt-4o, local/spark-x2.5-1.7b
+    // Select 3 items: group/coding-hybrid, openai/gpt-4o, local/spark-x2.6-4b
     await pop.locator('.am-mr[data-model="group/coding-hybrid"]').click();
     await pop.locator('.am-mr[data-model="openai/gpt-4o"]').click();
     const offlineSave = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/apps');
-    await pop.locator('.am-mr[data-model="local/spark-x2.5-1.7b"]').click();
+    await pop.locator('.am-mr[data-model="local/spark-x2.6-4b"]').click();
     assert.equal((await offlineSave).status(), 200);
 
     // Button summary shows first 2 short names + "+1"
@@ -169,10 +169,10 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
 
     const loomyCfg = JSON.parse(await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8'));
     assert.equal(loomyCfg.model, 'wefto/group/coding-hybrid');
-    assert.deepEqual(Object.keys(loomyCfg.provider.wefto.models).sort(), ['group/coding-hybrid', 'local/spark-x2.5-1.7b', 'openai/gpt-4o']);
+    assert.deepEqual(Object.keys(loomyCfg.provider.wefto.models).sort(), ['group/coding-hybrid', 'local/spark-x2.6-4b', 'openai/gpt-4o']);
     assert.equal(loomyCfg.provider.wefto.models['group/coding-hybrid'].name, '端云编程主力组');
     assert.equal(loomyCfg.provider.wefto.models['openai/gpt-4o'].name, 'gpt-4o · OpenAI');
-    assert.equal(loomyCfg.provider.wefto.models['local/spark-x2.5-1.7b'].name, 'Spark-X2.5-1.7B');
+    assert.equal(loomyCfg.provider.wefto.models['local/spark-x2.6-4b'].name, 'Spark-X2.6-4B-Q4_K_M');
 
     // A failed clear must retain the connected selection and configuration.
     await page.route('**/api/hosts/auto', async route => {

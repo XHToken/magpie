@@ -17,7 +17,7 @@ import (
 )
 
 func TestRound4TrialCheckRecordsEachRequestAndNeedsExplicitAuthorization(t *testing.T) {
-	for _, modelID := range []string{"spark-x2.5-1.7B", "spark-x2.5-4B"} {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
 		t.Run(modelID, func(t *testing.T) {
 			testLocalModelTrialChecks(t, modelID)
 		})
@@ -38,6 +38,11 @@ func testLocalModelTrialChecks(t *testing.T, modelID string) {
 			return
 		}
 		text := string(body)
+		if strings.Contains(text, `"stream":true`) {
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, _ = io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"first\"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"rest\"},\"finish_reason\":\"length\"}],\"usage\":{\"prompt_tokens\":13,\"completion_tokens\":96}}\n\ndata: [DONE]\n\n")
+			return
+		}
 		content := `{"decision":"local"}`
 		if strings.Contains(text, "labeled cloud") {
 			content = `{"decision":"cloud"}`
@@ -81,7 +86,7 @@ func testLocalModelTrialChecks(t *testing.T, modelID string) {
 	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/local-model/check", strings.NewReader(`{}`))
 	response := httptest.NewRecorder()
 	localModelAPI(response, req, local)
-	if response.Code != http.StatusOK || requests.Load() != 5 {
+	if response.Code != http.StatusOK || requests.Load() != 7 {
 		t.Fatalf("checks did not run their actual requests: code=%d requests=%d body=%s", response.Code, requests.Load(), response.Body.String())
 	}
 	if len(events) != int(requests.Load()) {
@@ -93,7 +98,11 @@ func testLocalModelTrialChecks(t *testing.T, modelID string) {
 			t.Fatalf("unsafe or incomplete check observation: %+v", event)
 		}
 		seenIDs[event.CallID] = true
-		if event.Usage == nil || event.Usage.InputTokens == nil || *event.Usage.InputTokens != 13 || event.Usage.OutputTokens == nil || *event.Usage.OutputTokens != 2 {
+		wantOutput := int64(2)
+		if event.MaterialVersion == "local-performance-v1" {
+			wantOutput = 96
+		}
+		if event.Usage == nil || event.Usage.InputTokens == nil || *event.Usage.InputTokens != 13 || event.Usage.OutputTokens == nil || *event.Usage.OutputTokens != wantOutput {
 			t.Fatalf("check usage was not retained: %+v", event.Usage)
 		}
 	}
@@ -137,7 +146,7 @@ func testLocalModelTrialChecks(t *testing.T, modelID string) {
 	}
 	// Switch after the API captures its check identity, before either check
 	// acquires the slot. Neither old probe may reach the newly selected model.
-	otherModelID := "spark-x2.5-4B"
+	otherModelID := "spark-x2.6-4B-Q8_0"
 	if modelID == otherModelID {
 		otherModelID = localModelID
 	}

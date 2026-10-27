@@ -20,7 +20,7 @@ func TestLocalCallObservationContractIsSafeAndNullable(t *testing.T) {
 	observation := LocalCallObservation{
 		RequestID: "req-1", CallID: "call-1", Check: false,
 		Purpose: LocalCallExecution, Mode: LocalCallFormal,
-		ModelID: "spark-x2.5-1.7B", ModelFingerprint: strings.Repeat("a", 64),
+		ModelID: "spark-x2.6-4B", ModelFingerprint: strings.Repeat("a", 64),
 		RuntimeID: "windows-amd64-cpu-b10828", RuntimeFingerprint: strings.Repeat("b", 64),
 		MaterialVersion: "execution-v1", PromptVersion: "prompt-v1", Suite: "execution-v1",
 		StartedAt: time.Unix(1, 0).UTC(), EndedAt: time.Unix(2, 0).UTC(),

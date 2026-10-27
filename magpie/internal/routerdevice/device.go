@@ -57,6 +57,7 @@ type Adapter struct {
 	Name        string       `json:"name"`
 	Discrete    Availability `json:"discrete"`
 	MemoryBytes Fact[uint64] `json:"memoryBytes"` // Dedicated video memory only.
+	FreeBytes   Fact[uint64] `json:"freeBytes"`   // Fresh, backend-confirmed dedicated free memory.
 }
 
 type BackendKind string
@@ -83,6 +84,7 @@ type Snapshot struct {
 	AvailableMemoryBytes Fact[uint64]    `json:"availableMemoryBytes"` // Reclaimable/free physical RAM at probe time.
 	Adapters             Fact[[]Adapter] `json:"adapters"`             // Known empty means no adapters.
 	DiskFreeBytes        Fact[uint64]    `json:"diskFreeBytes"`        // Available to this user.
+	DiskVolume           Fact[string]    `json:"diskVolume"`
 	Backends             Fact[[]Backend] `json:"backends"`
 }
 
@@ -156,6 +158,7 @@ type Check struct {
 type Requirements struct {
 	Tier1_7BBytes uint64
 	Tier4BBytes   uint64
+	MinimumTier   Tier // Optional catalog floor; does not relax hardware limits.
 }
 
 // ModelState is owned by the future installer/runtime. Detection neither reads
@@ -169,6 +172,7 @@ type Report struct {
 	Device         Snapshot       `json:"device"`
 	Recommendation Recommendation `json:"recommendation"`
 	Detection      Check          `json:"detection"`
+	Advice         *ModelAdvice   `json:"advice,omitempty"`
 }
 
 // Detector has no cache or background work. Callers explicitly request a new
@@ -303,6 +307,14 @@ func hasQualifyingDiscreteVRAM(s Snapshot, allowUnconfirmedBackend bool) bool {
 func Evaluate(s Snapshot, requirements Requirements) Report {
 	s = cloneSnapshot(s)
 	r := Report{Device: s, Recommendation: Recommend(s), Detection: Check{State: CheckPassed, Reasons: []string{}}}
+	if requirements.MinimumTier == Tier4B && r.Recommendation.Tier == Tier1_7B {
+		if r.Recommendation.Allows(Tier4B) {
+			r.Recommendation.Tier = Tier4B
+		} else {
+			r.Recommendation.Tier, r.Recommendation.MaxTier = TierNone, TierNone
+		}
+		r.Recommendation.Reason = "catalog_requires_4b"
+	}
 	add := func(state CheckState, reason string) {
 		r.Detection.Reasons = append(r.Detection.Reasons, reason)
 		if state == CheckFailed || r.Detection.State == CheckPassed {
@@ -360,10 +372,12 @@ func cloneSnapshot(s Snapshot) Snapshot {
 		p.Version, p.Architecture, p.CPU, p.LogicalCPUs = cloneFact(p.Version), cloneFact(p.Architecture), cloneFact(p.CPU), cloneFact(p.LogicalCPUs)
 	}
 	s.MemoryBytes, s.AvailableMemoryBytes, s.DiskFreeBytes = cloneFact(s.MemoryBytes), cloneFact(s.AvailableMemoryBytes), cloneFact(s.DiskFreeBytes)
+	s.DiskVolume = cloneFact(s.DiskVolume)
 	if s.Adapters.Value != nil {
 		adapters := append([]Adapter{}, (*s.Adapters.Value)...)
 		for i := range adapters {
 			adapters[i].MemoryBytes = cloneFact(adapters[i].MemoryBytes)
+			adapters[i].FreeBytes = cloneFact(adapters[i].FreeBytes)
 		}
 		s.Adapters.Value = &adapters
 	}

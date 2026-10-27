@@ -54,7 +54,7 @@ func TestLoomyModelNamesThroughConnectUpgradeAndRestore(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			models := []string{"group/2222", provider.ID + "/deepseek-chat", provider.ID + "/deepseek-reasoner", "local/spark-x2.5-1.7b", mirror.ID + "/deepseek-chat"}
+			models := []string{"group/2222", provider.ID + "/deepseek-chat", provider.ID + "/deepseek-reasoner", "local/spark-x2.6-4b", mirror.ID + "/deepseek-chat"}
 			local := &LocalModels{Catalog: routermanifest.Fixed()}
 			address := server.Listener.Addr().String()
 			product := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "management-fixture", store, ModelOptions{HostStateDir: state, LocalRuntime: local})
@@ -98,7 +98,7 @@ func TestLoomyModelNamesThroughConnectUpgradeAndRestore(t *testing.T) {
 					provider.ID + "/deepseek-chat":     chatName,
 					provider.ID + "/deepseek-reasoner": "deepseek-reasoner · " + provider.Name,
 					provider.ID + "/vendor/code.v1":    "vendor/code.v1 · " + provider.Name,
-					"local/spark-x2.5-1.7b":            "Spark-X2.5-1.7B",
+					"local/spark-x2.6-4b":              "Spark-X2.6-4B-Q4_K_M",
 					mirror.ID + "/deepseek-chat":       "deepseek-chat · DeepSeek mirror",
 				}
 				for _, id := range models {

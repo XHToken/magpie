@@ -73,7 +73,7 @@ func TestLocalModelStartupUsesStandardSettingsAndPreservesIntent(t *testing.T) {
 				if !legacy.IsZero() {
 					settingsField = `,"settings":` + string(settings[:len(settings)-1]) + `,"futureSetting":19}`
 				}
-				d["runtime"] = json.RawMessage(`{"selected":"spark-x2.5-4B","enabled":false,"userDisabled":true,"trial":{"judgment":true,"execution":true},"futureRuntime":17` + settingsField + `}`)
+				d["runtime"] = json.RawMessage(`{"selected":"spark-x2.6-4B-Q8_0","enabled":false,"userDisabled":true,"trial":{"judgment":true,"execution":true},"futureRuntime":17` + settingsField + `}`)
 				return nil
 			}); err != nil {
 				t.Fatal(err)
@@ -91,7 +91,7 @@ func TestLocalModelStartupUsesStandardSettingsAndPreservesIntent(t *testing.T) {
 			if status.Settings != routerconfig.LongContextRuntimeSettings() || status.EffectiveSettings != status.Settings {
 				t.Fatalf("startup retained manual settings instead of the standard 64K policy: %+v", status.Settings)
 			}
-			if status.Intent.Enabled || !status.Intent.UserDisabled || status.Intent.Selected != "spark-x2.5-4B" || !status.Intent.Trial.Judgment || !status.Intent.Trial.Execution || status.PID != 0 {
+			if status.Intent.Enabled || !status.Intent.UserDisabled || status.Intent.Selected != "spark-x2.6-4B-Q8_0" || !status.Intent.Trial.Judgment || !status.Intent.Trial.Execution || status.PID != 0 {
 				t.Fatalf("standard settings changed user intent or loaded a process: %+v", status)
 			}
 			afterStartup, err := os.ReadFile(layout.ConfigFile())
@@ -176,7 +176,7 @@ func TestLocalRuntimeSettingsAPIIsReadOnly(t *testing.T) {
 }
 
 func TestLocalModelManagementConsentBoundariesAndCapabilitySeparation(t *testing.T) {
-	for _, modelID := range []string{"spark-x2.5-1.7B", "spark-x2.5-4B"} {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
 		t.Run(modelID, func(t *testing.T) {
 			testLocalModelManagement(t, modelID)
 		})
@@ -198,7 +198,7 @@ func testLocalModelManagement(t *testing.T, modelID string) {
 	}
 	defer manager.Close(context.Background())
 	device := routerdevice.New(routerdevice.ProviderFunc(func(context.Context, string) (routerdevice.Snapshot, error) {
-		return routerdevice.Snapshot{System: routerdevice.Known(routerdevice.System{OS: "windows", Version: routerdevice.Known("10.0.26200"), Architecture: routerdevice.Known("amd64")}), MemoryBytes: routerdevice.Known(uint64(32) * routerdevice.GiB), DiskFreeBytes: routerdevice.Known(uint64(1) << 40), Backends: routerdevice.Known([]routerdevice.Backend{{Kind: routerdevice.CPU, State: routerdevice.Available}})}, nil
+		return routerdevice.Snapshot{System: routerdevice.Known(routerdevice.System{OS: "windows", Version: routerdevice.Known("10.0.26200"), Architecture: routerdevice.Known("amd64"), LogicalCPUs: routerdevice.Known(8)}), MemoryBytes: routerdevice.Known(uint64(32) * routerdevice.GiB), AvailableMemoryBytes: routerdevice.Known(uint64(12) * routerdevice.GiB), DiskFreeBytes: routerdevice.Known(uint64(1) << 40), Backends: routerdevice.Known([]routerdevice.Backend{{Kind: routerdevice.CPU, State: routerdevice.Available}})}, nil
 	}))
 	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "management-fixture", store, ModelOptions{LocalRuntime: &LocalModels{Manager: manager, Detector: device, Layout: l, Catalog: catalog}})
 	request := func(method, path, body, auth, origin string) *httptest.ResponseRecorder {
@@ -215,6 +215,15 @@ func testLocalModelManagement(t *testing.T, modelID string) {
 		return w
 	}
 	auth := "Bearer management-fixture"
+	for _, retired := range []string{"spark-x2.5-1.7B", "spark-x2.5-4B"} {
+		body := `{"model":"` + retired + `"}`
+		if w := request("POST", "/api/local-model/select", body, auth, ""); w.Code != 409 {
+			t.Fatalf("retired selection accepted: %d %s", w.Code, w.Body)
+		}
+		if w := request("POST", "/api/local-model/install", body, auth, ""); w.Code != 400 {
+			t.Fatalf("retired installation accepted: %d %s", w.Code, w.Body)
+		}
+	}
 	for _, path := range []string{"/api/local-model", "/api/local-model/detect", "/api/local-model/enable", "/api/local-model/install", "/api/local-model/cancel", "/api/local-model/load", "/api/local-model/disable", "/api/local-model/check"} {
 		method := "POST"
 		if path == "/api/local-model" {
@@ -233,7 +242,7 @@ func testLocalModelManagement(t *testing.T, modelID string) {
 	if w := request("GET", "/%61pi/local-model", "", auth, ""); w.Code != 404 {
 		t.Fatal(w.Code)
 	}
-	if w := request("POST", "/api/local-model/select", `{"model":"spark-x2.5-1.7B","url":"https://example.invalid"}`, auth, ""); w.Code != 400 {
+	if w := request("POST", "/api/local-model/select", `{"model":"spark-x2.6-4B","url":"https://example.invalid"}`, auth, ""); w.Code != 400 {
 		t.Fatal(w.Code)
 	}
 	for _, op := range []struct {
@@ -336,15 +345,16 @@ func TestLocalModelTierEnablementBoundaries(t *testing.T) {
 		return w
 	}
 
-	// 16 GiB RAM with sufficient available memory and 8 CPU threads recommends 1.7B (MaxTier: 4B), allowing both 1.7B and 4B.
+	// The current catalog contains only 4B variants. A 16 GiB host with
+	// sufficient available memory and eight CPU threads can enable either one.
 	snap = routerdevice.Snapshot{
 		System:               routerdevice.Known(routerdevice.System{OS: "windows", Version: routerdevice.Known("10.0.26200"), Architecture: routerdevice.Known("amd64"), LogicalCPUs: routerdevice.Known(8)}),
 		MemoryBytes:          routerdevice.Known(uint64(16) * routerdevice.GiB),
-		AvailableMemoryBytes: routerdevice.Known(uint64(6) * routerdevice.GiB),
+		AvailableMemoryBytes: routerdevice.Known(uint64(12) * routerdevice.GiB),
 		DiskFreeBytes:        routerdevice.Known(uint64(100) * routerdevice.GiB),
 		Backends:             routerdevice.Known([]routerdevice.Backend{{Kind: routerdevice.CPU, State: routerdevice.Available}}),
 	}
-	if w := request("/api/local-model/select", `{"model":"spark-x2.5-4B"}`); w.Code != 200 {
+	if w := request("/api/local-model/select", `{"model":"spark-x2.6-4B-Q8_0"}`); w.Code != 200 {
 		t.Fatalf("select 4B: %d %s", w.Code, w.Body)
 	}
 	if w := request("/api/local-model/enable", `{}`); w.Code != 200 {
@@ -354,19 +364,20 @@ func TestLocalModelTierEnablementBoundaries(t *testing.T) {
 		t.Fatalf("disable 4B: %d %s", w.Code, w.Body)
 	}
 
-	// 16 GiB RAM with low available memory (3 GiB < 4.5 GiB) caps MaxTier at 1.7B: 4B enable is rejected, 1.7B enable succeeds.
+	// Low available memory rejects both 4B quantizations.
 	snap.AvailableMemoryBytes = routerdevice.Known(uint64(3) * routerdevice.GiB)
 	if w := request("/api/local-model/enable", `{}`); w.Code != 409 || !strings.Contains(w.Body.String(), "device_check_not_passed") {
 		t.Fatalf("low available memory accepted 4B enable: %d %s", w.Code, w.Body)
 	}
-	if w := request("/api/local-model/select", `{"model":"spark-x2.5-1.7B"}`); w.Code != 200 {
+	if w := request("/api/local-model/select", `{"model":"spark-x2.6-4B"}`); w.Code != 200 {
 		t.Fatalf("select 1.7B: %d %s", w.Code, w.Body)
 	}
-	if w := request("/api/local-model/enable", `{}`); w.Code != 200 {
-		t.Fatalf("low available memory (3 GiB >= 2.5 GiB) rejected 1.7B enable: %d %s", w.Code, w.Body)
+	if w := request("/api/local-model/enable", `{}`); w.Code != 409 {
+		t.Fatalf("low available memory accepted Q4 enable: %d %s", w.Code, w.Body)
 	}
-	if w := request("/api/local-model/disable", `{}`); w.Code != 200 {
-		t.Fatalf("disable 1.7B: %d %s", w.Code, w.Body)
+	snap.AvailableMemoryBytes = routerdevice.Known(uint64(8) * routerdevice.GiB)
+	if w := request("/api/local-model/enable", `{}`); w.Code != 200 {
+		t.Fatalf("recovered memory rejected Q4 enable: %d %s", w.Code, w.Body)
 	}
 }
 
@@ -403,7 +414,7 @@ func TestLocalModelInstallOtherModelWhileRunning(t *testing.T) {
 		return w
 	}
 
-	if w := request("/api/local-model/select", `{"model":"spark-x2.5-4B"}`); w.Code != 200 {
+	if w := request("/api/local-model/select", `{"model":"spark-x2.6-4B-Q8_0"}`); w.Code != 200 {
 		t.Fatalf("select 4B: %d %s", w.Code, w.Body)
 	}
 	if w := request("/api/local-model/enable", `{}`); w.Code != 200 {
@@ -412,30 +423,30 @@ func TestLocalModelInstallOtherModelWhileRunning(t *testing.T) {
 	if w := request("/api/local-model/load", `{}`); w.Code != 200 {
 		t.Fatalf("load 4B: %d %s", w.Code, w.Body)
 	}
-	if st := manager.Status(); !st.Intent.Enabled || st.Intent.Selected != "spark-x2.5-4B" || st.Runtime != "idle" || !st.Healthy || st.PID != 123 {
+	if st := manager.Status(); !st.Intent.Enabled || st.Intent.Selected != "spark-x2.6-4B-Q8_0" || st.Runtime != "idle" || !st.Healthy || st.PID != 123 {
 		t.Fatalf("expected 4B running: %+v", st)
 	}
 
 	// Installing the currently running model must return 409 Conflict (busy).
-	if w := request("/api/local-model/install", `{"model":"spark-x2.5-4B"}`); w.Code != 409 {
+	if w := request("/api/local-model/install", `{"model":"spark-x2.6-4B-Q8_0"}`); w.Code != 409 {
 		t.Fatalf("installing running 4B should return 409: %d %s", w.Code, w.Body)
 	}
 
 	// Installing the other catalog model (1.7B) while 4B is running must succeed without disabling or stopping 4B.
-	if w := request("/api/local-model/install", `{"model":"spark-x2.5-1.7B"}`); w.Code != 200 {
+	if w := request("/api/local-model/install", `{"model":"spark-x2.6-4B"}`); w.Code != 200 {
 		t.Fatalf("install 1.7B while 4B running: %d %s", w.Code, w.Body)
 	}
 	st := manager.Status()
-	if !st.Intent.Enabled || st.Intent.Selected != "spark-x2.5-4B" || st.Runtime != "idle" || !st.Healthy || st.PID != 123 {
+	if !st.Intent.Enabled || st.Intent.Selected != "spark-x2.6-4B-Q8_0" || st.Runtime != "idle" || !st.Healthy || st.PID != 123 {
 		t.Fatalf("installing 1.7B disturbed running 4B: %+v", st)
 	}
-	if st.Installation != "downloading" || st.InstallingModel != "spark-x2.5-1.7B" {
+	if st.Installation != "downloading" || st.InstallingModel != "spark-x2.6-4B" {
 		t.Fatalf("expected 1.7B downloading status: %+v", st)
 	}
 	if w := request("/api/local-model/cancel", `{}`); w.Code != 200 {
 		t.Fatalf("cancel 1.7B install: %d %s", w.Code, w.Body)
 	}
-	if st := manager.Status(); !st.Intent.Enabled || st.Intent.Selected != "spark-x2.5-4B" || st.Runtime != "idle" || !st.Healthy || st.PID != 123 {
+	if st := manager.Status(); !st.Intent.Enabled || st.Intent.Selected != "spark-x2.6-4B-Q8_0" || st.Runtime != "idle" || !st.Healthy || st.PID != 123 {
 		t.Fatalf("canceling 1.7B install disturbed running 4B: %+v", st)
 	}
 }
@@ -525,7 +536,7 @@ func TestLocalModelStartupAutoLoadAndUserDisablePersistence(t *testing.T) {
 	local1.autoLoadInstalled(context.Background())
 
 	st1 := manager1.Status()
-	if !st1.Intent.Enabled || st1.Intent.UserDisabled || st1.Intent.Selected != "spark-x2.5-1.7B" {
+	if !st1.Intent.Enabled || st1.Intent.UserDisabled || st1.Intent.Selected != "spark-x2.6-4B" {
 		t.Fatalf("expected auto-enabled 1.7B intent, got %+v", st1.Intent)
 	}
 	if st1.Runtime != routerruntime.Idle || !st1.Healthy || factory.calls.Load() != 1 {

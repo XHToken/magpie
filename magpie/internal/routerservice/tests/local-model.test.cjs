@@ -90,7 +90,7 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
         await route.fulfill({ response, json: result });
       };
       await page.route('**/api/local-model', emptyModelStatus);
-      let report = deviceReport('1.7B', 'passed'), detections = 0;
+      let report = deviceReport('4B', 'passed'), detections = 0;
       await page.route('**/api/local-model/detect', async route => {
         assert.deepEqual(route.request().postDataJSON(), {});
         detections++;
@@ -139,15 +139,15 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       }
       const recommendation = async model => page.evaluate(({ key, model }) => t(key).replace('{model}', model), { key: recommendationKey, model });
       assert.equal(await page.locator('#localModelLifecycle').textContent(), await page.evaluate(() => t('Enabled models stay loaded while Router runs. Your on/off choice is remembered at the next startup.')), 'lifecycle copy explains residency and restart persistence');
-      await page.waitForFunction(key => document.querySelector('#localDeviceMessage')?.textContent === t(key).replace('{model}', 'Spark-X2.5-1.7B'), recommendationKey);
+      await page.waitForFunction(key => document.querySelector('#localDeviceMessage')?.textContent === t(key).replace('{model}', 'Spark-X2.6-4B-Q4_K_M'), recommendationKey);
       await page.waitForFunction(() => !document.querySelector('#localDeviceGuide [data-action=detect]').disabled);
       assert.equal(await page.evaluate(() => [...document.querySelectorAll('#localModelContent .row b')].some(el => el.textContent === t('Downloading'))), false, `${installation} never renders a stale Downloading progress row`);
       assert.equal(detections, 1, `${installation} triggers one automatic read-only device check`);
       assert.deepEqual(initialActions, ['/api/local-model/detect'], 'opening an empty model page only detects; it does not select, enable, download or load');
-      assert.deepEqual(await page.locator('#localModelChoices button').allTextContents(), ['Spark-X2.5-1.7B', 'Spark-X2.5-4B']);
+      assert.deepEqual(await page.locator('#localModelChoices button').allTextContents(), ['Spark-X2.6-4B-Q4_K_M', 'Spark-X2.6-4B-Q8_0']);
       assert.equal(await page.locator('#localModelContent [data-action=detect]').count(), 1, 'one detection control is shown at the top');
       assert.equal(await page.evaluate(() => !!(document.querySelector('#localDeviceGuide').compareDocumentPosition(document.querySelector('#localModelChoices')) & Node.DOCUMENT_POSITION_FOLLOWING)), true, 'device guidance precedes model selection');
-      if (language === 'zh') assert.equal(await page.locator('#localDeviceMessage').textContent(), '根据检测，您的电脑配置适合 Spark-X2.5-1.7B。');
+      if (language === 'zh') assert.equal(await page.locator('#localDeviceMessage').textContent(), '根据检测，您的电脑配置适合 Spark-X2.6-4B-Q4_K_M。');
       assert.ok((await page.locator('#localModelBackend').textContent()).includes(await page.evaluate(() => t('Acceleration not verified'))));
       backendFixture = { mode: 'auto', state: 'hybrid', effective: 'vulkan', deviceName: 'Intel Arc GPU', offloadedLayers: 20, totalLayers: 30, testHealthy: true };
       await page.evaluate(() => window.routerLocalOpen());
@@ -169,36 +169,34 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       assert.equal(detections, 1, 'selecting a model does not repeat automatic detection');
       const [fourBSelection] = await Promise.all([
         page.waitForResponse(response => response.url() === base + '/api/local-model/select' && response.request().method() === 'POST'),
-        page.locator('#localModelChoices button').last().click(),
+        page.locator('#localModelChoices button').nth(1).click(),
       ]);
       assert.equal(fourBSelection.status(), 200, 'the real fixed catalog accepts 4B selection');
-      assert.deepEqual(fourBSelection.request().postDataJSON(), { model: 'spark-x2.5-4B' });
-      await page.waitForFunction(() => document.querySelector('#localModelChoices button:last-child').classList.contains('on'));
+      assert.deepEqual(fourBSelection.request().postDataJSON(), { model: 'spark-x2.6-4B-Q8_0' });
+      await page.waitForFunction(() => document.querySelectorAll('#localModelChoices button')[1].classList.contains('on'));
       const selectedFourB = await status();
-      assert.equal(selectedFourB.intent.selected, 'spark-x2.5-4B', '4B selection is saved by the real manager');
+      assert.equal(selectedFourB.intent.selected, 'spark-x2.6-4B-Q8_0', '4B selection is saved by the real manager');
       assert.equal(selectedFourB.intent.enabled, false, 'selecting 4B does not enable it');
       assert.equal(selectedFourB.installation, 'not_installed', 'selecting 4B does not download it');
       assert.equal(selectedFourB.runtime, 'unloaded', 'selecting 4B does not load it');
       await page.evaluate(() => window.routerLocalOpen());
-      assert.equal(await page.locator('#localModelChoices button').last().getAttribute('aria-pressed'), 'true', 'refresh preserves the selected 4B model');
+      assert.equal(await page.locator('#localModelChoices button').nth(1).getAttribute('aria-pressed'), 'true', 'refresh preserves the selected 4B model');
       await page.locator('#localModelChoices button').first().click();
       await page.waitForFunction(() => document.querySelector('#localModelChoices button').classList.contains('on'));
-      const successCopies = [await recommendation('Spark-X2.5-1.7B'), await recommendation('Spark-X2.5-4B')];
-      for (const [tier, state, maxTier] of [['4B', 'passed', '4B'], ['1.7B', 'passed', '4B'], ['1.7B', 'unknown', '1.7B'], ['1.7B', 'failed', '1.7B'], ['unknown', 'unknown', 'unknown'], ['none', 'failed', 'none'], ['1.7B', 'passed', '1.7B']]) {
+      const successCopies = [await recommendation('Spark-X2.6-4B-Q4_K_M'), await recommendation('Spark-X2.6-4B-Q8_0')];
+      for (const [tier, state, maxTier] of [['4B', 'passed', '4B'], ['4B', 'unknown', '4B'], ['4B', 'failed', '4B'], ['unknown', 'unknown', 'unknown'], ['none', 'failed', 'none']]) {
         report = deviceReport(tier, state, maxTier);
         const before = detections;
         await page.locator('#localDeviceGuide [data-action=detect]').click();
         await page.waitForFunction(() => !document.querySelector('#localDeviceGuide [data-action=detect]').disabled);
         assert.equal(detections, before + 1, 'an explicit retry performs exactly one fresh detection');
         const message = await page.locator('#localDeviceMessage').textContent();
-        if (state === 'passed') assert.equal(message, await recommendation(`Spark-X2.5-${tier}`), `${language}/${width}/${tier} recommendation names the precise model`);
+        if (state === 'passed') assert.equal(message, await recommendation('Spark-X2.6-4B-Q4_K_M'), `${language}/${width}/${tier} recommendation names the precise model`);
         else {
           assert.ok(successCopies.every(copy => !message.includes(copy)), `${language}/${width}/${tier}/${state} never claims suitability`);
           const key = tier === 'none' ? 'Your computer does not meet the requirements for these local models.' : tier === 'unknown' ? 'Your computer configuration could not be fully detected. Please try again.' : 'Hardware recommendation: {model}. Complete the device checks before downloading.';
-          assert.equal(message, await page.evaluate(({ key, tier }) => t(key).replace('{model}', `Spark-X2.5-${tier}`), { key, tier }), 'incomplete or failed checks show actionable guidance');
+          assert.equal(message, await page.evaluate(({ key, tier }) => t(key).replace('{model}', 'Spark-X2.6-4B-Q4_K_M'), { key, tier }), 'incomplete or failed checks show actionable guidance');
         }
-        if (tier === '4B') assert.ok((await page.locator('#localDeviceGuide').textContent()).includes(await page.evaluate(() => t('You can also choose {model} to use fewer resources.').replace('{model}', 'Spark-X2.5-1.7B'))), '4B recommendation also offers the smaller model');
-        if (tier === '1.7B' && maxTier === '4B') assert.ok((await page.locator('#localDeviceGuide').textContent()).includes(await page.evaluate(() => t('You can also try {model}, which uses more memory and runs more slowly on 16 GB devices.').replace('{model}', 'Spark-X2.5-4B'))), '16 GB 1.7B recommendation also notes optional 4B with warning');
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${language}/${width}/${tier}/${state} remains within the viewport`);
       }
       assert.ok(initialActions.every(endpoint => ['/api/local-model/detect', '/api/local-model/select'].includes(endpoint)), 'recommendations and retries never mutate runtime or download state');
@@ -249,8 +247,8 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
             capabilities: { ...result.status.capabilities, judgment: capability(trialFixture.enabled), execution: capability(trialFixture.enabled) },
           };
           result.models = [
-            { id: 'spark-x2.5-1.7B', selector: 'local/spark-x2.5-1.7b', name: 'Spark-X2.5-1.7B', tier: '1.7B', installed: trialFixture.oneSevenInstalled ?? true },
-            { id: 'spark-x2.5-4B', selector: 'local/spark-x2.5-4b', name: 'Spark-X2.5-4B', tier: '4B', installed: trialFixture.fourBInstalled ?? true },
+            { id: 'spark-x2.6-4B', selector: 'local/spark-x2.6-4b', name: 'Spark-X2.6-4B-Q4_K_M', tier: '4B', installed: trialFixture.oneSevenInstalled ?? true },
+            { id: 'spark-x2.6-4B-Q8_0', selector: 'local/spark-x2.6-4b-q8_0', name: 'Spark-X2.6-4B-Q8_0', tier: '4B', installed: trialFixture.fourBInstalled ?? true },
           ];
         }
         await route.fulfill({ response, json: result });
@@ -258,11 +256,11 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       if (language === 'zh' && width === 1600) {
         trialFixture = { loaded: false, enabled: false, unavailable: false, downloading: false, enables: 0, disables: 0, loads: 0 };
         await page.route('**/api/local-model/enable', async route => {
-          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 1, status: { intent: { selected: 'spark-x2.5-1.7B', enabled: true } } }) });
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 1, status: { intent: { selected: 'spark-x2.6-4B', enabled: true } } }) });
         });
         await page.route('**/api/local-model/load', async route => {
           trialFixture.loaded = true; trialFixture.loads++;
-          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 1, status: { runtime: 'ready', intent: { selected: 'spark-x2.5-1.7B', enabled: true } } }) });
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 1, status: { runtime: 'ready', intent: { selected: 'spark-x2.6-4B', enabled: true } } }) });
         });
         await page.route('**/api/local-model/check', async route => {
           const cap = { state: trialFixture.unavailable ? 'unavailable' : 'unknown', trial: !trialFixture.unavailable, trialEvidence: !trialFixture.unavailable };
@@ -284,7 +282,7 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
         });
         await page.evaluate(() => window.routerLocalOpen());
         assert.equal(await page.evaluate(() => !!(document.querySelector('#localInstalledWrap').compareDocumentPosition(document.querySelector('#localDeviceGuide')) & Node.DOCUMENT_POSITION_FOLLOWING)), true, 'configured on-device models list precedes device guide');
-        assert.deepEqual(await page.locator('#localInstalledModels .row.local-provider .name').allTextContents(), ['Spark-X2.5-1.7B', 'Spark-X2.5-4B']);
+        assert.deepEqual(await page.locator('#localInstalledModels .row.local-provider .name').allTextContents(), ['Spark-X2.6-4B-Q4_K_M', 'Spark-X2.6-4B-Q8_0']);
         const firstSwitch = page.locator('#localInstalledModels [data-action="toggle-model"]').first();
         assert.equal(await firstSwitch.getAttribute('aria-checked'), 'false');
         await firstSwitch.click();
@@ -308,16 +306,16 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
         assert.equal(await page.locator('#localDownloadProgress progress.local-progress-bar').getAttribute('value'), '50');
         assert.ok((await page.locator('#localDownloadProgress').textContent()).includes('50.0 / 100.0 MiB (50%)'));
 
-        // Regression check: when Spark-X2.5-4B is enabled/running in #localInstalledModels,
-        // clicking Spark-X2.5-1.7B in #localModelChoices is for download/installation and must NOT disable Spark-X2.5-4B.
-        trialFixture.selected = 'spark-x2.5-4B';
+        // Regression check: when Spark-X2.6-4B-Q8_0 is enabled/running in #localInstalledModels,
+        // clicking Spark-X2.6-4B-Q4_K_M in #localModelChoices is for download/installation and must NOT disable Spark-X2.6-4B-Q8_0.
+        trialFixture.selected = 'spark-x2.6-4B-Q8_0';
         trialFixture.downloading = false;
         trialFixture.loaded = true;
         trialFixture.oneSevenInstalled = false;
         trialFixture.fourBInstalled = true;
         actions.length = 0;
         await page.evaluate(() => window.routerLocalOpen());
-        await page.locator('#localModelChoices button').last().click();
+        await page.locator('#localModelChoices button').nth(1).click();
         assert.equal(await page.locator('#localInstalledModels [data-action="toggle-model"]').first().getAttribute('aria-checked'), 'true');
         await page.locator('#localModelChoices button').first().click();
         assert.equal(await page.locator('#localModelChoices button').first().getAttribute('aria-pressed'), 'true', '1.7B is selected in download choices');
@@ -329,12 +327,12 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
         const installOtherRoute = async route => {
           installedTargetModel = route.request().postDataJSON();
           trialFixture.oneSevenInstalled = true;
-          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 1, status: { installation: 'installed', intent: { selected: 'spark-x2.5-4B', enabled: true } } }) });
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 1, status: { installation: 'installed', intent: { selected: 'spark-x2.6-4B-Q8_0', enabled: true } } }) });
         };
         await page.route('**/api/local-model/install', installOtherRoute);
         await page.locator('#localModelContent [data-action=install]').click();
         await page.waitForFunction(() => document.querySelectorAll('#localInstalledModels .row.local-provider').length === 2);
-        assert.deepEqual(installedTargetModel, { model: 'spark-x2.5-1.7B' }, 'installing another model sends explicit target model ID');
+        assert.deepEqual(installedTargetModel, { model: 'spark-x2.6-4B' }, 'installing another model sends explicit target model ID');
         assert.equal(await page.locator('#localInstalledModels [data-action="toggle-model"]').last().getAttribute('aria-checked'), 'true', '4B remains enabled after installing 1.7B');
         await page.unroute('**/api/local-model/install', installOtherRoute);
 
@@ -409,7 +407,7 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
   });
   await installedPage.route('**/api/local-model/detect', async route => {
     installedDetections++;
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 1, device: deviceReport('1.7B', 'passed') }) });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 1, device: deviceReport('4B', 'passed') }) });
   });
   await skipTutorial(installedPage); await installedPage.goto(`${base}/?locale=en&view=local-model`);
   await installedPage.waitForFunction(() => document.querySelector('#service').classList.contains('ok'));

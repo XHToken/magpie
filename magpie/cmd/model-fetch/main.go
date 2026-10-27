@@ -20,7 +20,7 @@ import (
 )
 
 func main() {
-	tier := flag.String("tier", "1.7B", "fixed catalog tier: 1.7B or 4B")
+	modelID := flag.String("model", "spark-x2.6-4B", "fixed X2.6 catalog model ID: spark-x2.6-4B or spark-x2.6-4B-Q8_0")
 	cache := flag.String("cache", "", "absolute persistent cache directory")
 	attempts := flag.Int("attempts", 6, "bounded attempts per artifact, at most 12")
 	budget := flag.Duration("attempt-timeout", 4*time.Minute, "deadline per resumable attempt, at most 15m")
@@ -30,9 +30,9 @@ func main() {
 		fmt.Fprintln(os.Stderr, "absolute cache, 1..12 attempts and a timeout in (0,15m] required")
 		os.Exit(2)
 	}
-	m, ok := routermanifest.Fixed().Model("spark-x2.5-" + *tier)
+	m, ok := routermanifest.Fixed().Model(*modelID)
 	if !ok {
-		fmt.Fprintln(os.Stderr, "unknown fixed tier")
+		fmt.Fprintln(os.Stderr, "unknown fixed model")
 		os.Exit(2)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -44,7 +44,7 @@ func main() {
 	encoder := json.NewEncoder(os.Stdout)
 	failed := false
 	for _, a := range []routermanifest.Artifact{m.Template, m.Artifact} {
-		destination := filepath.Join(*cache, *tier, a.FileName)
+		destination := filepath.Join(*cache, m.ID, a.FileName)
 		var transfer http.RoundTripper = transport
 		if *workers > 0 && a.ID == m.Artifact.ID {
 			var metadata struct {

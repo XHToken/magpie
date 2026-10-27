@@ -44,7 +44,7 @@ func hostModelNames(ctx context.Context, store *routerconfig.Store, models []str
 		case "local":
 			for _, entry := range catalog.Models {
 				if strings.EqualFold(entry.ID, model) && entry.Tier != "" {
-					name = "Spark-X2.5-" + entry.Tier
+					name = entry.DisplayName()
 					break
 				}
 			}

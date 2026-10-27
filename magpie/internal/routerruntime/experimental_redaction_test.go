@@ -29,7 +29,7 @@ func experimentalFixtureInvoker(t *testing.T, m *Manager) *ExperimentalRedaction
 }
 
 func TestExperimentalRedactionRequiresStartupChoiceAndExactBinding(t *testing.T) {
-	for _, modelID := range []string{"spark-x2.5-1.7B", "spark-x2.5-4B"} {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
 		t.Run(modelID, func(t *testing.T) {
 			ordinary, _, factory, _ := managerFixture(t, func(o *Options, _ *fixtureInstaller, _ *fixtureFactory) {
 				o.Store = &memoryIntent{i: Intent{Enabled: true, Selected: modelID}}
@@ -127,7 +127,7 @@ func TestExperimentalRedactionSelectionChangeInvalidatesHandle(t *testing.T) {
 	if err := m.Disable(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.Select(context.Background(), "spark-x2.5-4B"); err != nil {
+	if err := m.Select(context.Background(), "spark-x2.6-4B-Q8_0"); err != nil {
 		t.Fatal(err)
 	}
 	if err := m.Enable(context.Background()); err != nil {
@@ -146,7 +146,7 @@ func TestExperimentalRedactionSelectionChangeInvalidatesHandle(t *testing.T) {
 }
 
 func TestExperimentalRedactionUsesOwnedTransportAndPreservesFormalUnknown(t *testing.T) {
-	for _, modelID := range []string{"spark-x2.5-1.7B", "spark-x2.5-4B"} {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
 		t.Run(modelID, func(t *testing.T) {
 			var requests atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

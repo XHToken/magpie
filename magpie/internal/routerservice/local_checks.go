@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	localModelID    = "spark-x2.5-1.7B"
+	localModelID    = "spark-x2.6-4B"
 	localTextAnswer = "ROUTER_EXECUTION_OK"
 	localToolName   = "router_check"
 )

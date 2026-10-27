@@ -7,6 +7,55 @@ client or process runner. Constructing `Native()` does no detection. The local-m
 service calls detection for checks, installation, enablement and startup model
 selection; this package itself owns no lifecycle.
 
+## Product quantization advice
+
+The product service uses [`AdviseModels`](../../internal/routerdevice/model_advice.go),
+policy `spark26-64k-v1`. The older tier evaluator below remains available for
+trusted diagnostic callers; it no longer chooses the product's quantization.
+The service's detection response includes `advice` alongside the legacy
+`recommendation` and `detection` summary.
+
+`advice.state` is `recommended`, `not_recommended` (known weak/unsupported
+hardware), or `deferred` (temporary pressure, missing information or slow
+performance). A recommendation contains the exact catalog `modelID`, display
+name, quantization, reason and `reuse` flag. `assessments` separates each model's
+automatic suitability, explicit manual admission, safe resource issues and
+per-volume installation budgets. A manual pass can coexist with a declined
+automatic recommendation. Clients must use `advice`, not infer quantization or
+manual admission from the legacy tier/check fields.
+
+Automatic Q4 needs 16 GiB total / 8 GiB available RAM and either eight CPU
+threads with CPU support, four threads plus a confirmed discrete accelerator
+with 4 GiB left after reserve, or four threads with confirmed Apple Silicon
+Metal. Q8 automatic advice needs either a confirmed discrete GPU with at least
+12 GiB total / 9 GiB usable dedicated VRAM and 16/8 GiB host RAM plus four
+threads, or confirmed Metal with 32/12 GiB unified RAM and eight threads. VRAM
+reserve is at least 1 GiB or 15% of that single GPU's total. Shared memory and
+multiple GPUs are never added. Pure CPU machines default to Q4; explicit Q8
+CPU use needs 16 GiB total / 12 GiB available RAM and eight threads. Q4 manual admission
+retains four threads and 8 GiB available RAM, without claiming automatic
+suitability. Unknown required observations cannot authorize a download.
+These are conservative 64K policy estimates, not measured minimums or quality
+acceptance. The [approved design](../../../docs/local-model-recommendation-proposal.md)
+records rationale and calibration limits.
+
+`Adapter.FreeBytes` is usable only with matching backend/adapter evidence.
+Native platform detection itself does not execute a model. The service may
+augment observations by enumerating an already verified installed engine, with
+strict unique native-adapter name matching on discrete devices. Missing engine
+components remain unknown; detection never downloads them. The service samples
+available RAM and both destination disks three times and retains the minimum, and exact-engine GPU probes
+likewise retain only devices present in all three samples and their minimum
+free memory. Known healthy running selections can be reused without charging
+their resident memory again; slow measurements cannot authorize new automatic
+hybrid use. No detection result unloads or deletes a model.
+
+Native volume identity uses Windows volume GUIDs or Unix device IDs. Model and
+runtime budgets sharing a volume are combined; separate volumes are checked
+individually. Budgets include only the chosen model and installation plan plus
+`max(2 GiB, 10%)` margin. Verified caches may reduce the plan; file presence does
+not count as verification. Missing volume/free-space facts remain unknown.
+
 ## Consumer contract
 
 `New(Provider)` injects a complete provider. [`Probes`](../../internal/routerdevice/probes.go)
@@ -31,6 +80,14 @@ on the measured volume. There is no guessed default: a zero/missing requirement
 leaves the device check unknown. If a runtime will be placed on another volume,
 T3.2 must check that destination separately before installation.
 
+`Requirements.MinimumTier` optionally limits recommendations to models present
+in the caller's catalog. With a `4B` floor, a primary `1.7B` recommendation is
+promoted only when the hardware's existing `MaxTier` allows `4B`; otherwise it
+becomes `none` with `catalog_requires_4b`. The promoted tier's disk reservation
+and the normal OS/backend checks still apply. The local-model service uses
+the quantization policy above instead; callers without a floor keep the
+original two-tier behavior.
+
 | State | Owner and meaning |
 | --- | --- |
 | `Report.Recommendation` | Primary recommended `Tier`, maximum allowed `MaxTier` (`Allows(target)`), and reason; does not imply installability |
@@ -50,7 +107,7 @@ per explicit invocation, never reuses stale success, and accepts only an absolut
 model destination. Native disk probes inspect the nearest existing directory
 without creating it; denied reads, files and dangling symlinks remain errors.
 
-## Fixed recommendation and check rules
+## Legacy tier recommendation and check rules
 
 Thresholds use exact bytes with `GiB = 1 << 30` and `HalfGiB = GiB / 2` for the
 product's GB RAM/VRAM labels; there is no floating-point rounding before comparison.
@@ -116,7 +173,7 @@ architectures return an unsupported check; missing Windows/macOS versions stay u
 | macOS | `hw.memsize`, OS/CPU sysctl, process architecture, available filesystem blocks; Apple silicon unified GPU | Unified memory is never discrete VRAM. A cgo build queries `MTLCreateSystemDefaultDevice` without launching a runtime. A no-cgo build reports Metal unknown; CPU validation can still pass. |
 | Linux | Sysinfo RAM with checked units, real-time available RAM (`/proc/meminfo` `MemAvailable:` with sysinfo fallback), uname/architecture, logical CPUs and caller-available filesystem blocks | GPU/CPU model details not read are unknown. Injectable fixtures validate the contract separately. Ubuntu/kernel/driver and physical CPU/GPU acceptance remain later native validation. |
 
-The product remains no-cgo. The service uses
+The product remains no-cgo. Legacy diagnostic callers may use
 [`EvaluateWithCPUFallback`](../../internal/routerdevice/cpu_fallback.go) when
 unknown GPU availability blocks an otherwise valid CPU installation. It evaluates
 a separate CPU-only recommendation and preserves the original GPU observations

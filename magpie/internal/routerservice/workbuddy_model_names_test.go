@@ -50,7 +50,7 @@ func TestWorkBuddyModelNamesConnectRenameRetireAndRestore(t *testing.T) {
 			if _, err := store.SaveGroup(group); err != nil {
 				t.Fatal(err)
 			}
-			models := []string{"group/coding", provider.ID + "/deepseek-chat", "local/spark-x2.5-1.7b"}
+			models := []string{"group/coding", provider.ID + "/deepseek-chat", "local/spark-x2.6-4b"}
 			address := server.Listener.Addr().String()
 			product := handlerWithModelOptions(Info{Service: "api-router", Address: address}, "fixture-management", store, ModelOptions{HostStateDir: state, LocalRuntime: &LocalModels{Catalog: routermanifest.Fixed()}})
 			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +84,7 @@ func TestWorkBuddyModelNamesConnectRenameRetireAndRestore(t *testing.T) {
 			}
 			check := func(groupName string) {
 				t.Helper()
-				want := map[string]string{"group/coding": groupName, provider.ID + "/deepseek-chat": "deepseek-chat · DeepSeek", "local/spark-x2.5-1.7b": "Spark-X2.5-1.7B"}
+				want := map[string]string{"group/coding": groupName, provider.ID + "/deepseek-chat": "deepseek-chat · DeepSeek", "local/spark-x2.6-4b": "Spark-X2.6-4B-Q4_K_M"}
 				entries := readModels()
 				if len(entries) != len(models) {
 					t.Fatalf("stale generated entries retained: %v", entries)

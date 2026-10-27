@@ -290,7 +290,7 @@ func executeSmartSplitGroupWithOpts(w http.ResponseWriter, prepared *http.Reques
 		if options.LocalRuntime != nil {
 			manager = options.LocalRuntime.Manager
 		}
-		requestID, check := state.ID, modelPurpose(options) != "generation"
+		requestID, check := state.ID, !businessModelRequest(options)
 		if check {
 			requestID = ""
 		}
@@ -518,7 +518,7 @@ func executeLocalCandidate(w http.ResponseWriter, prepared *http.Request, protoc
 		return res, classifyLocalCandidateError(errors.New("local_runtime_unavailable"), prepared.Context())
 	}
 	state, _ := routerrequest.FromContext(prepared.Context())
-	requestID, check := state.ID, modelPurpose(options) != "generation"
+	requestID, check := state.ID, !businessModelRequest(options)
 	if check {
 		requestID = ""
 	}

@@ -18,7 +18,7 @@ import (
 )
 
 func TestExperimentalPrivacyVersionsPreserveFormalMaterialAndSeparateCache(t *testing.T) {
-	for _, modelID := range []string{"spark-x2.5-1.7B", "spark-x2.5-4B"} {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
 		t.Run(modelID, func(t *testing.T) {
 			binding := ModelBinding{ModelID: modelID, RuntimeID: "windows-amd64-cpu"}
 			formal, err := NewPrivacySpecification(binding)
@@ -144,7 +144,7 @@ func (r *experimentalPrivacyRuntime) Invoke(ctx context.Context, purpose routerr
 // constructor requires the concrete handle made by the service-owned Manager.
 func experimentalPrivacyFixture(t *testing.T) (*RuntimeExtractor, *experimentalPrivacyRuntime, *PrivacySpecification) {
 	t.Helper()
-	spec, err := NewExperimentalPrivacySpecification(ModelBinding{ModelID: "spark-x2.5-1.7B", RuntimeID: "windows-amd64-cpu"})
+	spec, err := NewExperimentalPrivacySpecification(ModelBinding{ModelID: "spark-x2.6-4B", RuntimeID: "windows-amd64-cpu"})
 	if err != nil {
 		t.Fatal(err)
 	}

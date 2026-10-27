@@ -32,7 +32,7 @@ func observingModelOptions(options ModelOptions, observation *routerobserve.Requ
 func beginRequestObservation(w http.ResponseWriter, r *http.Request, profile routerconfig.AppProfile, sub string, acceptedAt time.Time, options ModelOptions) *routerobserve.Request {
 	// Only the trusted server purpose classifies an explicit management check.
 	// Client headers never turn a business generation into a diagnostic.
-	if modelPurpose(options) != "generation" {
+	if !businessModelRequest(options) {
 		w.Header().Set("X-Router-Ledger", "diagnostic")
 		return nil
 	}

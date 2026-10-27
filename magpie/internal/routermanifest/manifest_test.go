@@ -10,6 +10,14 @@ func TestFixedCatalogHasOnlyVerifiedExecutionArtifacts(t *testing.T) {
 	if c.SchemaVersion != 1 || len(c.Models) != 2 {
 		t.Fatal(c)
 	}
+	for _, retired := range []string{"spark-x2.5-1.7B", "spark-x2.5-4B"} {
+		if _, ok := c.Model(retired); ok {
+			t.Fatalf("retired model still has an installation plan: %s", retired)
+		}
+	}
+	if c.Models[0].Quantization != "Q4_K_M" || c.Models[1].Quantization != "Q8_0" || c.Models[0].Artifact.ID == c.Models[1].Artifact.ID {
+		t.Fatal("quantized weights must have independent download identities")
+	}
 	for _, m := range c.Models {
 		if err := m.Artifact.Validate(); err != nil {
 			t.Fatal(err)
@@ -17,7 +25,7 @@ func TestFixedCatalogHasOnlyVerifiedExecutionArtifacts(t *testing.T) {
 		if err := m.Template.Validate(); err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(m.Artifact.URL, m.Revision) || !strings.Contains(m.Template.URL, m.TemplateRevision) || m.Quantization != "Q4_K_M" || m.Purpose != "public_execution_validation_only" || m.InstallationBytes <= m.Artifact.Size || m.License == "" || m.ContextTokens > m.NativeContextTokens {
+		if !strings.Contains(m.Artifact.URL, m.Revision) || !strings.Contains(m.Template.URL, m.TemplateRevision) || (m.Quantization != "Q4_K_M" && m.Quantization != "Q8_0") || m.Purpose != "public_execution_validation_only" || m.InstallationBytes <= m.Artifact.Size || m.License == "" || m.ContextTokens > m.NativeContextTokens {
 			t.Fatal(m)
 		}
 		for _, r := range c.Runtimes {

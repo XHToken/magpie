@@ -9,7 +9,7 @@ import (
 const experimentalRedactionBudget = DefaultRedactionBudget
 const experimentalRedactionSuitePrefix = "privacy-trial-v2:"
 
-// ExperimentalRedactionInvoker permits an explicitly selected 1.7B or 4B trial while
+// ExperimentalRedactionInvoker permits an explicitly selected X2.6 variant trial while
 // preserving the Manager's actual capability samples. Its binding is immutable;
 // it is created only by a Manager whose trusted startup options permit trials.
 type ExperimentalRedactionInvoker struct {
@@ -57,7 +57,7 @@ func (e *ExperimentalRedactionInvoker) Require(p Purpose) error {
 	if !m.intent.Enabled || m.closed || m.stopping {
 		return ErrDisabled
 	}
-	if (m.intent.Selected != "spark-x2.5-1.7B" && m.intent.Selected != "spark-x2.5-4B") || e.fingerprint == "" || e.fingerprint != m.fingerprintLocked() || !validExperimentalRedactionSuite(e.suite) {
+	if (m.intent.Selected != "spark-x2.6-4B" && m.intent.Selected != "spark-x2.6-4B-Q8_0") || e.fingerprint == "" || e.fingerprint != m.fingerprintLocked() || !validExperimentalRedactionSuite(e.suite) {
 		return ErrCapability
 	}
 	return nil

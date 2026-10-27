@@ -116,6 +116,7 @@ type Check struct {
 }
 
 type Status struct {
+	Performance       Performance                  `json:"performance"`
 	Backend           BackendStatus                `json:"backend"`
 	MemoryBeforeLoad  routerdevice.Fact[uint64]    `json:"memoryBeforeLoad"`
 	MemoryAfterLoad   routerdevice.Fact[uint64]    `json:"memoryAfterLoad"`
@@ -147,6 +148,8 @@ type DependencyStatus struct {
 }
 
 type Options struct {
+	BeforeStart         func(context.Context, string, string) error
+	PerformanceRequired bool
 	// Explicit diagnostic runtimes remain fixed unless AutoBackend is enabled.
 	AutoBackend     bool
 	BackendHints    func(context.Context) []string

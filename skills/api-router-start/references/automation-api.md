@@ -6,11 +6,11 @@
 
 | 功能 | 接口与注意事项 |
 | --- | --- |
-| 本地状态与 catalog | `GET /api/local-model`，读取 `status`、`catalog`、`models`，准确区分 runtime 模型 ID 与对外选择器 |
-| 设备推荐 | `POST /api/local-model/detect`，空 JSON；响应 `device` 是 report，内含 `device` snapshot、`recommendation`、`detection` |
+| 本地状态与 catalog | `GET /api/local-model`，读取 `status`、`catalog`、`models`；从目录取准确 `id`、`quantization`、安装预留量，从候选取对外选择器；不能从展示名拼 ID |
+| 设备推荐 | `POST /api/local-model/detect`，空 JSON；响应 `device` 是 report；以 `device.advice` 的 state/modelID/quantization/reuse/assessments 为准，旧 recommendation/detection 仅是兼容摘要；按 [一键配置](one-click.md) 判断自动推荐与手动准入 |
 | 选择 | `POST /api/local-model/select`，`{"model":"<catalog ID>"}`；活动模型切换须按该版本生命周期执行 |
 | 安装 | `POST /api/local-model/install`，可用 `{"model":"<catalog ID>"}` 指定安装；异步任务需读状态，不因 200 就认定完成 |
-| 启用/加载/健康/检查 | `/api/local-model/enable`、`load`、`health`、`check`，各自 POST 空 JSON；enable 的准确前置条件以版本为准，若安装 UI 在安装前设置 intent 则沿用该流程，最终安装校验后再确认 enabled/loaded |
+| 启用/加载/健康/检查 | `/api/local-model/enable`、`load`、`health`、`check`，各自 POST 空 JSON；enable 的准确前置条件以版本为准，若安装 UI 在安装前设置 intent 则沿用该流程，最终安装校验后再确认 enabled/loaded；check 包含性能采样，读取 status.performance，acceptable 才自动开启端云协同 |
 | 必要的判断/执行试用 | `POST /api/local-model/trial/enable`，已通过证据后按版本使用 `{"judgment":true,"execution":true}`；不调用脱敏配置 |
 | 供应商/模型 | `GET /api/cloud-providers` 只取安全字段；保存/模型目录/生成检查的具体 schema 以当前版本页面和 provider 文档为准，勿发明通用 check URL |
 | 路由组 | `GET/POST /api/routing-groups`，策略字段 `routing: "smart_split"`，`members` 用实际选择器；写入前读取原值及可用目标，保存后读回 |

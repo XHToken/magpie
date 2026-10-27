@@ -49,7 +49,7 @@ func TestAuditHybridInvalidCompletionMustBlock(t *testing.T) {
 			invoker := &scriptedInvoker{response: &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(tc.raw))}}
 			h, store := newGroupRoutingEnv(t, ModelOptions{Routing: &RoutingOptions{LocalInvoker: invoker}})
 			provider := saveTestCloudProvider(t, store, "AuditLocal", upstream.URL+"/v1", "fixture-model")
-			_, err := store.SaveGroup(routerconfig.Group{ID: "audit-redaction", Name: "Audit", Routing: "order", LocalRedaction: true, Members: []string{provider.ID + "/fixture-model", "local/spark-x2.5-1.7b"}})
+			_, err := store.SaveGroup(routerconfig.Group{ID: "audit-redaction", Name: "Audit", Routing: "order", LocalRedaction: true, Members: []string{provider.ID + "/fixture-model", "local/spark-x2.6-4b"}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -105,7 +105,7 @@ func TestAuditExtendedInvalidCompletionMustBlock(t *testing.T) {
 			invoker := &scriptedInvoker{response: &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(tc.raw))}}
 			h, store := newGroupRoutingEnv(t, ModelOptions{Routing: &RoutingOptions{LocalInvoker: invoker}})
 			provider := saveTestCloudProvider(t, store, "AuditLocal", upstream.URL+"/v1", "fixture-model")
-			_, err := store.SaveGroup(routerconfig.Group{ID: "audit-redaction", Name: "Audit", Routing: "order", LocalRedaction: true, Members: []string{provider.ID + "/fixture-model", "local/spark-x2.5-1.7b"}})
+			_, err := store.SaveGroup(routerconfig.Group{ID: "audit-redaction", Name: "Audit", Routing: "order", LocalRedaction: true, Members: []string{provider.ID + "/fixture-model", "local/spark-x2.6-4b"}})
 			if err != nil {
 				t.Fatal(err)
 			}

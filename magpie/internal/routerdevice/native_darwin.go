@@ -10,6 +10,7 @@ import (
 
 func nativeProbes() Probes {
 	return Probes{
+		DiskVolume: nativeVolume,
 		System: func(ctx context.Context) (System, error) {
 			version := observe(ctx, func(context.Context) (string, error) { return unix.Sysctl("kern.osproductversion") })
 			name := observe(ctx, func(context.Context) (string, error) { return unix.Sysctl("machdep.cpu.brand_string") })

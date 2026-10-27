@@ -19,7 +19,7 @@ import (
 func productOptions(t *testing.T) Options {
 	t.Helper()
 	root := t.TempDir()
-	return Options{Model: "spark-x2.5-1.7B", DataDir: filepath.Join(root, "product"), Output: filepath.Join(root, "evidence", "result.json"), ModelFile: filepath.Join(root, "missing.gguf"), TemplateFile: filepath.Join(root, "missing.jinja"), RuntimeArchive: filepath.Join(root, "missing.zip"), LoadTimeout: time.Minute, GenerationTimeout: 2 * time.Minute, InstallTimeout: time.Minute}
+	return Options{Model: "spark-x2.6-4B", DataDir: filepath.Join(root, "product"), Output: filepath.Join(root, "evidence", "result.json"), ModelFile: filepath.Join(root, "missing.gguf"), TemplateFile: filepath.Join(root, "missing.jinja"), RuntimeArchive: filepath.Join(root, "missing.zip"), LoadTimeout: time.Minute, GenerationTimeout: 2 * time.Minute, InstallTimeout: time.Minute}
 }
 
 func TestProductPreparationUsesHTTPAndPreservesAll23Assertions(t *testing.T) {

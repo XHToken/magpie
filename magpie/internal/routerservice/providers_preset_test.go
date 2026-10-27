@@ -74,11 +74,11 @@ func TestProviderCandidateModelsAggregateLocalModels(t *testing.T) {
 	const token = "management-token"
 	h := handler(Info{Address: "127.0.0.1:13145"}, token, store)
 
-	// Mark spark-x2.5-1.7b as selected & installed in runtime config
+	// Mark spark-x2.6-4b as selected & installed in runtime config
 	if err := store.Update(func(d routerconfig.Document) error {
 		raw, _ := json.Marshal(map[string]any{
 			"enabled":      true,
-			"selected":     "spark-x2.5-1.7B",
+			"selected":     "spark-x2.6-4B",
 			"installation": "installed",
 			"status":       "ready",
 		})
@@ -107,16 +107,24 @@ func TestProviderCandidateModelsAggregateLocalModels(t *testing.T) {
 	for _, lm := range payload.LocalModels {
 		bySelector[lm.Selector] = lm
 	}
-	small, okSmall := bySelector["local/spark-x2.5-1.7b"]
-	large, okLarge := bySelector["local/spark-x2.5-4b"]
+	small, okSmall := bySelector["local/spark-x2.6-4b"]
+	large, okLarge := bySelector["local/spark-x2.6-4b-q8_0"]
+	spark26, okSpark26 := bySelector["local/spark-x2.6-4b-q8_0"]
+	if !okSpark26 || spark26.Name != "Spark-X2.6-4B-Q8_0" || spark26.Installed || spark26.Status != "not_installed" {
+		t.Fatalf("X2.6 must be offered with its own name and installation state: %+v", spark26)
+	}
+	names, err := hostModelNames(context.Background(), store, []string{spark26.Selector}, nil)
+	if err != nil || names[spark26.Selector] != spark26.Name {
+		t.Fatalf("X2.6 host label: %v %v", names, err)
+	}
 	if !okSmall || !okLarge {
-		t.Fatalf("expected local/spark-x2.5-1.7b and local/spark-x2.5-4b in localModels, got %+v", payload.LocalModels)
+		t.Fatalf("expected local/spark-x2.6-4b and local/spark-x2.6-4b-q8_0 in localModels, got %+v", payload.LocalModels)
 	}
 	if !small.Installed || small.Status != "ready" {
-		t.Fatalf("expected local/spark-x2.5-1.7b installed=true status=ready, got %+v", small)
+		t.Fatalf("expected local/spark-x2.6-4b installed=true status=ready, got %+v", small)
 	}
 	if large.Installed || large.Status != "not_installed" {
-		t.Fatalf("expected local/spark-x2.5-4b installed=false status=not_installed, got %+v", large)
+		t.Fatalf("expected local/spark-x2.6-4b-q8_0 installed=false status=not_installed, got %+v", large)
 	}
 
 	// Verify Options.LocalRuntime wired through NewHandler / http.go line 174
@@ -137,10 +145,10 @@ func TestProviderCandidateModelsAggregateLocalModels(t *testing.T) {
 		t.Fatalf("routerruntime.New: %v", err)
 	}
 	t.Cleanup(func() { _ = manager.Close(context.Background()) })
-	if err := manager.Select(context.Background(), "spark-x2.5-4B"); err != nil {
+	if err := manager.Select(context.Background(), "spark-x2.6-4B-Q8_0"); err != nil {
 		t.Fatalf("Select: %v", err)
 	}
-	if err := manager.EnableSelected(context.Background(), "spark-x2.5-4B"); err != nil {
+	if err := manager.EnableSelected(context.Background(), "spark-x2.6-4B-Q8_0"); err != nil {
 		t.Fatalf("EnableSelected: %v", err)
 	}
 	hWithRuntime := handlerWithModelOptions(Info{Service: "wefto", Address: "127.0.0.1:13145"}, token, store2, ModelOptions{
@@ -160,9 +168,9 @@ func TestProviderCandidateModelsAggregateLocalModels(t *testing.T) {
 	for _, lm := range payload2.LocalModels {
 		bySelector2[lm.Selector] = lm
 	}
-	large2 := bySelector2["local/spark-x2.5-4b"]
+	large2 := bySelector2["local/spark-x2.6-4b-q8_0"]
 	if !large2.Installed || !large2.Selected || !large2.Enabled {
-		t.Fatalf("expected local/spark-x2.5-4b installed=true selected=true enabled=true via Options.LocalRuntime, got %+v", large2)
+		t.Fatalf("expected local/spark-x2.6-4b-q8_0 installed=true selected=true enabled=true via Options.LocalRuntime, got %+v", large2)
 	}
 }
 

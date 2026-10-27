@@ -65,7 +65,7 @@ func TestRuntimeRedactorContextReloadRebindsCacheAndPreservesPreparedSnapshot(t 
 		t.Fatal(err)
 	}
 	defer manager.Close(context.Background())
-	if err := manager.Select(context.Background(), "spark-x2.5-1.7B"); err != nil {
+	if err := manager.Select(context.Background(), "spark-x2.6-4B"); err != nil {
 		t.Fatal(err)
 	}
 	if err := manager.Enable(context.Background()); err != nil {

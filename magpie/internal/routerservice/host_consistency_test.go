@@ -21,7 +21,7 @@ func TestAutoHostAcceptsLocalCatalogModelAliases(t *testing.T) {
 	layout, _ := fixture(t)
 	store := routerconfig.New(layout)
 	local := &LocalModels{Catalog: routermanifest.Fixed()}
-	if err := validateAutoHostModels(context.Background(), store, []string{"local/spark-x2.5-1.7b"}, local); err != nil {
+	if err := validateAutoHostModels(context.Background(), store, []string{"local/spark-x2.6-4b"}, local); err != nil {
 		t.Fatal("model IDs published by the picker must be accepted:", err)
 	}
 }

@@ -197,7 +197,8 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 			providerAPI(w, r, store, token, options.LocalRuntime)
 			return
 		}
-		if contentType, ok := visualAssets[r.URL.Path]; ok {
+		// The product favicon overrides the retained upstream icon collection.
+		if contentType, ok := visualAssets[r.URL.Path]; ok && r.URL.Path != "/icons/favicon.svg" {
 			b, err := clientassets.Router.ReadFile(r.URL.Path[1:])
 			if err != nil {
 				http.Error(w, "client resource unavailable", http.StatusInternalServerError)

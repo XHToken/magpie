@@ -91,7 +91,7 @@ func snapshotRuntimeSettings(ctx context.Context, options ModelOptions) (context
 		}
 		ctx = routerruntime.WithRuntimeSettings(ctx, settings)
 	}
-	if settings != (routerconfig.RuntimeSettings{}) && modelPurpose(options) == "generation" {
+	if settings != (routerconfig.RuntimeSettings{}) && businessModelRequest(options) {
 		budget := time.Duration(settings.Effective().RequestSeconds) * time.Second
 		if options.Budget <= 0 || options.Budget > budget {
 			options.Budget = budget
@@ -100,14 +100,25 @@ func snapshotRuntimeSettings(ctx context.Context, options ModelOptions) (context
 	return ctx, options
 }
 
-// modelPurpose distinguishes user inference from explicit management checks. For a
-// connection_check, OutputCommitted describes the bounded private SSE capture,
-// not commitment of the management endpoint's final JSON response.
+// modelPurpose names user inference, including automatic chat titles, or an
+// explicit management check. For a connection_check, OutputCommitted describes
+// the private SSE capture, not the management endpoint's final JSON response.
 func modelPurpose(options ModelOptions) string {
 	if options.purpose != "" {
 		return options.purpose
 	}
 	return "generation"
+}
+
+// Titles use the ordinary business ledger and budgets. Only trusted internal
+// purposes classify checks; client purpose headers cannot suppress accounting.
+func businessModelRequest(options ModelOptions) bool {
+	switch modelPurpose(options) {
+	case "generation", "chat.title":
+		return true
+	default:
+		return false
+	}
 }
 
 func modelFailure(w http.ResponseWriter, protocol string, err error) {

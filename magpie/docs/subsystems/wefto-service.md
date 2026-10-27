@@ -28,7 +28,7 @@ and cloud fallback attempts are recorded once under their business request.
 
 ## Embedded UI
 
-[`assets/index.html`](../../internal/routerservice/assets/index.html) and product scripts expose application, provider, routing, local-model and usage pages. Titles and header show Wefto / Wefto 织流 with a W favicon. Copy and tutorial translations cover Simplified/Traditional Chinese, English, Japanese and German. Retained Magpie assets provide shared styles/icons without starting its lifecycle.
+[`assets/index.html`](../../internal/routerservice/assets/index.html) and product scripts expose application, provider, routing, local-model and usage pages. Titles and header show Wefto / Wefto 织流 with a W favicon. Copy and tutorial translations cover Simplified/Traditional Chinese, English, Japanese and German. Retained Magpie assets provide shared styles/icons without starting its lifecycle. The product W favicon overrides the shared icon collection, and its URL includes a brand revision to refresh browser caches.
 
 Usage destinations, cloud savings, internal calls, diagnostics and retention use
 the same responsive cards and detailed usage tables. Missing usage remains

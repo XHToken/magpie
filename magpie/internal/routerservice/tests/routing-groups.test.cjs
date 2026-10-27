@@ -66,13 +66,13 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
       discoveredModels: ['deepseek-chat'],
     },
   };
-  config.localModels = [{ id: 'spark-x2.5-1.7b', installed: true, enabled: true, status: 'ready' }];
+  config.localModels = [{ id: 'spark-x2.6-4b', installed: true, enabled: true, status: 'ready' }];
   config.groups = [
     {
       id: 'coding',
       name: 'Coding Group',
       routing: 'order',
-      members: ['local/spark-x2.5-1.7b', 'openai/gpt-4o'],
+      members: ['local/spark-x2.6-4b', 'openai/gpt-4o'],
     },
   ];
   await fs.writeFile(configFile, JSON.stringify(config, null, 2), { mode: 0o600 });
@@ -128,7 +128,7 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   await codingCard.waitFor({ state: 'visible' });
   assert.equal(await codingCard.locator('[data-copy-call="group/coding"]').textContent(), 'group/coding');
   assert.equal(await codingCard.locator('.rt-strategy-tag').isVisible(), true);
-  assert.equal(await codingCard.locator('.rt-member-chip.is-local[data-member="local/spark-x2.5-1.7b"]').isVisible(), true);
+  assert.equal(await codingCard.locator('.rt-member-chip.is-local[data-member="local/spark-x2.6-4b"]').isVisible(), true);
   assert.equal(await codingCard.locator('.rt-member-chip[data-member="openai/gpt-4o"]').isVisible(), true);
 
   const autoCard = page.locator('#autoRoutingGroupsList .rt-group-card[data-group-id="auto-deepseek-chat"]');
@@ -151,7 +151,7 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
 
   await page.locator('#rgAddModelBtn').click();
   await page.locator('#rgModelPicker').waitFor({ state: 'visible' });
-  const localCand = page.locator('#rgPickerList [data-picker-ref="local/spark-x2.5-1.7b"]');
+  const localCand = page.locator('#rgPickerList [data-picker-ref="local/spark-x2.6-4b"]');
   const cloudCand = page.locator('#rgPickerList [data-picker-ref="openai/gpt-4o"]');
   await localCand.waitFor({ state: 'visible' });
   await cloudCand.waitFor({ state: 'visible' });
@@ -185,7 +185,7 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   assert.equal(createCall.body.id, 'hybrid-coding');
   assert.equal(createCall.body.routing, 'smart_hybrid');
   assert.equal(createCall.body.localRedaction, true);
-  assert.deepEqual(createCall.body.members, ['openai/gpt-4o', 'local/spark-x2.5-1.7b']);
+  assert.deepEqual(createCall.body.members, ['openai/gpt-4o', 'local/spark-x2.6-4b']);
 
   const hybridCard = page.locator('#customRoutingGroupsList .rt-group-card[data-group-id="hybrid-coding"]');
   await hybridCard.waitFor({ state: 'visible' });

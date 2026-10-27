@@ -103,6 +103,12 @@ acceptance/cache identities cannot substitute for new policy evidence. Model,
 runtime artifact, prompt and schema identities remain tied to their own inputs;
 the policy update does not require new weights or grant capability acceptance.
 
+Explicit experimental privacy preparation accepts the current `spark-x2.6-4B`
+and `spark-x2.6-4B-Q8_0` variants, using independent pinned model fingerprints
+and the same `privacy-trial-v2` material, parser and budget. It still requires the trusted
+startup opt-in and exact current binding; adding a model grants no formal
+redaction quality acceptance or automatic privacy enablement.
+
 ### Plaintext lifetime
 
 - Mapping/session caches are held in memory. The separate service-owned

@@ -10,6 +10,26 @@
     ["GPU components need installation or repair", "GPU 组件需要安装或修复", "GPU 元件需要安裝或修復", "GPU コンポーネントのインストールまたは修復が必要", "GPU-Komponenten müssen installiert oder repariert werden"],
     ["GPU layers: {loaded}/{total}", "GPU 卸载层数：{loaded}/{total}", "GPU 卸載層數：{loaded}/{total}", "GPU レイヤー: {loaded}/{total}", "GPU-Schichten: {loaded}/{total}"],
     ["GPU components could not be installed; CPU is available", "GPU 组件未安装成功，CPU 仍可用", "GPU 元件未安裝成功，CPU 仍可用", "GPU コンポーネントをインストールできませんでした。CPU は利用可能です", "GPU-Komponenten konnten nicht installiert werden; CPU ist verfügbar"],
+    ["Local models are not recommended for this computer. You can use cloud models without downloading one.", "这台电脑的资源不适合当前端侧模型，建议使用云端，无需下载本地模型。", "這台電腦的資源不適合目前的端側模型，建議使用雲端，無需下載本機模型。", "この端末ではローカルモデルを推奨しません。ダウンロードせずにクラウドを利用できます。", "Für diesen Computer werden lokale Modelle nicht empfohlen. Sie können Cloud-Modelle ohne Download nutzen."],
+    ["Local download is not recommended right now. Check the resource details and detect again.", "当前暂不建议下载本地模型，请检查资源详情后重新检测。", "目前暫不建議下載本機模型，請檢查資源詳情後重新偵測。", "今はダウンロードを推奨しません。リソースを確認して再検出してください。", "Ein lokaler Download wird momentan nicht empfohlen. Prüfen Sie die Ressourcen und wiederholen Sie die Erkennung."],
+    ["Available memory: {available} GiB; at least {required} GiB is needed.", "当前可用内存 {available} GiB，至少需要 {required} GiB。", "目前可用記憶體 {available} GiB，至少需要 {required} GiB。", "利用可能メモリは {available} GiB、必要量は {required} GiB です。", "Verfügbarer Arbeitsspeicher: {available} GiB; erforderlich: mindestens {required} GiB."],
+    ["Installed memory: {available} GiB; automatic recommendations need {required} GiB.", "总内存 {available} GiB，自动推荐需要至少 {required} GiB。", "總記憶體 {available} GiB，自動推薦需要至少 {required} GiB。", "搭載メモリは {available} GiB、自動推奨には {required} GiB が必要です。", "Installierter Arbeitsspeicher: {available} GiB; automatische Empfehlungen erfordern {required} GiB."],
+    ["CPU logical threads: {available}; this inference path needs at least {required}.", "CPU 逻辑线程 {available} 个，此推理路径至少需要 {required} 个。", "CPU 邏輯執行緒 {available} 個，此推論路徑至少需要 {required} 個。", "CPU 論理スレッド数は {available}、この推論経路には {required} 以上が必要です。", "Logische CPU-Threads: {available}; dieser Inferenzpfad benötigt mindestens {required}."],
+    ["No compatible local runtime is available for this system or architecture.", "当前系统或架构没有兼容的本地推理运行时。", "目前系統或架構沒有相容的本機推論執行階段。", "このシステムまたはアーキテクチャに対応するローカルランタイムはありません。", "Für dieses System oder diese Architektur ist keine kompatible lokale Laufzeit verfügbar."],
+    ["Close some apps and detect again, or continue using cloud models.", "可关闭部分应用后重新检测，或继续使用云端模型。", "可關閉部分應用後重新偵測，或繼續使用雲端模型。", "アプリを閉じて再検出するか、クラウドモデルを使ってください。", "Schließen Sie einige Anwendungen und prüfen Sie erneut oder nutzen Sie Cloud-Modelle."],
+    ["Installation space for {model}: {required} GiB required, {available} GiB available.", "{model} 安装空间：需要 {required} GiB，可用 {available} GiB。", "{model} 安裝空間：需要 {required} GiB，可用 {available} GiB。", "{model} の導入領域: 必要 {required} GiB、空き {available} GiB。", "Installationsplatz für {model}: {required} GiB benötigt, {available} GiB verfügbar."],
+    ["Some required device or disk information is unavailable. Detect again before downloading.", "暂时无法确认必要的设备或磁盘信息，请重新检测后再下载。", "暫時無法確認必要的裝置或磁碟資訊，請重新偵測後再下載。", "必要な端末情報またはディスク情報が不明です。再検出してからダウンロードしてください。", "Erforderliche Geräte- oder Datenträgerinformationen fehlen. Prüfen Sie vor dem Download erneut."],
+    ["An existing healthy model is being reused.", "优先复用当前已健康运行的模型。", "優先重用目前正常執行的模型。", "正常に稼働している既存モデルを再利用します。", "Das bereits laufende, gesunde Modell wird wiederverwendet."],
+    ["Q8_0 may respond more slowly on CPU.", "Q8_0 在 CPU 上响应可能更慢。", "Q8_0 在 CPU 上的回應可能較慢。", "CPU では Q8_0 の応答が遅くなる場合があります。", "Q8_0 kann auf der CPU langsamer antworten."],
+    ["You can manually try this model, but automatic installation is not recommended.", "可手动试用此模型，但不建议自动安装。", "可手動試用此模型，但不建議自動安裝。", "手動で試用できますが、自動導入は推奨しません。", "Sie können dieses Modell manuell testen; eine automatische Installation wird jedoch nicht empfohlen."],
+    ["Local response experience", "本地响应体验", "本機回應體驗", "ローカル応答性能", "Lokale Antwortleistung"],
+    ["Performance pending confirmation", "性能待确认", "效能待確認", "性能確認待ち", "Leistung noch unbestätigt"],
+    ["Response performance checked", "响应性能检查通过", "回應效能檢查通過", "応答性能を確認済み", "Antwortleistung geprüft"],
+    ["Slow local responses; automatic hybrid use is not recommended", "本地响应较慢，不建议自动用于端云协同", "本機回應較慢，不建議自動用於端雲協同", "応答が遅いため、自動ハイブリッド利用は推奨しません", "Langsame lokale Antworten; automatische Hybridnutzung wird nicht empfohlen"],
+    ["Check local response experience", "检查本地响应体验", "檢查本機回應體驗", "ローカル応答性能を確認", "Lokale Antwortleistung prüfen"],
+    ["Performance is not confirmed; automatic hybrid use stays off.", "性能尚未确认，暂不开启自动端云协同。", "效能尚未確認，暫不開啟自動端雲協同。", "性能が未確認のため、自動ハイブリッド利用は無効のままです。", "Leistung noch nicht bestätigt; automatische Hybridnutzung bleibt aus."],
+    ["Resource thresholds are conservative estimates for a 64K context; actual performance needs verification.", "资源门槛按 64K 上下文保守估算，实际性能需要运行验证。", "資源門檻依 64K 上下文保守估算，實際效能需執行驗證。", "リソース基準は 64K コンテキストの保守的な推定です。実際の性能は検証が必要です。", "Die Ressourcenwerte sind konservative Schätzungen für 64K Kontext; die tatsächliche Leistung muss geprüft werden."],
+    ["Available GPU memory is low. Close GPU-intensive apps and detect again.", "当前空闲显存不足，可关闭占用显卡的应用后重新检测。", "目前空閒顯存不足，可關閉使用顯卡的應用後重新偵測。", "GPU の空きメモリが不足しています。GPU を使うアプリを閉じて再検出してください。", "Es ist zu wenig GPU-Speicher frei. Schließen Sie GPU-intensive Anwendungen und prüfen Sie erneut."],
     ['Detect device', '检测设备', '偵測裝置', '端末を検出', 'Gerät prüfen'],
     ['Configured on-device models', '已配置的端侧模型', '已配置的端側模型', '設定済みのオンデバイスモデル', 'Konfigurierte On-Device-Modelle'],
     ['Select a model', '选择模型', '選擇模型', 'モデルを選択', 'Modell auswählen'],
@@ -60,7 +80,7 @@
     ['Check your computer configuration to choose a local model.', '检测电脑配置，为您推荐适合的本地模型。', '偵測電腦配置，為您建議適合的本機模型。', '構成を確認して、適したローカルモデルを選びましょう。', 'Prüfen Sie die Computerkonfiguration für eine passende Modellempfehlung.'],
     ['Based on the check, your computer is suitable for {model}.', '根据检测，您的电脑配置适合 {model}。', '根據偵測，您的電腦配置適合 {model}。', '確認の結果、このコンピューターには {model} が適しています。', 'Laut Prüfung eignet sich Ihr Computer für {model}.'],
     ['Hardware recommendation: {model}. Complete the device checks before downloading.', '硬件推荐：{model}。请先完成设备检查，再下载模型。', '硬體建議：{model}。請先完成裝置檢查，再下載模型。', 'ハードウェアの推奨：{model}。ダウンロード前に端末の検査を完了してください。', 'Hardwareempfehlung: {model}. Schließen Sie vor dem Download die Geräteprüfung ab.'],
-    ['Your computer does not meet the requirements for these local models.', '您的电脑配置暂不满足这两款本地模型的运行要求。', '您的電腦配置暫不符合這兩款本機模型的執行需求。', 'このコンピューターは、これらのローカルモデルの動作要件を満たしていません。', 'Ihr Computer erfüllt die Anforderungen dieser lokalen Modelle nicht.'],
+    ['Your computer does not meet the requirements for these local models.', '您的电脑配置暂不满足这些本地模型的运行要求。', '您的電腦配置暫不符合這些本機模型的執行需求。', 'このコンピューターは、これらのローカルモデルの動作要件を満たしていません。', 'Ihr Computer erfüllt die Anforderungen dieser lokalen Modelle nicht.'],
     ['Your computer configuration could not be fully detected. Please try again.', '暂时无法完整检测您的电脑配置，请重新检测。', '暫時無法完整偵測您的電腦配置，請重新偵測。', 'コンピューターの構成を完全に確認できませんでした。再度お試しください。', 'Die Computerkonfiguration konnte nicht vollständig ermittelt werden. Bitte erneut prüfen.'],
     ['Device detection failed. Please try again.', '设备检测失败，请重新检测。', '裝置偵測失敗，請重新偵測。', '端末の検出に失敗しました。再度お試しください。', 'Die Geräteerkennung ist fehlgeschlagen. Bitte erneut prüfen.'],
     ['You can also choose {model} to use fewer resources.', '也可选择 {model}，减少资源占用。', '也可選擇 {model}，減少資源用量。', 'リソース使用量を抑えるには {model} も選べます。', 'Für einen geringeren Ressourcenverbrauch können Sie auch {model} wählen.'],
@@ -91,7 +111,7 @@
     ['Stage [3/4] Model weights (hf-mirror.com) request failed: mirror connection blocked. Check proxy routing rules and click "Download and install" to resume.', '阶段 [3/4] 模型权重文件 (hf-mirror.com) 请求失败：镜像源连接受阻，请检查代理分流设置后点击“下载并安装”继续（支持断点续传）。', '階段 [3/4] 模型權重檔案 (hf-mirror.com) 請求失敗：鏡像來源連線受阻，請檢查代理分流設定後點擊「下載並安裝」繼續（支援斷點續傳）。', '段階 [3/4] モデル重みファイル (hf-mirror.com) のリクエスト失敗：ミラー接続がブロックされました。プロキシ設定を確認して再開してください。', 'Phase [3/4] Anfrage für Modellgewichte (hf-mirror.com) fehlgeschlagen: Mirror-Verbindung blockiert. Prüfen Sie die Proxy-Regeln und setzen Sie den Download fort.'],
     ['Stage [3/4] Model weights (.gguf) SHA256 verification failed: file was corrupted in transit and cleaned up. Click "Download and install" to download again.', '阶段 [3/4] 模型权重文件 (.gguf) SHA256 校验不一致：文件在传输中损坏，系统已清理损坏缓存，请点击“下载并安装”重新下载。', '階段 [3/4] 模型權重檔案 (.gguf) SHA256 驗證不一致：檔案在傳輸中損毀，系統已清理損毀快取，請點擊「下載並安裝」重新下載。', '段階 [3/4] モデル重みファイル (.gguf) の SHA256 検証失敗：転送中に破損したためキャッシュを消去しました。「ダウンロードしてインストール」で再取得してください。', 'Phase [3/4] SHA256-Prüfung der Modellgewichte (.gguf) fehlgeschlagen: Datei beim Transfer beschädigt und bereinigt. Klicken Sie zum erneuten Download auf „Herunterladen und installieren“.'],
     ['Stage [4/4] Chat template (hf-mirror.com) download failed: model weights are ready and only the tiny template file remains. Check your network and click "Download and install" to finish immediately.', '阶段 [4/4] 模型对话模板 (hf-mirror.com) 下载失败：模型权重已就绪，仅最后一步配置文件未完成。请检查网络后点击“下载并安装”即可秒级完成。', '階段 [4/4] 模型對話範本 (hf-mirror.com) 下載失敗：模型權重已就緒，僅最後一步設定檔未完成。請檢查網路後點擊「下載並安裝」即可秒級完成。', '段階 [4/4] チャットテンプレート (hf-mirror.com) のダウンロード失敗：モデル重みは完了しており、小さな設定ファイルのみ残っています。ネットワークを確認して「ダウンロードしてインストール」をクリックしてください。', 'Phase [4/4] Download der Chat-Vorlage (hf-mirror.com) fehlgeschlagen: Modellgewichte sind bereit, es fehlt nur die Vorlagendatei. Prüfen Sie das Netzwerk und klicken Sie auf „Herunterladen und installieren“.'],
-    ['Insufficient local disk space: unable to write model or runtime files. Free up disk space (at least 4 GB for 1.7B or 6 GB for 4B) and retry.', '本地磁盘空间不足：无法写入模型或运行时文件。请清理系统数据盘空间（1.7B 需至少 4 GB、4B 需至少 6 GB 可用空间）后重试。', '本機磁碟空間不足：無法寫入模型或執行階段檔案。請清理系統資料碟空間（1.7B 需至少 4 GB、4B 需至少 6 GB 可用空間）後重試。', 'ディスク空き容量不足：モデルまたはランタイムを書き込めません。空き容量（1.7B は 4 GB 以上、4B は 6 GB 以上）を確保して再試行してください。', 'Unzureichender Speicherplatz: Modell- oder Laufzeitdateien können nicht geschrieben werden. Geben Sie Speicherplatz frei (mindestens 4 GB für 1.7B bzw. 6 GB für 4B) und versuchen Sie es erneut.'],
+    ['Insufficient local disk space: unable to write model or runtime files. Free up disk space for the selected model and runtime, then retry.', '本地磁盘空间不足：无法写入模型或运行时文件。请为所选模型和运行时清理足够的磁盘空间后重试。', '本機磁碟空間不足：無法寫入模型或執行階段檔案。請為所選模型和執行階段釋放足夠的磁碟空間後重試。', 'ディスク空き容量不足です。選択したモデルとランタイムに十分な空き容量を確保して再試行してください。', 'Unzureichender Speicherplatz. Geben Sie ausreichend Platz für das gewählte Modell und die Laufzeit frei und versuchen Sie es erneut.'],
     ['Local installation verification or extraction failed: files may be in use, blocked by security software, or out of disk space. Check disk space and antivirus logs, then click "Download and install" to retry.', '本地安装校验或解压失败：运行文件可能被占用、杀毒软件拦截或磁盘空间不足。请检查磁盘空间与安全软件拦截记录后点击“下载并安装”重试。', '本機安裝驗證或解壓縮失敗：執行檔案可能被佔用、防毒軟體攔截或磁碟空間不足。請檢查磁碟空間與安全軟體攔截紀錄後點擊「下載並安裝」重試。', 'ローカル検証または展開に失敗しました：ファイルが使用中、セキュリティソフトによるブロック、または容量不足の可能性があります。確認後「ダウンロードしてインストール」で再試行してください。', 'Lokale Prüfung oder Entpacken fehlgeschlagen: Dateien werden evtl. verwendet, durch Sicherheitssoftware blockiert oder der Speicherplatz reicht nicht aus. Prüfen Sie dies und klicken Sie auf „Herunterladen und installieren“.'],
     ['Public execution weights; judgment and redaction need separate acceptance evidence.', '公开执行权重；判断和脱敏需要独立验收证据。', '公開執行權重；判斷及去識別化需要獨立驗收證據。', '公開の実行用重み。判断と匿名化には個別の検証が必要です。', 'Öffentliche Ausführungsgewichte; Beurteilung und Anonymisierung brauchen eigene Nachweise.'],
     ['Opening this page does not enable or download a model. Closing the page keeps Router running.', '打开页面不会启用或下载模型。关闭页面后 Router 继续运行。', '開啟頁面不會啟用或下載模型。關閉頁面後 Router 繼續執行。', 'ページを開いてもモデルは有効化・ダウンロードされません。閉じてもRouterは動作します。', 'Diese Seite aktiviert oder lädt kein Modell. Router läuft nach dem Schließen weiter.'],
@@ -104,7 +124,8 @@
   const label = value => t(stateNames[value] || 'Unknown');
   const dependencyNames = { not_required: 'Not required on this platform', missing: 'Runtime dependencies are missing.', preparing: 'Preparing runtime dependencies', ready: 'Installed and verified', canceled: 'Canceled', failed: 'Runtime dependency download failed.', download_failed: 'Runtime dependency download failed.', corrupt: 'Runtime dependencies are damaged.', architecture: 'Runtime dependency architecture does not match.', version: 'Runtime dependency version does not match.', layout: 'Runtime dependency layout is invalid.' };
   const dependencyMessage = code => dependencyNames[String(code || '').replace(/^local_model_dependency_/, '')] || 'Runtime dependency verification failed.';
-  const modelName = tier => ({ '1.7B': 'Spark-X2.5-1.7B', '4B': 'Spark-X2.5-4B' })[tier];
+  const modelName = tier => tier === '4B' ? 'Spark-X2.6-4B-Q4_K_M' : undefined;
+  const displayModelName = model => model?.name || modelName(model?.tier) || model?.id;
   function currentChoiceModelId(status) {
     const catalogModels = data?.catalog?.models || [];
     if (selectedModelId && catalogModels.some(m => m.id === selectedModelId)) return selectedModelId;
@@ -142,7 +163,7 @@
     const defaultHosts = { dependency: 'aka.ms', runtime: 'github.com', model: 'hf-mirror.com', template: 'hf-mirror.com' };
     const host = p.host || defaultHosts[stage] || '';
     const targetModelId = status?.installingModel || status?.intent?.selected;
-    const selectedModel = modelName(data?.catalog?.models?.find(m => m.id === targetModelId)?.tier) || targetModelId || 'GGUF';
+    const selectedModel = displayModelName(data?.catalog?.models?.find(m => m.id === targetModelId)) || targetModelId || 'GGUF';
     const stageKeys = {
       dependency: '[{step}/{total}] Windows VC++ runtime components',
       runtime: '[{step}/{total}] Local inference engine llama.cpp',
@@ -173,7 +194,7 @@
     const pct = total > 0 ? Math.min(100, Math.max(0, Math.round((downloaded / total) * 100))) : 0;
     const progressText = total > 0 ? `${(downloaded / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MiB (${pct}%)` : '0.0 MiB';
     if (code.endsWith('_disk_space') || status?.progress?.reason === 'disk_space') {
-      return t('Insufficient local disk space: unable to write model or runtime files. Free up disk space (at least 4 GB for 1.7B or 6 GB for 4B) and retry.');
+      return t('Insufficient local disk space: unable to write model or runtime files. Free up disk space for the selected model and runtime, then retry.');
     }
     if (code.startsWith('local_model_dependency_')) {
       if (status?.installation === 'failed' && status?.progress?.stage === 'dependency') {
@@ -218,10 +239,13 @@
     const button = el('button', 'text local-model-action', t('Detect device')); button.type = 'button'; button.dataset.action = 'detect';
     button.disabled = working; button.onclick = detectDevice;
     heading.append(title, button); guide.append(heading);
-    const recommended = modelName(device?.recommendation?.tier);
+    const advice = device?.advice;
+    const recommended = advice?.modelName || (!advice ? modelName(device?.recommendation?.tier) : undefined);
     let message = 'Check your computer configuration to choose a local model.';
     if (detecting) message = 'Checking your computer configuration…';
     else if (detectionFailed) message = 'Device detection failed. Please try again.';
+    else if (advice?.state === 'not_recommended') message = 'Local models are not recommended for this computer. You can use cloud models without downloading one.';
+    else if (advice?.state === 'deferred') message = 'Local download is not recommended right now. Check the resource details and detect again.';
     else if (device?.recommendation?.tier === 'none') message = 'Your computer does not meet the requirements for these local models.';
     else if (recommended) message = device.detection?.state === 'passed' ? 'Based on the check, your computer is suitable for {model}.' : 'Hardware recommendation: {model}. Complete the device checks before downloading.';
     else if (device) message = 'Your computer configuration could not be fully detected. Please try again.';
@@ -232,13 +256,34 @@
     }
     if (recommended && !detecting && !detectionFailed) {
       if (device.detection?.state !== 'passed') guide.append(el('p', 'hint router-note', t('Device check did not pass. Detect again and check memory, backend and free disk space.')));
-      if (device.recommendation.tier === '4B') {
-        guide.append(el('p', 'hint router-note', t('You can also choose {model} to use fewer resources.', { model: modelName('1.7B') })));
-      } else if (device.recommendation.tier === '1.7B' && device.recommendation.maxTier === '4B') {
-        guide.append(el('p', 'hint router-note', t('You can also try {model}, which uses more memory and runs more slowly on 16 GB devices.', { model: modelName('4B') })));
-      } else if (device.recommendation.tier === '1.7B' && device.recommendation.reason === 'memory_16_gib_limited_headroom') {
-        guide.append(el('p', 'hint router-note', t('Available memory or CPU threads are limited, so only {model} is enabled.', { model: modelName('1.7B') })));
+    }
+    if (advice && !detecting && !detectionFailed) {
+      if (advice.reuse) guide.append(el('p', 'hint router-note', t('An existing healthy model is being reused.')));
+      const chosen = currentChoiceModelId(data?.status) || advice.modelID;
+      const assessment = advice.assessments?.find(item => item.id === chosen) || advice.assessments?.find(item => item.quantization === 'Q4_K_M');
+      const memoryIssue = assessment?.issues?.find(item => item.code === 'memory_below_16_gib');
+      if (memoryIssue?.available != null) guide.append(el('p', 'hint router-note', t('Installed memory: {available} GiB; automatic recommendations need {required} GiB.', { available: (memoryIssue.available / 2 ** 30).toFixed(1), required: (memoryIssue.required / 2 ** 30).toFixed(1) })));
+      const cpuIssue = assessment?.issues?.find(item => ['cpu_threads_below_4', 'cpu_threads_below_8', 'q8_cpu_threads_or_backend'].includes(item.code));
+      const threads = device.device?.system?.value?.logicalCPUs?.value;
+      if (cpuIssue && threads != null) guide.append(el('p', 'hint router-note', t('CPU logical threads: {available}; this inference path needs at least {required}.', { available: threads, required: cpuIssue.required })));
+      if (assessment?.issues?.some(item => ['runtime_unavailable', 'platform_unsupported', 'os_version_unsupported'].includes(item.code))) guide.append(el('p', 'hint router-note', t('No compatible local runtime is available for this system or architecture.')));
+      const issue = assessment?.issues?.find(item => item.code === 'available_memory_insufficient');
+      if (issue) {
+        guide.append(el('p', 'hint router-note', t('Available memory: {available} GiB; at least {required} GiB is needed.', { available: (issue.available / 2 ** 30).toFixed(1), required: (issue.required / 2 ** 30).toFixed(1) })));
+        guide.append(el('p', 'hint router-note', t('Close some apps and detect again, or continue using cloud models.')));
       }
+      if (assessment?.issues?.some(item => item.code === 'gpu_memory_insufficient')) guide.append(el('p', 'hint router-note', t('Available GPU memory is low. Close GPU-intensive apps and detect again.')));
+      if (assessment?.issues?.some(item => item.code.endsWith('_unknown') || item.code === 'backend_unconfirmed')) guide.append(el('p', 'hint router-note', t('Some required device or disk information is unavailable. Detect again before downloading.')));
+      if (advice.state !== 'recommended' && assessment?.manual === 'passed') guide.append(el('p', 'hint router-note', t('You can manually try this model, but automatic installation is not recommended.')));
+      if (assessment?.quantization === 'Q8_0' && assessment?.issues?.some(item => item.code === 'q8_acceleration_required')) guide.append(el('p', 'hint router-note', t('Q8_0 may respond more slowly on CPU.')));
+      for (const candidate of advice.assessments || []) {
+        for (const disk of candidate.disks || []) {
+          if (disk.required > 0 && disk.available?.value != null) {
+            guide.append(el('p', 'hint router-note', t('Installation space for {model}: {required} GiB required, {available} GiB available.', { model: candidate.name, required: (disk.required / 2 ** 30).toFixed(1), available: (disk.available.value / 2 ** 30).toFixed(1) }) + ' · ' + disk.path));
+          }
+        }
+      }
+      guide.append(el('p', 'hint router-note', t('Resource thresholds are conservative estimates for a 64K context; actual performance needs verification.')));
     }
     return guide;
   }
@@ -274,7 +319,7 @@
       item.dataset.selector = 'local/' + String(model.id || '').toLowerCase();
       const icon = el('span', 'ic'), img = el('img');
       img.src = '/icons/spark-color.svg'; img.alt = ''; icon.append(img);
-      const name = modelName(model.tier) || model.id;
+      const name = displayModelName(model);
       const who = el('div', 'who');
       who.append(el('div', 'name', name), el('div', 'sub', `local/${String(model.id || '').toLowerCase()} · ${model.tier}`));
       const stateBadge = el('span', 'router-state' + (isLoaded ? ' ok' : ''), label(runtimeState));
@@ -312,7 +357,7 @@
     if (installedWrap) root.append(installedWrap);
     root.append(deviceGuide());
     const choices = el('div', 'segs router-language'); choices.id = 'localModelChoices';
-    chooseButtons(choices, data.catalog.models.map(model => [model.id, modelName(model.tier) || model.id]), choiceModelId, async id => { await selectModel(id); });
+    chooseButtons(choices, data.catalog.models.map(model => [model.id, displayModelName(model)]), choiceModelId, async id => { await selectModel(id); });
     for (const button of choices.querySelectorAll('button')) button.disabled = working || status.installation === 'downloading';
     root.append(el('h3', 'router-label', t('Select a model')), choices);
     const list = el('div', 'list prefs');
@@ -328,6 +373,9 @@
     }
     const dependencyRow = row('Runtime dependencies', t(dependencyNames[dependencies.state] || 'Unknown') + (dependencies.version ? ' · ' + dependencies.version : ''));
     dependencyRow.id = 'localModelDependencies'; list.append(dependencyRow);
+    const experience = status.performance?.state;
+    const experienceKey = experience === 'acceptable' ? 'Response performance checked' : experience === 'slow' ? 'Slow local responses; automatic hybrid use is not recommended' : 'Performance pending confirmation';
+    list.append(row('Local response experience', t(experienceKey)));
     const showDownloadRow = status.installation === 'downloading' || (choiceInstallation === 'failed' && Boolean(status.error || status.progress?.stage || status.progress?.reason));
     if (showDownloadRow) {
       const downloaded = Number(status.progress?.downloaded) || 0;
@@ -355,11 +403,14 @@
     root.append(list);
     if (['missing', 'failed', 'corrupt', 'architecture', 'version', 'layout'].includes(dependencies.state)) root.append(el('p', 'hint router-note', t('Enable the local model, then use Download and install to repair runtime dependencies.')));
     const buttons = el('div', 'request-choices local-model-actions');
-    const installDisabled = !choiceModelId || status.installation === 'downloading' || (choiceInstallation === 'installed' && ['ready', 'not_required'].includes(dependencies.state) && !['accelerator_install_failed', 'accelerator_not_installed'].includes(status.backend?.fallbackReason));
+    const assessment = device?.advice?.assessments?.find(item => item.id === choiceModelId);
+    const resourceBlocked = assessment && assessment.manual !== 'passed';
+    const installDisabled = resourceBlocked || !choiceModelId || status.installation === 'downloading' || (choiceInstallation === 'installed' && ['ready', 'not_required'].includes(dependencies.state) && !['accelerator_install_failed', 'accelerator_not_installed'].includes(status.backend?.fallbackReason));
     for (const [name, endpoint, disabled, handler] of [
       ['Download and install', 'install', installDisabled, installModel],
       ['Cancel download', 'cancel', status.installation !== 'downloading', () => action('cancel')],
       ['Check process health', 'health', !status.pid, () => action('health')],
+      ['Check local response experience', 'experience', !status.pid, () => action('check')],
       ['Manual refresh', '', false, () => open()],
     ]) {
       const button = el('button', 'text local-model-action', t(name)); button.type = 'button'; button.dataset.action = endpoint || 'refresh'; button.disabled = working || disabled; button.onclick = handler; buttons.append(button);
@@ -372,6 +423,7 @@
     const result = await response.json();
     if (!response.ok) {
       const code = result.error?.code;
+      if (result.device) { device = result.device; render(); }
       if (String(code || '').startsWith('local_model_dependency_')) throw new Error(dependencyMessage(code));
       if (String(code || '').startsWith('local_model_install_')) throw new Error(statusErrorMessage({ error: code, progress: data?.status?.progress }));
       throw new Error(code === 'device_check_not_passed' ? 'Device check did not pass. Detect again and check memory, backend and free disk space.' : code === 'capability_model_unsupported' ? 'The selected model does not support this operation.' : code === 'capability_acceptance_suites_not_provided' ? 'Capability acceptance suites have not been provided.' : 'Local model operation failed. Refresh to inspect status.');
@@ -407,6 +459,7 @@
       if (current !== connection) return;
       if (!result.device) throw new Error('missing_device_report');
       device = result.device;
+      if (!selectedModelId && !data?.status?.intent?.selected && device.advice?.state === 'recommended') selectedModelId = device.advice.modelID;
     } catch { if (current === connection) detectionFailed = true; }
     finally { if (current === connection) { working = false; detecting = false; render(); } }
   }
@@ -438,6 +491,10 @@
     const choiceModelId = currentChoiceModelId(data?.status);
     working = true; render(); $('#localModelError').textContent = '';
     try {
+      if (choiceModelId && !data?.status?.intent?.enabled && choiceModelId !== data?.status?.intent?.selected) {
+        const selected = await request('select', { model: choiceModelId });
+        if (selected?.status) data.status = selected.status;
+      }
       if (!choiceModelId || String(choiceModelId).toLowerCase() === String(data?.status?.intent?.selected || '').toLowerCase()) {
         if (!data?.status?.intent?.enabled) {
           const enRes = await request('enable', {});
@@ -480,7 +537,9 @@
         try {
           const checkRes = await request('check', {});
           const st = checkRes?.status || data?.status;
-          if (st?.capabilities?.judgment?.trial && st?.capabilities?.judgment?.trialEvidence && st?.capabilities?.execution?.trial && st?.capabilities?.execution?.trialEvidence) {
+          if (st?.performance && st.performance.state !== 'acceptable') {
+            capabilityError = t(st.performance.state === 'slow' ? 'Slow local responses; automatic hybrid use is not recommended' : 'Performance is not confirmed; automatic hybrid use stays off.');
+          } else if (st?.capabilities?.judgment?.trial && st?.capabilities?.judgment?.trialEvidence && st?.capabilities?.execution?.trial && st?.capabilities?.execution?.trialEvidence) {
             await request('trial/enable', {}).catch(() => {});
           } else if (st?.capabilities?.judgment?.state === 'unavailable' || st?.capabilities?.execution?.state === 'unavailable') {
             capabilityError = t('Capability acceptance suites have not been provided.');

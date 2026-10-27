@@ -50,12 +50,12 @@ function Get-RouterRelease([string]$RequestedTag, [bool]$Stable) {
         $releases = @($pageData)
         return Select-RouterRelease $releases $RequestedTag $Stable
     }
+    $allReleases = @()
     for ($page = 1; $page -le 20; $page++) {
         $pageData = Invoke-RestMethod -Uri ($base + "/releases?per_page=100&page=$page") -Headers $headers -TimeoutSec 30
         $releases = @($pageData)
-        $candidate = Select-RouterRelease $releases '' $Stable
-        if ($candidate) { return $candidate }
-        if ($releases.Count -lt 100) { return $null }
+        $allReleases += $releases
+        if ($releases.Count -lt 100) { return Select-RouterRelease $allReleases '' $Stable }
     }
     throw 'Release discovery exceeded 20 pages; specify -Tag.'
 }

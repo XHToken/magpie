@@ -1,6 +1,6 @@
 ---
 name: api-router-start
-description: 带用户学习 Wefto（原 API-router）的模型配置、应用接入和请求验证；也支持一键检测电脑并安装启用 1.7B/4B 本地模型、一键配置端云智能协同并自动接入 Loomy 与 WorkBuddy，以及多平台安装、排障、恢复和更新。适用于 XHToken/magpie 的 Wefto，不用于上游 Magpie。
+description: 带用户学习 Wefto（原 API-router）的模型配置、应用接入和请求验证；也支持一键检测电脑并安装启用当前目录支持的本地模型（含 X2.6 Q4_K_M/Q8_0）、一键配置端云智能协同并自动接入 Loomy 与 WorkBuddy，以及多平台安装、排障、恢复和更新。适用于 XHToken/magpie 的 Wefto，不用于上游 Magpie。
 ---
 
 # Wefto 使用向导
@@ -17,7 +17,7 @@ description: 带用户学习 Wefto（原 API-router）的模型配置、应用�
 
 | 用户目标或现状 | 读取的指引 | 处理方式 |
 | --- | --- | --- |
-| 一键安装/自动启用本地模型、自动配置端云协同、为 Loomy/WorkBuddy 开启协同 | [一键配置](references/one-click.md) | 自动检测并推荐 1.7B/4B，下载启用；智能分流、默认星辰云端并自动接入已安装应用 |
+| 一键安装/自动启用本地模型、自动配置端云协同、为 Loomy/WorkBuddy 开启协同 | [一键配置](references/one-click.md) | 消费后端逐模型建议，推荐 Q4/Q8 或不建议下载，按授权安装启用；智能分流、默认星辰云端并自动接入已安装应用 |
 | 第一次使用、接入应用、完成首次对话 | [首次使用](references/first-use.md) | 默认教学主线，按当前进度开始 |
 | 没装、服务未启动，或明确要求下载/启动 | [安装启动](references/install.md) | 复用现有安装，按任务授权准备环境，再回到教学 |
 | 某一步报错、应用没生效、请求失败 | [排障与恢复](references/troubleshooting.md) | 先定位阶段，修复后回到原任务 |
@@ -40,6 +40,7 @@ description: 带用户学习 Wefto（原 API-router）的模型配置、应用�
 ## 版本、来源与操作约束
 
 - 唯一产品来源：[XHToken/magpie](https://github.com/XHToken/magpie)，发布标签 `wefto-v*`。产品名 Wefto，命令 `wefto`；旧 API-router 安装可按现有规则复用。具体多平台包与命令见安装指引。
+- 每次需要下载安装或用户要求更新到最新版时，实时查询该仓库 Releases，按发布时间选择当前系统/架构最新的兼容发布（默认包含预览版，排除草稿）。默认不传 `-Tag`/`--tag`，不把历史示例、上次选择或缓存中的版本当作最新。普通启动仍复用现有安装；用户明确指定版本时才固定标签。一次下载选定 Release 后，包、manifest、安装脚本和校验文件均来自该 Release，不混用中途出现的新版本。
 - 先确认正在使用的版本；页面标签、功能和命令以该版本页面、帮助和标签文档为准。包对应文档形如 `https://github.com/XHToken/magpie/blob/<TAG>/README.md`。本地源码可能属于另一版本，不把其中路径直接套到已安装发行版。遇到不符先确认页面/帮助，不猜测接口或按钮。
 - 通过页面已有的新手教程、供应商、应用和请求记录功能教学。只读接口仅在该版本确认存在且已验证本机实例身份后使用；不要把 POST 连接检查或获取模型误当成无网络副作用的只读查询。
 - API Key 由用户在管理页面填写，聊天中只需要知道已填写或错误类型。检查时只输出存在标志和必要诊断摘要，不展示密钥、管理令牌、完整 credentials.json、请求正文或完整日志。

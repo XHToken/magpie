@@ -9,8 +9,12 @@ The HTTP owner calls `Begin(store, routerledger.Metadata{...})` before reading t
 admitted request body. Only registered applications and canonical POST generation
 or `count_tokens` operations are admitted. Management, health and model-list
 requests stay outside this ledger. Explicit management connection checks do not
-enter the business ledger. An external generation endpoint remains a business
-request: the service never guesses probe identity from client headers or merges
+enter the business ledger. Loomy automatic titles (`chat.title`) remain business
+generation requests, with ordinary request budgets and cloud time reservation.
+Their local judgment, execution and redaction events retain the business request
+ID, so the actual model and execution usage reach the same record. An external
+generation endpoint remains a business request: the service never guesses probe
+identity from client headers or merges
 it with a later host request. The ledger never initiates probes. Metadata comes from the
 URL-bound app configuration, never client-selected model fields or headers.
 Application name, provider ID, cloud model and safe Profile reference price are
@@ -116,10 +120,13 @@ This is bounded best-effort observation; it is not a durable model-call queue.
 provides the cycle-free producer seam `LocalCallObserverFromContext(ctx)`.
 The HTTP boundary binds that observer to Router's existing ID through
 `WithLocalObserver`; checks bind `Check=true` with no business ID. Cross-request
-IDs are rejected rather than assigned to a nearby request. A's Manager producer
-must publish its completed safe events to this context observer. The contract-only
-baseline does not yet do so: actual Manager producer/consumer integration remains
-an explicit A/C integration task, not proven by fixtures.
+IDs are rejected rather than assigned to a nearby request.
+[`executePreparedModelBody`](../../internal/routerservice/models_writer.go)
+promotes that context observer into the service's local producer options.
+Judgment and execution adapters emit the Manager's captured completion through
+it; the Manager's service-level observer handles redaction only to avoid duplicate
+events. Title inference is business work, not a management check, on both direct
+and group routes.
 
 The execution completion also captures actual model identity, `localCallId` and
 reported usage in memory. Local final results can carry actual usage without
@@ -134,6 +141,10 @@ mode, without body or error text. Timings persist measured whole milliseconds
 
 `core_statistics_test.go` exercises synthetic contract producers through actual
 HTTP routing, SQLite and management APIs, plus unsafe legacy price handling.
+[`loomy_title_observation_test.go`](../../internal/routerservice/loomy_title_observation_test.go)
+exercises the real Manager producer against a mock local HTTP runtime, through
+direct, routed and group requests, including marked/native titles, streaming,
+both model selections and separate management checks.
 `routerobserve` tests cover concurrent duplicates, delayed events, overflow,
 write failure visibility and callbacks while persistence is blocked. These tests
-do not run a model or establish real A/C producer wiring.
+do not establish real model inference quality.

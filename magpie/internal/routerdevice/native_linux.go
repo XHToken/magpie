@@ -13,6 +13,7 @@ import (
 // and Ubuntu distribution acceptance are explicitly deferred to real hardware.
 func nativeProbes() Probes {
 	return Probes{
+		DiskVolume: nativeVolume,
 		System: func(context.Context) (System, error) {
 			var uts unix.Utsname
 			if err := unix.Uname(&uts); err != nil {

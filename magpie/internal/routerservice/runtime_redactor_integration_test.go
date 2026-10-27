@@ -51,7 +51,7 @@ func (f integrationFactory) Start(context.Context, routerprocess.Spec) (routerpr
 }
 
 func TestProductionHTTPW4W5UsesTargetWireAndRestoresClientResponse(t *testing.T) {
-	for _, modelID := range []string{"spark-x2.5-1.7B", "spark-x2.5-4B"} {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
 		for _, experimental := range []bool{false, true} {
 			t.Run(modelID+map[bool]string{false: "/formal", true: "/experimental"}[experimental], func(t *testing.T) {
 				layout, address := fixture(t)

@@ -66,6 +66,36 @@ class SelectionTests(unittest.TestCase):
                 skill.discover("linux", "amd64", None)
             self.assertEqual(fetch.call_count, 1)
 
+    def test_latest_compatible_release_is_selected_across_pages(self):
+        def release(version, published, system="linux", draft=False, preview=False):
+            stem = f"wefto-{version}-{system}-amd64"
+            return {"tag_name": "wefto-v" + version, "published_at": published, "draft": draft,
+                    "prerelease": preview, "html_url": "release-url", "assets": [
+                        {"name": stem + ".tar.gz"}, {"name": stem + ".manifest.json"}, {"name": "SHA256SUMS"}]}
+        old = release("0.1.0-beta.4", "2026-10-01T00:00:00Z", preview=True)
+        newest = release("0.2.0-beta.1", "2026-10-26T00:00:00Z", preview=True)
+        draft = release("99.0.0", "2026-10-28T00:00:00Z", draft=True)
+        other_platform = release("2.0.0", "2026-10-27T00:00:00Z", system="darwin")
+        filler = [{"tag_name": "other-product", "draft": False}] * 99
+        with patch.object(skill, "api", side_effect=[[old] + filler, [newest, draft, other_platform]]) as fetch:
+            result = skill.discover("linux", "amd64", None)
+        self.assertEqual(result["tag"], newest["tag_name"])
+        self.assertEqual(fetch.call_count, 2)
+        self.assertTrue(all('/releases?' in c.args[0] for c in fetch.call_args_list))
+
+    def test_stable_filter_and_explicit_tag_are_respected(self):
+        def release(version, date, preview):
+            stem = f"wefto-{version}-linux-amd64"
+            return {"tag_name": "wefto-v" + version, "published_at": date, "prerelease": preview,
+                    "html_url": "release-url", "assets": [{"name": stem + s} for s in (".tar.gz", ".manifest.json")] + [{"name": "SHA256SUMS"}]}
+        stable = release("1.0.0", "2026-10-01T00:00:00Z", False)
+        preview = release("1.1.0-beta.1", "2026-10-26T00:00:00Z", True)
+        with patch.object(skill, "api", return_value=[stable, preview]):
+            self.assertEqual(skill.discover("linux", "amd64", None, True)["tag"], stable["tag_name"])
+        with patch.object(skill, "api", return_value=stable) as fetch:
+            self.assertEqual(skill.discover("linux", "amd64", stable["tag_name"])["tag"], stable["tag_name"])
+        self.assertEqual(fetch.call_args.args[0], "/releases/tags/" + stable["tag_name"])
+
     def test_rosetta_selects_native_arm64(self):
         with patch.object(skill.platform, "system", return_value="Darwin"), patch.object(skill.platform, "machine", return_value="x86_64"), patch.object(skill.platform, "mac_ver", return_value=("12.0", (), "")), patch.object(skill, "run", return_value="1"):
             self.assertEqual(skill.platform_id(), ("darwin", "arm64"))

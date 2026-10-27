@@ -93,7 +93,7 @@ func newPrivacySpecification(binding ModelBinding, experimental bool) (*PrivacyS
 	catalog := routermanifest.Fixed()
 	model, modelOK := catalog.Model(binding.ModelID)
 	runtime, runtimeOK := catalog.Runtime(binding.RuntimeID)
-	if !modelOK || !runtimeOK || (experimental && model.ID != "spark-x2.5-1.7B" && model.ID != "spark-x2.5-4B") {
+	if !modelOK || !runtimeOK || (experimental && model.ID != "spark-x2.6-4B" && model.ID != "spark-x2.6-4B-Q8_0") {
 		return nil, fail("redaction_unavailable")
 	}
 	if binding.ExecutionPlan != "" {

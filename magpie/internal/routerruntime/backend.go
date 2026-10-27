@@ -199,6 +199,13 @@ func (m *Manager) startBackend(ctx context.Context, model routermanifest.Model) 
 			reserve := max(uint64(1<<30), device.TotalBytes/100*15)
 			spec.GPU = &routerprocess.GPUOptions{Device: device.ID, Layers: -1, ReserveMiB: int(reserve >> 20)}
 		}
+		if m.o.BeforeStart != nil {
+			if err := m.o.BeforeStart(ctx, model.ID, rt.Backend); err != nil {
+				last = err
+				status.FallbackReason = "device_check_not_passed"
+				continue
+			}
+		}
 		attempts++
 		// Leave time in the shared deadline for a CPU fallback when a GPU hangs.
 		attemptCtx := ctx

@@ -10,7 +10,7 @@ and entity replacement algorithms are outside this subsystem.
 [`routermanifest.Fixed`](../../internal/routermanifest/manifest.go) is a detached,
 compiled catalog: llama.cpp **b10828**, CPU Windows x64/Linux x64/macOS arm64/x64,
 Windows x64 CUDA 12.4/Vulkan and macOS arm64 Metal metadata;
-Spark-X2.5 **1.7B / 4B Q4_K_M**, exact revisions, lengths,
+Spark-X2.6 **4B Q4_K_M / Q8_0**, exact revisions, lengths,
 SHA256, fixed template, license and disk reservation. Runtime/weight metadata
 was checked on 2026-10-17; accelerator release bytes were additionally hashed
 on 2026-10-24. Native inference remains a platform-specific acceptance step.
@@ -22,15 +22,45 @@ uses each fixed artifact's expansion limit; the CUDA engine needs 640 MiB and
 its CUDA dependency archive 576 MiB. Installation requirements include runtime
 download, extraction, composition and dependency peaks plus model reservation.
 
-The two published models are **public execution validation weights**, not the
+The published models are **public execution validation weights**, not the
 final judgment/redaction artifacts. Their metadata does not establish any of
 the three purpose-specific acceptance results. Mirror metadata and fixed hashes
 are recorded in catalog evidence (historical development record; not distributed).
 
+Spark-X2.6-4B-Q4_K_M and Q8_0 metadata was checked on 2026-10-27 against the official
+[GGUF repository](https://huggingface.co/XHToken/Spark-X2.6-4B-GGUF/tree/83b47fda018fd14f51aa63341f78266f628af5a5).
+Their 3,543,441,312-byte Q4_K_M and 4,375,021,824-byte Q8_0 weights and shared
+5,717-byte X2.6 chat template have
+fixed revisions and SHA256 pins in `Fixed`; downloads use the same mirror and
+resumable verification path. The official model retains the `spark2_5`
+architecture and requires b10828 or later, so the existing runtime is reused.
+Q4_K_M retains catalog ID `spark-x2.6-4B`, selector `local/spark-x2.6-4b`,
+artifact identity and fingerprint. Q8_0 uses catalog ID `spark-x2.6-4B-Q8_0`
+and selector `local/spark-x2.6-4b-q8_0`, with an independent weight artifact ID.
+Their display names include the corresponding quantization.
+Model labels use `Model.DisplayName`, independently of the shared `4B` hardware
+tier. The service consumes per-quantization advice described in the
+[device reference](wefto-device.md#product-quantization-advice), including
+safe manual overrides and separate resource/volume checks. Installation plans
+credit only verified model/template/runtime caches and deduplicate shared
+component artifacts. Each destination volume gets its own peak requirement
+plus `max(2 GiB, 10%)` margin; Q4 never inherits Q8's larger weight reservation.
+Complete installed models can be reused without requiring fresh-download space.
+Selection, loading, CPU/GPU choice, queueing and capability gates are shared;
+Native X2.6 inference
+and purpose-specific quality still require actual model acceptance.
+
 `config.json.runtime.enabled/selected/userDisabled` records user intent through
 the existing configuration coordinator; unknown fields are preserved. Missing
 fields mean disabled/no selection and not explicitly user-disabled. Invalid
-values or unknown persisted selection fail closed. Explicit `Disable` persists
+values or unknown persisted selection fail closed. The two retired X2.5 IDs are
+the explicit exception: `ConfigIntentStore.Load` clears their selection,
+enablement and trial authorization in memory so service startup succeeds.
+It preserves explicit user-disable intent, settings and the saved document;
+the next explicit save persists the cleared or newly chosen model through the
+existing coordinator. Old weights/caches and unrelated routing/provider/host
+settings are retained. Retired IDs have no catalog, select or install path.
+Explicit `Disable` persists
 `userDisabled: true` while explicit `Enable` clears it. `routerruntime.New`
 verifies selected files without starting a process or resuming downloads; when
 the full Router service starts (`AutoLoad: true`) and `userDisabled` is false,
@@ -48,7 +78,7 @@ releases its process while retaining the saved choice for the next startup.
 [`routerconfig.RuntimeSettings`](../../internal/routerconfig/runtime.go) owns the
 complete `runtime.settings` object. The product service applies
 `StandardRuntimeSettings()` through `ConfigIntentStore.StandardSettings` before
-auto-loading or serving requests: both catalog models
+auto-loading or serving requests: all catalog models
 use a 64K window and the same built-in time budgets. Users do not configure them.
 Absent or former manual values resolve to the standard policy in memory. Startup
 does not rewrite configuration or its backup, including when later host/port
@@ -243,8 +273,9 @@ GPU acceleration only with a healthy owned process. Effective runtime, device,
 actual layer counts and context bind capability fingerprints and privacy
 identity. A change resets capability evidence and retires redaction caches;
 free VRAM remains an observation and does not churn fingerprints.
-Reloading the same runtime and execution plan retains its current sample
-evidence. A capability check that triggers a cold load binds its sample to the
+Reloading the same runtime and execution plan retains capability sample
+evidence, while every newly adopted process starts with response performance
+unknown. A capability check that triggers a cold load binds its sample to the
 runtime selected by that load, before executing the validator.
 
 If no candidate passes installation verification, loading clears the installed
@@ -413,8 +444,8 @@ no-store and bounded input. Encoded aliases and arbitrary URLs/paths are rejecte
 | `/cancel` | POST: cancel and join installer; keep partials |
 | `/load` | POST: explicit load under separate budget; no capability conclusion |
 | `/health` | POST: process-only health; may be retried after health failure |
-| `/check` | POST: binds the shared server-owned judgment and execution suites to the current 1.7B/4B selection; no client-supplied evidence |
-| `/trial/enable` | POST: after current checks, persist explicit experimental judgment/execution authorization |
+| `/check` | POST: binds server-owned judgment/execution suites and synthetic experience samples to the current X2.6 selection; no client-supplied evidence |
+| `/trial/enable` | POST: after current checks and acceptable product performance, persist explicit experimental judgment/execution authorization |
 | `/trial/disable` | POST: persist explicit experimental routing/execution shutdown |
 | `/disable` | POST: persist disabled, drain and release; Router keeps listening |
 
@@ -445,13 +476,32 @@ Detect device action retries it. The recommendation appears above the model
 choices, which show the full names **Spark-X2.5-1.7B** and **Spark-X2.5-4B**.
 Unknown or failed checks are distinguished from a passed recommendation. Both
 tiers share the existing pinned download, resumable installation, dependency
-repair and runtime lifecycle. Enablement and installation retain the device
-check via `Recommendation.Allows(tier)`: a `MaxTier: 1.7B` recommendation cannot
-enable 4B, while a 16 GB machine with `Tier: 1.7B, MaxTier: 4B` recommends 1.7B
-by default and still permits explicit 4B selection and enablement when available
-memory, CPU threads and 4B disk space suffice. Capability requests use the selected model ID;
-their suites bind its current fingerprint, including after a selection change.
-Opening 4B support does not establish native 4B inference or quality acceptance.
+repair and runtime lifecycle. Enablement and installation enforce the chosen
+model's `advice.assessments[].manual` result. A declined automatic
+recommendation does not forbid a safe explicit manual choice. Product native
+starts also recheck the model's budget immediately before each backend attempt;
+CPU fallback is re-evaluated using CPU resource requirements after a GPU failure.
+The serving context is not reduced to make admission pass. Capability requests
+use the selected model ID and its current fingerprint.
+
+`/check` also runs two bounded warm synthetic SSE experience samples for the
+selected, already loaded model. Each has approximately 1024 input tokens and
+at most 96 output tokens; two samples with at least 32 reported output tokens
+are needed. The median generation rate below 5 tokens/s or visible first-token
+latency above 15 seconds produces `status.performance.state = slow`; insufficient
+samples remain `unknown`. Acceptable samples produce `acceptable`. Metrics and
+safe reported usage are recorded as diagnostic observations, never raw prompts
+or replies. These short samples are not full-window performance or quality
+acceptance. Measurement identity binds model/runtime/context, process PID and
+lifecycle epoch; stale/replaced-process samples cannot authorize a successor.
+Model/settings/backend identity changes invalidate the evidence.
+
+Product experimental trial readiness and new trial authorization require current
+acceptable performance as well as existing engineering checks. Slow or pending
+performance preserves user intent and the loaded process but prevents new
+automatic hybrid use. Trusted diagnostic managers retain their prior optional
+policy. The page exposes a response-experience recheck through the existing
+`/check` action. No measurement downloads a second model or calls a cloud provider.
 
 Core tests use controlled time, loopback download servers and the executable
 fake; no real weights/network are needed. `product-regression.cjs` includes all

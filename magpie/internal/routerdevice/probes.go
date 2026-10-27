@@ -20,6 +20,7 @@ type Probes struct {
 	AvailableMemory func(context.Context) (uint64, error)
 	Adapters        func(context.Context) ([]Adapter, error)
 	Disk            func(context.Context, string) (uint64, error)
+	DiskVolume      func(context.Context, string) (string, error)
 	Backends        func(context.Context) ([]Backend, error)
 }
 
@@ -35,6 +36,9 @@ func (p Probes) Probe(ctx context.Context, path string) (Snapshot, error) {
 	}
 	if p.Disk != nil {
 		s.DiskFreeBytes = observe(ctx, func(ctx context.Context) (uint64, error) { return p.Disk(ctx, path) })
+	}
+	if p.DiskVolume != nil {
+		s.DiskVolume = observe(ctx, func(ctx context.Context) (string, error) { return p.DiskVolume(ctx, path) })
 	}
 	if s.MemoryBytes.Value != nil && *s.MemoryBytes.Value == 0 {
 		s.MemoryBytes = Unknown[uint64]("invalid physical memory size")
