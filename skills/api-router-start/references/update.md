@@ -7,7 +7,7 @@
 用户明确请求更新已授权常规下载、停止本产品实例、私有备份和切换，无须重复确认。实例归属不明、数据冲突或涉及额外删除/数据丢失时才澄清。
 
 1. 用旧程序 `dirs` 与已认证服务状态确定程序、真实配置/数据目录、运行状态及原自启/试用选择，确认无活跃或排队请求。Mac 不使用不支持的跨进程 service 命令，先核对进程身份再 SIGTERM，或用原前台终端 Ctrl+C。
-2. 先准备目标版本，保留旧安装。Windows 用 `-DownloadOnly -Tag ...`；Unix 优先用 `--download-only --tag ...` 下载校验匹配平台的包，再用 `--prepare-only --tag ... --install-dir NEW_EMPTY_DIR` 安装。只有目标版本没有匹配平台包时才从源码构建。两版本不同时访问同一数据根。
+2. 先准备目标版本，保留旧安装。用户说“更新到最新版”时，Windows 用 `-DownloadOnly`、Unix 用 `--download-only` 实时解析最新兼容发布，不预先传历史标签。用户指定版本才添加 `-Tag ...`/`--tag ...`。记录本次实际解析的标签与已校验附件路径，后续安装固定该次结果（需要再次调用脚本时用这个刚解析的标签），避免备份期间新 Release 出现导致版本混用。Unix 可用 `--prepare-only --tag RESOLVED_TAG --install-dir NEW_EMPTY_DIR` 准备同次程序。只有目标版本没有匹配平台包时才从源码构建。两版本不同时访问同一数据根。
 3. 停止旧实例，记录并关闭 Windows 自启。在停止后完整复制 Config 和 Data 到私有备份位置，包括凭证、SQLite sidecar、state、宿主恢复记录；Config=Data 只复制一次，保持私有权限。大型 models/runtime 可明确单独保留；空间不足时报告，不静默漏备份。只报告路径，不输出凭证。
 4. Windows 按官方流程把旧程序目录移到备份路径，再在原路径用新包安装，receipt 绑定绝对路径。Unix 按目标标签的 README-unix.md 保留旧程序目录，使用已校验的新解压目录（或把准备好的整个程序目录放回原程序路径），保留 `start.sh`、macOS `start.command`、README 和 LICENSE。不覆盖运行中的 EXE，不让旧自启指向临时路径。
 5. 启动并核对版本、真实 URL、身份、原配置，按原选择恢复自启/试用。不重新接入宿主或下载模型。

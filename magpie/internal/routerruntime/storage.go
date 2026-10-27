@@ -45,6 +45,12 @@ func (s ConfigIntentStore) Load(ctx context.Context) (Intent, error) {
 	if err := i.Settings.Validate(); err != nil {
 		return i, err
 	}
+	// Retired catalog choices must not prevent service startup or silently
+	// authorize a different model. Persist the cleared choice on the next save.
+	switch i.Selected {
+	case "spark-x2.5-1.7B", "spark-x2.5-4B":
+		i.Selected, i.Enabled, i.Trial = "", false, TrialIntent{}
+	}
 	if s.StandardSettings {
 		i.Settings = routerconfig.StandardRuntimeSettings()
 	}
@@ -110,20 +116,30 @@ func (f *FileInstaller) paths(m routermanifest.Model, r routermanifest.Runtime) 
 	return
 }
 func (f *FileInstaller) Verify(ctx context.Context, m routermanifest.Model, r routermanifest.Runtime) (routerprocess.Spec, error) {
-	model, template, _, folder := f.paths(m, r)
-	var dependencies *routerprocess.DependencySpec
-	if r.Dependencies != nil {
-		var err error
-		folder, dependencies, err = f.verifyWindowsRuntime(ctx, r)
-		if err != nil {
-			return routerprocess.Spec{}, err
-		}
+	spec, err := f.VerifyRuntime(ctx, r)
+	if err != nil {
+		return routerprocess.Spec{}, err
 	}
+	model, template, _, _ := f.paths(m, r)
 	for _, v := range []struct {
 		a routermanifest.Artifact
 		p string
 	}{{m.Artifact, model}, {m.Template, template}} {
 		if err := routerdownload.Verify(ctx, v.a, v.p); err != nil {
+			return routerprocess.Spec{}, err
+		}
+	}
+	spec.ModelPath, spec.ContextSize = model, m.ContextTokens
+	spec.ExtraArgs = []string{"--chat-template-file", template, "--reasoning-budget", "0"}
+	return spec, nil
+}
+func (f *FileInstaller) VerifyRuntime(ctx context.Context, r routermanifest.Runtime) (routerprocess.Spec, error) {
+	_, _, _, folder := f.paths(routermanifest.Model{}, r)
+	var dependencies *routerprocess.DependencySpec
+	if r.Dependencies != nil {
+		var err error
+		folder, dependencies, err = f.verifyWindowsRuntime(ctx, r)
+		if err != nil {
 			return routerprocess.Spec{}, err
 		}
 	}
@@ -150,7 +166,7 @@ func (f *FileInstaller) Verify(ctx context.Context, m routermanifest.Model, r ro
 	if err != nil || executable == "" {
 		return routerprocess.Spec{}, errors.New("verified runtime executable missing")
 	}
-	return routerprocess.Spec{Executable: executable, ModelPath: model, ContextSize: m.ContextTokens, Parallel: 1, Backend: r.Backend, ExtraArgs: []string{"--chat-template-file", template, "--reasoning-budget", "0"}, RuntimeDependencies: dependencies}, nil
+	return routerprocess.Spec{Executable: executable, ContextSize: 8192, Parallel: 1, Backend: r.Backend, RuntimeDependencies: dependencies}, nil
 }
 func (f *FileInstaller) Install(ctx context.Context, m routermanifest.Model, r routermanifest.Runtime, progress func(Progress)) (routerprocess.Spec, error) {
 	if err := m.Artifact.Validate(); err != nil {

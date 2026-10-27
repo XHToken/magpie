@@ -84,7 +84,7 @@ func aggregateLocalModelCandidates(ctx context.Context, store *routerconfig.Stor
 	out := make([]localModelCandidate, 0, len(catalog.Models))
 	for _, m := range catalog.Models {
 		normID := strings.ToLower(strings.TrimSpace(m.ID))
-		displayName := "Spark-X2.5-" + m.Tier
+		displayName := m.DisplayName()
 		selected := strings.EqualFold(runtimeCfg.Selected, m.ID) || strings.EqualFold(runtimeCfg.Selected, normID)
 		enabled := selected && runtimeCfg.Enabled
 		installed := false

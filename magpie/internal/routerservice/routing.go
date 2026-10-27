@@ -822,7 +822,7 @@ func executeRoutedModelSub(w http.ResponseWriter, prepared *http.Request, protoc
 		routing = &copy
 	}
 	requestID, check := state.ID, false
-	if modelPurpose(options) != "generation" {
+	if !businessModelRequest(options) {
 		requestID, check = "", true
 	}
 	if routing == nil {
@@ -989,7 +989,7 @@ func executeRoutedModelSub(w http.ResponseWriter, prepared *http.Request, protoc
 
 func localWorkContext(ctx context.Context, options ModelOptions) (context.Context, context.CancelFunc) {
 	settings, ok := routerruntime.RuntimeSettingsFrom(ctx)
-	if !ok || modelPurpose(options) != "generation" || settings.CloudReserveSeconds <= 0 {
+	if !ok || !businessModelRequest(options) || settings.CloudReserveSeconds <= 0 {
 		return context.WithCancel(ctx)
 	}
 	deadline, ok := ctx.Deadline()
@@ -1047,7 +1047,7 @@ func executeCloudModel(w http.ResponseWriter, prepared *http.Request, protocol s
 func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protocol, sub string, body []byte, options ModelOptions, emit func(routercloud.Event), writer *modelWriter) (result routercloud.Result, err error) {
 	state, _ := routerrequest.FromContext(prepared.Context())
 	requestID, check := state.ID, false
-	if modelPurpose(options) != "generation" {
+	if !businessModelRequest(options) {
 		requestID, check = "", true
 	}
 	target := routercloud.Target{Provider: state.Target.Provider, Model: state.Target.Profile.Cloud.Model, Authorization: state.Target.Authorization, RedactionRequired: state.Target.Profile.RedactionEnabled, ResponseCapabilities: state.Target.Profile.Cloud.Capabilities}

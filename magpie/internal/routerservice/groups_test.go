@@ -393,8 +393,8 @@ func TestRoutingGroupSecurityAndFallbackRegressions(t *testing.T) {
 	privateProv := saveTestCloudProvider(t, store, "Private", upstream.URL+"/v1", "private-model")
 	if _, err := store.SaveGroups([]routerconfig.Group{
 		{ID: "private-group", Name: "Private Group", Routing: "order", Members: []string{privateProv.ID + "/private-model"}},
-		{ID: "hybrid", Name: "Hybrid", Routing: "smart_split", Members: []string{"local/spark-x2.5-1.7b", boundProv.ID + "/bound-model"}},
-		{ID: "local-count", Name: "Local Count", Routing: "smart_split", Members: []string{"local/spark-x2.5-1.7b"}},
+		{ID: "hybrid", Name: "Hybrid", Routing: "smart_split", Members: []string{"local/spark-x2.6-4b", boundProv.ID + "/bound-model"}},
+		{ID: "local-count", Name: "Local Count", Routing: "smart_split", Members: []string{"local/spark-x2.6-4b"}},
 		{ID: "suffix", Name: "Suffix", Routing: "order", Members: []string{boundProv.ID + "/audit-model:free"}},
 	}); err != nil {
 		t.Fatal(err)

@@ -4,7 +4,7 @@
 
 源码：[XHToken/magpie，main 分支](https://github.com/XHToken/magpie/tree/main)。发布来源仅限该仓库 `wefto-v*` Releases。产品现名 Wefto，命令为 `wefto`，源码入口为 `magpie/cmd/wefto`；保留本 skill 的 `$api-router-start` 调用名。不使用旧仓库或上游 Magpie 安装器。
 
-从 [wefto-v0.1.0-beta.4](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.4) 起有以下预编译包。默认动态选择最新兼容 Release，不固定停留在 beta.4；用户可指定标签。
+每次需要下载安装时，实时查询 [项目 Releases](https://github.com/XHToken/magpie/releases)，按 `published_at` 从新到旧筛选 `wefto-v*`、非草稿、当前系统/架构的发布。默认包含预览版，不使用仅面向正式版的 `/releases/latest` 代替筛选。默认不传 `-Tag` 或 `--tag`，不固定任何历史版本。以下为已支持的包类型，具体版本号及文件 URL 始终取自本次查询结果：
 
 | 系统 | 架构 | 包后缀 |
 | --- | --- | --- |
@@ -55,7 +55,9 @@ python3 '<SKILL_DIR>/scripts/prepare-unix.py' --no-browser
 
 参数：`--plan` 仅查询、`--download-only` 仅下载校验、`--prepare-only` 仅安装/构建、`--check-only` 仅检查、`--stable-only` 排除预览版、`--tag wefto-vVERSION`、`--install-dir ABSOLUTE_DIR`、`--no-browser`。默认启动并验证后台进程，返回包标签（源码构建时返回提交）、版本、程序位置及实际管理 URL。手动运行 `./start.sh` 为前台模式，保持终端打开，Ctrl+C 停止。
 
-例如固定首次多平台版本：`python3 '<SKILL_DIR>/scripts/prepare-unix.py' --tag wefto-v0.1.0-beta.4 --no-browser`。已有其他版本时按更新文档处理，不直接覆盖。
+默认获取最新兼容包：`python3 '<SKILL_DIR>/scripts/prepare-unix.py' --download-only`；Windows：`powershell.exe -NoProfile -ExecutionPolicy Bypass -File '<SKILL_DIR>\scripts\start-api-router.ps1' -DownloadOnly`。用户明确指定版本时才添加标签参数。已有其他版本需更新时按更新文档处理，不直接覆盖。
+
+“最新兼容”以发布时间为准，不按模型名、标签字典序或列表第一项猜测。跨页汇总后统一筛选；排除草稿及其他产品，可按用户 `StableOnly` 选择排除预览版。缺少该平台附件可查下一兼容发布；已存在包但配套校验不完整、查询/下载失败时明确报错或解释，不能偷偷使用上次缓存冒充最新。选定后冻结本次标签，完整校验同版本文件；未来再次下载时重新查询。包结构/接口改变时按新版本文档适配，不执行不认识的安装协议。
 
 Go 工具链或依赖下载失败时报告具体地址和错误。可为本次命令使用用户已有代理/可信镜像（例如通过进程环境传入 GOPROXY），不永久更改全局 Go 配置，不关闭 GOSUMDB 或 HTTPS 校验，不以降低 go.mod 版本规避失败。
 

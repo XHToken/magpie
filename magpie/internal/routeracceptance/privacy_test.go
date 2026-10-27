@@ -8,7 +8,7 @@ import (
 func TestPrivacyDiagnosticCLIIsFixedAndExclusive(t *testing.T) {
 	for _, args := range [][]string{
 		{"-privacy-diagnostic", "arbitrary"},
-		{"-privacy-diagnostic", "full", "-model", "spark-x2.5-4B"},
+		{"-privacy-diagnostic", "full", "-model", "spark-x2.6-4B-Q8_0"},
 		{"-privacy-diagnostic", "full", "-business-preacceptance"},
 		{"-privacy-diagnostic", "representative", "-prepare-only"},
 	} {

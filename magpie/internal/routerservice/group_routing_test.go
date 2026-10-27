@@ -1121,7 +1121,7 @@ func TestGroupLocalRedactionInvalidCompletionMustBlock(t *testing.T) {
 func TestGroupOrchestratorRedactorEnforcesManagerBindingAndFormalAcceptance(t *testing.T) {
 	layout, _ := fixture(t)
 	baseStore := routerconfig.New(layout)
-	const modelID = "spark-x2.5-1.7B"
+	const modelID = "spark-x2.6-4B"
 	localSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"entities\":[{\"label\":\"NAME\",\"value\":\"宁祁\"}]}"}}]}`))
@@ -1206,7 +1206,7 @@ func TestGroupOrchestratorRedactorEnforcesManagerBindingAndFormalAcceptance(t *t
 		Name:           "Exp Mismatch Group",
 		Routing:        "order",
 		LocalRedaction: true,
-		Members:        []string{"local/spark-x2.5-4B", pExp.ID + "/gpt-4.1"},
+		Members:        []string{"local/spark-x2.6-4B-Q8_0", pExp.ID + "/gpt-4.1"},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -1641,7 +1641,7 @@ func TestGroupOrchestratorRedactorLifecycleAndLeakPrevention(t *testing.T) {
 			go func(idx int) {
 				defer wg.Done()
 				<-start
-				r := getGroupOrchestratorRedactor(opts, "spark-x2.5-1.7B")
+				r := getGroupOrchestratorRedactor(opts, "spark-x2.6-4B")
 				p, _, _ := r.current(context.Background())
 				redactors[idx] = r
 				pipelines[idx] = p
@@ -1684,7 +1684,7 @@ func TestGroupOrchestratorRedactorLifecycleAndLeakPrevention(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer mgr.Close(context.Background())
-		if err := mgr.Select(context.Background(), "spark-x2.5-1.7B"); err != nil {
+		if err := mgr.Select(context.Background(), "spark-x2.6-4B"); err != nil {
 			t.Fatal(err)
 		}
 		if err := mgr.Enable(context.Background()); err != nil {
@@ -1704,11 +1704,11 @@ func TestGroupOrchestratorRedactorLifecycleAndLeakPrevention(t *testing.T) {
 			t.Fatal("expected initial pipeline p1")
 		}
 
-		// 1. Idle model switch: p1 has no in-flight requests, so switching to spark-x2.5-4B closes p1 immediately.
+		// 1. Idle model switch: p1 has no in-flight requests, so switching to spark-x2.6-4B-Q8_0 closes p1 immediately.
 		if err := mgr.Disable(context.Background()); err != nil {
 			t.Fatal(err)
 		}
-		if err := mgr.Select(context.Background(), "spark-x2.5-4B"); err != nil {
+		if err := mgr.Select(context.Background(), "spark-x2.6-4B-Q8_0"); err != nil {
 			t.Fatal(err)
 		}
 		if err := mgr.Enable(context.Background()); err != nil {
@@ -1742,7 +1742,7 @@ func TestGroupOrchestratorRedactorLifecycleAndLeakPrevention(t *testing.T) {
 		if err := mgr.Disable(context.Background()); err != nil {
 			t.Fatal(err)
 		}
-		if err := mgr.Select(context.Background(), "spark-x2.5-1.7B"); err != nil {
+		if err := mgr.Select(context.Background(), "spark-x2.6-4B"); err != nil {
 			t.Fatal(err)
 		}
 		if err := mgr.Enable(context.Background()); err != nil {

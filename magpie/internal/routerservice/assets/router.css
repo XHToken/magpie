@@ -102,7 +102,7 @@
 .local-device-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .local-device-heading h3 { margin: 0; font-size: 13px; color: var(--muted); font-weight: 500; }
 .local-device-message { margin: 12px 0 0; font-size: 15px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
-.local-device-guide .router-note { margin: 8px 0 0; }
+.local-device-guide .router-note { margin: 8px 0 0; overflow-wrap: anywhere; }
 #localModelChoices { max-width: 100%; justify-content: flex-start; }
 .request-choices.local-model-actions { gap: 8px; margin-top: 16px; }
 .local-model-action { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; max-width: 100%; padding: 8px 15px; border: 1px solid var(--pill-line, var(--line)); border-radius: 999px; background: var(--card); color: var(--fg-2); box-shadow: var(--pill-shadow, 0 1px 1px rgba(0, 0, 0, .04)); font-weight: 500; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }

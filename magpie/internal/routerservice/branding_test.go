@@ -3,6 +3,7 @@ package routerservice
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -32,5 +33,30 @@ func TestLegacyManagementHeaderKeepsSameOriginBoundary(t *testing.T) {
 				t.Fatalf("%s header returned %d, want %d", variant, w.Code, want)
 			}
 		})
+	}
+}
+
+func TestConsoleServesWeftoNameAndWIcon(t *testing.T) {
+	const address = "127.0.0.1:13145"
+	h := handler(Info{Service: "wefto", Address: address}, "branding-test-token")
+	for _, check := range []struct {
+		path string
+		want []string
+	}{
+		{"/", []string{"<title>Wefto", `aria-hidden="true">W</span>`, "/icons/favicon.svg?v=wefto-w-"}},
+		{"/icons/favicon.svg", []string{">W</text>"}},
+	} {
+		r := httptest.NewRequest("GET", "http://"+address+check.path, nil)
+		r.RemoteAddr = "127.0.0.1:2345"
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != 200 {
+			t.Fatalf("%s: HTTP %d", check.path, w.Code)
+		}
+		for _, want := range check.want {
+			if !strings.Contains(w.Body.String(), want) {
+				t.Errorf("%s: Wefto branding missing %q", check.path, want)
+			}
+		}
 	}
 }

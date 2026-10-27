@@ -32,6 +32,8 @@ func SetDefault(m *Manager) {
 type waiter struct{ occupied bool }
 
 type Manager struct {
+	performance      Performance
+	performanceEpoch uint64 // increments for each adopted process, including PID reuse
 	memoryBeforeLoad routerdevice.Fact[uint64]
 	memoryAfterLoad  routerdevice.Fact[uint64]
 	mu               sync.Mutex
@@ -200,6 +202,7 @@ func (m *Manager) selectedInstalledLocked() bool {
 	return false
 }
 func (m *Manager) resetCapabilitiesLocked() {
+	m.performance = Performance{State: "unknown"}
 	fp := m.fingerprintLocked()
 	m.capabilities = make(map[Purpose]Capability)
 	for _, p := range []Purpose{Judgment, Execution, Redaction} {
@@ -220,13 +223,15 @@ func (m *Manager) Status() Status {
 		s.Active = 1
 	}
 	s.Backend = m.backend
+	s.Performance = m.performance
+	s.Performance.Samples = append([]PerformanceSample(nil), m.performance.Samples...)
 	if m.proc != nil {
 		s.PID = m.proc.PID()
 	}
 	for p, c := range m.capabilities {
 		c.Ready = m.intent.Enabled && !m.stopping && !m.closed && selectedInstalled && m.state != Fault && c.State == "available" && c.Fingerprint == fp
 		c.TrialEnabled = trialEnabled(m.intent.Trial, p)
-		c.TrialReady = c.TrialEnabled && c.TrialEvidence && m.intent.Enabled && !m.stopping && !m.closed && selectedInstalled && m.state != Fault && c.Fingerprint == fp
+		c.TrialReady = c.TrialEnabled && c.TrialEvidence && m.intent.Enabled && !m.stopping && !m.closed && selectedInstalled && m.state != Fault && c.Fingerprint == fp && m.performanceReadyLocked()
 		s.Capabilities[p] = c
 	}
 	return s
@@ -303,6 +308,10 @@ func (m *Manager) EnableTrial(ctx context.Context, purposes ...Purpose) error {
 	}
 	fp := m.fingerprintLocked()
 	next := m.intent.Trial
+	if !m.performanceReadyLocked() {
+		m.mu.Unlock()
+		return ErrCapability
+	}
 	for _, p := range purposes {
 		if p != Judgment && p != Execution {
 			m.mu.Unlock()
@@ -691,6 +700,9 @@ func (m *Manager) load(ctx context.Context, cancel context.CancelFunc, done chan
 			spec.ContextSize = model.ContextTokens
 		}
 		verificationFailed = err != nil && ctx.Err() == nil
+		if err == nil && m.o.BeforeStart != nil {
+			err = m.o.BeforeStart(ctx, model.ID, rt.Backend)
+		}
 		if err == nil {
 			for attempt := 0; attempt < 2; attempt++ {
 				p, err = m.o.Factory.Start(ctx, spec)
@@ -754,6 +766,8 @@ func (m *Manager) load(ctx context.Context, cancel context.CancelFunc, done chan
 			}
 		}
 		m.proc, m.healthy, m.state = p, true, Ready
+		m.performanceEpoch++
+		m.performance = Performance{State: "unknown"}
 		m.lastUsed = m.o.Now()
 		m.workers.Add(1)
 		go m.watch(p)
@@ -803,6 +817,7 @@ func (m *Manager) watch(p routerprocess.Process) {
 	defer m.mu.Unlock()
 	if m.proc == p {
 		m.proc, m.healthy = nil, false
+		m.performance = Performance{State: "unknown"}
 		if m.stopRequested != p {
 			m.state = Fault
 			if m.o.AutoBackend && m.backend.Effective != "cpu" {
@@ -1157,7 +1172,7 @@ func (m *Manager) Require(p Purpose) error {
 	if c.State == "available" {
 		return nil
 	}
-	if (p == Judgment || p == Execution) && c.Trial && c.TrialEvidence && trialEnabled(m.intent.Trial, p) {
+	if (p == Judgment || p == Execution) && c.Trial && c.TrialEvidence && trialEnabled(m.intent.Trial, p) && m.performanceReadyLocked() {
 		return nil
 	}
 	if c.State != "available" {

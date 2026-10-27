@@ -73,7 +73,11 @@ func parseDevices(raw string) ([]Device, error) {
 // ProbeDevices starts only a verified local executable, never downloads or
 // loads a model, and joins its owned process on success, failure or cancellation.
 func (NativeFactory) ProbeDevices(ctx context.Context, spec Spec) ([]Device, error) {
-	if err := validate(spec); err != nil {
+	// Device enumeration never opens or passes a model file. Validate the engine
+	// and launch contract independently of whether weights are installed.
+	probeSpec := spec
+	probeSpec.ModelPath = spec.Executable
+	if err := validate(probeSpec); err != nil {
 		return nil, err
 	}
 	dir, env, err := dependencyLaunch(ctx, spec)

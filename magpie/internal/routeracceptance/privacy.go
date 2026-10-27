@@ -59,8 +59,8 @@ func validatePrivacyDiagnostic(o options) error {
 	if o.PrivacyDiagnostic == "" {
 		return nil
 	}
-	if (o.PrivacyDiagnostic != "representative" && o.PrivacyDiagnostic != "full") || o.Model != "spark-x2.5-1.7B" || o.PrepareOnly || o.InstallOnly || o.BusinessPreacceptance {
-		return errors.New("privacy diagnostics require the fixed 1.7B representative/full suite exclusively")
+	if (o.PrivacyDiagnostic != "representative" && o.PrivacyDiagnostic != "full") || o.Model != "spark-x2.6-4B" || o.PrepareOnly || o.InstallOnly || o.BusinessPreacceptance {
+		return errors.New("privacy diagnostics require the fixed X2.6 Q4_K_M representative/full suite exclusively")
 	}
 	return nil
 }

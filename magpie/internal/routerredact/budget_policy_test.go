@@ -58,7 +58,7 @@ func TestOrdinaryPrivacyBatchesShareThirtySecondBudget(t *testing.T) {
 func TestPrivacyPolicyRetiresPriorAcceptanceIdentity(t *testing.T) {
 	const oldConfig = "2b3b8a2b1ae307d29f71d2909ff933f642c2559d1e6066376ee4e96f99ad36cb"
 	for _, trial := range []bool{false, true} {
-		binding := ModelBinding{ModelID: "spark-x2.5-1.7B", RuntimeID: "windows-amd64-cpu"}
+		binding := ModelBinding{ModelID: "spark-x2.6-4B", RuntimeID: "windows-amd64-cpu"}
 		spec, err := newPrivacySpecification(binding, trial)
 		if err != nil {
 			t.Fatal(err)

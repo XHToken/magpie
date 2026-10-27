@@ -13,7 +13,7 @@ import (
 
 func privacyParseSpec(t *testing.T) *PrivacySpecification {
 	t.Helper()
-	specification, err := NewPrivacySpecification(ModelBinding{ModelID: "spark-x2.5-1.7B", RuntimeID: "windows-amd64-cpu"})
+	specification, err := NewPrivacySpecification(ModelBinding{ModelID: "spark-x2.6-4B", RuntimeID: "windows-amd64-cpu"})
 	if err != nil {
 		t.Fatal(err)
 	}

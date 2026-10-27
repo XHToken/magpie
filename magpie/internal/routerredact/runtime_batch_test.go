@@ -49,7 +49,7 @@ func (r *fingerprintRuntime) Status() routerruntime.Status {
 }
 
 func TestPrivacyRuntimeBindingRejectsSelectionMismatch(t *testing.T) {
-	spec, err := NewPrivacySpecification(ModelBinding{ModelID: "spark-x2.5-1.7B", RuntimeID: "windows-amd64-cpu"})
+	spec, err := NewPrivacySpecification(ModelBinding{ModelID: "spark-x2.6-4B", RuntimeID: "windows-amd64-cpu"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,12 +122,12 @@ func TestPrivacyBindingFingerprintsAndWholeFieldLimits(t *testing.T) {
 		}
 		return s
 	}
-	s := newSpec("spark-x2.5-1.7B", "windows-amd64-cpu")
-	again := newSpec("spark-x2.5-1.7B", "windows-amd64-cpu")
+	s := newSpec("spark-x2.6-4B", "windows-amd64-cpu")
+	again := newSpec("spark-x2.6-4B", "windows-amd64-cpu")
 	if s.Versions() != again.Versions() || s.Fingerprints() != again.Fingerprints() {
 		t.Fatal("binding unstable")
 	}
-	for _, changed := range []*PrivacySpecification{newSpec("spark-x2.5-4B", "windows-amd64-cpu"), newSpec("spark-x2.5-1.7B", "linux-amd64-cpu")} {
+	for _, changed := range []*PrivacySpecification{newSpec("spark-x2.6-4B-Q8_0", "windows-amd64-cpu"), newSpec("spark-x2.6-4B", "linux-amd64-cpu")} {
 		if changed.Versions().Model == s.Versions().Model || changed.Versions().Prompt != s.Versions().Prompt || changed.Versions().Config != s.Versions().Config {
 			t.Fatal("model binding polluted prompt/config or failed to isolate model")
 		}

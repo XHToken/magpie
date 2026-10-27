@@ -18,7 +18,7 @@ func TestConfigSettingsRoundTripPreservesSiblingRuntimeAndAppFields(t *testing.T
 		t.Fatal(err)
 	}
 	if err := store.Update(func(d routerconfig.Document) error {
-		d["runtime"] = json.RawMessage(`{"enabled":false,"selected":"spark-x2.5-1.7B","future":{"retained":true}}`)
+		d["runtime"] = json.RawMessage(`{"enabled":false,"selected":"spark-x2.6-4B","future":{"retained":true}}`)
 		d["redaction"] = json.RawMessage(`{"enabled":true,"future":{"keep":1}}`)
 		return nil
 	}); err != nil {

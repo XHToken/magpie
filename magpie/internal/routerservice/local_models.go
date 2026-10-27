@@ -23,6 +23,7 @@ import (
 // LocalModels is one Router-owned manager, shared across all applications.
 // It is independent of host adapters, provider credentials and redaction intent.
 type LocalModels struct {
+	SampleDelay   time.Duration
 	Manager       *routerruntime.Manager
 	Detector      *routerdevice.Detector
 	Layout        dirs.Layout
@@ -40,32 +41,22 @@ func newLocalModels(ctx context.Context, l dirs.Layout, store *routerconfig.Stor
 
 func newLocalModelsWithTrial(ctx context.Context, l dirs.Layout, store *routerconfig.Store, experimental bool, observed ...func(routerprocess.Process, routerprocess.Spec)) (*LocalModels, error) {
 	catalog := routermanifest.Fixed()
+	var local *LocalModels
 	var onStart func(routerprocess.Process, routerprocess.Spec)
 	if len(observed) > 0 {
 		onStart = observed[0]
 	}
-	manager, err := routerruntime.New(ctx, routerruntime.Options{AutoBackend: true, Catalog: catalog, RuntimeID: routerruntime.PlatformRuntime(catalog, runtime.GOOS, runtime.GOARCH), Store: routerruntime.ConfigIntentStore{Store: store, StandardSettings: true}, Installer: &routerruntime.FileInstaller{Layout: l, Downloader: &routerdownload.Downloader{}}, Factory: routerprocess.NativeFactory{OnStart: onStart}, ExperimentalRedaction: experimental})
+	manager, err := routerruntime.New(ctx, routerruntime.Options{BeforeStart: func(ctx context.Context, id, backend string) error {
+		return local.admitModel(ctx, id, "load", backend == "cpu")
+	}, PerformanceRequired: true, AutoBackend: true, Catalog: catalog, RuntimeID: routerruntime.PlatformRuntime(catalog, runtime.GOOS, runtime.GOARCH), Store: routerruntime.ConfigIntentStore{Store: store, StandardSettings: true}, Installer: &routerruntime.FileInstaller{Layout: l, Downloader: &routerdownload.Downloader{}}, Factory: routerprocess.NativeFactory{OnStart: onStart}, ExperimentalRedaction: experimental})
 	if err != nil {
 		return nil, err
 	}
-	return &LocalModels{Manager: manager, Detector: routerdevice.Native(), Layout: l, Catalog: catalog, AutoLoad: true, dynamicChecks: true, checkFactory: localCapabilityChecks}, nil
+	local = &LocalModels{SampleDelay: time.Second, Manager: manager, Detector: routerdevice.Native(), Layout: l, Catalog: catalog, AutoLoad: true, dynamicChecks: true, checkFactory: localCapabilityChecks}
+	return local, nil
 }
 func (l *LocalModels) detect(ctx context.Context, path string) routerdevice.Report {
-	var requirements routerdevice.Requirements
-	var runtimeBytes uint64
-	if baseline, ok := l.Catalog.Runtime(routerruntime.PlatformRuntime(l.Catalog, runtime.GOOS, runtime.GOARCH)); ok {
-		runtimeBytes = uint64(routermanifest.RuntimeInstallationBytes(baseline))
-	}
-	for _, m := range l.Catalog.Models {
-		if m.Tier == "1.7B" {
-			requirements.Tier1_7BBytes = uint64(m.InstallationBytes) + runtimeBytes
-		}
-		if m.Tier == "4B" {
-			requirements.Tier4BBytes = uint64(m.InstallationBytes) + runtimeBytes
-		}
-	}
-	report := l.Detector.Detect(ctx, path, requirements)
-	return routerdevice.EvaluateWithCPUFallback(report.Device, requirements)
+	return l.modelAdvice(ctx, "detect", false)
 }
 
 func (l *LocalModels) runCapabilityChecks(ctx context.Context) (int, error) {
@@ -107,6 +98,9 @@ func (l *LocalModels) runCapabilityChecks(ctx context.Context) (int, error) {
 		checkErr := l.Manager.CheckCapability(checkCtx, check)
 		err = errors.Join(err, checkErr)
 	}
+	if err == nil && l.dynamicChecks {
+		err = l.checkPerformance(ctx)
+	}
 	return len(checks), err
 }
 
@@ -131,29 +125,30 @@ func (l *LocalModels) autoLoadInstalled(ctx context.Context) {
 		return
 	}
 	report := l.detect(ctx, l.Layout.Models)
-	if report.Detection.State != routerdevice.CheckPassed || ctx.Err() != nil {
+	if report.Advice == nil || ctx.Err() != nil {
 		return
 	}
 	var target routermanifest.Model
-	for _, m := range installed {
-		if strings.EqualFold(m.ID, status.Intent.Selected) && report.Recommendation.Allows(routerdevice.Tier(m.Tier)) {
-			target = m
+	for _, model := range installed {
+		assessment, ok := report.Advice.Model(model.ID)
+		if ok && strings.EqualFold(model.ID, status.Intent.Selected) && status.Intent.Enabled && assessment.Manual == routerdevice.CheckPassed {
+			target = model
 			break
 		}
 	}
-	if target.ID == "" {
-		for _, m := range installed {
-			if routerdevice.Tier(m.Tier) == report.Recommendation.Tier && report.Recommendation.Allows(routerdevice.Tier(m.Tier)) {
-				target = m
+	if target.ID == "" && report.Advice.State == "recommended" {
+		for _, model := range installed {
+			if model.ID == report.Advice.ModelID {
+				target = model
 				break
 			}
 		}
-	}
-	if target.ID == "" {
-		for _, m := range installed {
-			if report.Recommendation.Allows(routerdevice.Tier(m.Tier)) {
-				target = m
-				break
+		if target.ID == "" {
+			for _, model := range installed {
+				if assessment, ok := report.Advice.Model(model.ID); ok && assessment.Automatic == routerdevice.CheckPassed {
+					target = model
+					break
+				}
 			}
 		}
 	}
@@ -247,6 +242,17 @@ func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
 	ctx := r.Context()
 	var err error
 	status := l.Manager.Status()
+	admit := func(id, operation string) bool {
+		report := l.modelAdvice(ctx, operation, false)
+		if report.Advice != nil {
+			if candidate, ok := report.Advice.Model(id); ok && candidate.Manual == routerdevice.CheckPassed {
+				return true
+			}
+		}
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": "device_check_not_passed"}, "device": report})
+		return false
+	}
 	switch r.URL.Path {
 	case "/api/local-model/detect":
 		_ = json.NewEncoder(w).Encode(map[string]any{"schemaVersion": 1, "device": l.detect(ctx, l.Layout.Models)})
@@ -259,9 +265,7 @@ func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
 			fail("model_selection_required", 409)
 			return
 		}
-		report := l.detect(ctx, l.Layout.Models)
-		if report.Detection.State != routerdevice.CheckPassed || !report.Recommendation.Allows(routerdevice.Tier(model.Tier)) {
-			fail("device_check_not_passed", 409)
+		if !admit(model.ID, "detect") {
 			return
 		}
 		err = l.Manager.EnableSelected(ctx, status.Intent.Selected)
@@ -276,14 +280,10 @@ func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
 				return
 			}
 		}
-		model, _ := l.Catalog.Model(targetModelID)
-		for _, path := range []string{l.Layout.Models, l.Layout.Runtime} {
-			report := l.detect(ctx, path)
-			if report.Detection.State != routerdevice.CheckPassed || (model.Tier != "" && !report.Recommendation.Allows(routerdevice.Tier(model.Tier))) {
-				fail("device_check_not_passed", 409)
-				return
-			}
+		if !admit(targetModelID, "install") {
+			return
 		}
+
 		if input.Model != "" {
 			err = l.Manager.InstallModel(input.Model)
 		} else {

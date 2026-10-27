@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/url"
 	"path/filepath"
+	"strings"
 )
 
 // Artifact is immutable source metadata. Missing size/hash/URL means blocked.
@@ -38,6 +39,7 @@ func (a Artifact) Validate() error {
 
 type Model struct {
 	ID                  string   `json:"id"`
+	Name                string   `json:"name,omitempty"`
 	Tier                string   `json:"tier"`
 	Revision            string   `json:"revision"`
 	Quantization        string   `json:"quantization"`
@@ -50,6 +52,18 @@ type Model struct {
 	TemplateRevision    string   `json:"templateRevision"`
 	InstallationBytes   int64    `json:"installationBytes"` // Conservative peak reservation.
 }
+
+// DisplayName keeps the published model version separate from its hardware tier.
+func (m Model) DisplayName() string {
+	if m.Name != "" {
+		return m.Name
+	}
+	if suffix := "-" + m.Quantization + ".gguf"; strings.HasSuffix(m.Artifact.FileName, suffix) {
+		return strings.TrimSuffix(m.Artifact.FileName, suffix)
+	}
+	return m.ID
+}
+
 type Runtime struct {
 	ID                      string        `json:"id"`
 	Version                 string        `json:"version"`
@@ -104,30 +118,39 @@ func (c Catalog) Runtime(id string) (Runtime, bool) {
 // Fixed returns a detached catalog. Mirrors are trusted only after exact hash
 // verification against the recorded official repository metadata.
 func Fixed() Catalog {
-	const smallRev = "1f7fa33b1245c14730da39e125714ad3a327901b"
-	const largeRev = "9826e0be84e6e6e8b9668abc91421109a1df1e2d"
-	c := Catalog{SchemaVersion: 1, VerifiedAt: "2026-10-17", Sources: []string{
+	const spark26Rev = "83b47fda018fd14f51aa63341f78266f628af5a5"
+	const spark26Base = "66e3ae7bee54e0a523d692cb8ef841f35409807b"
+	c := Catalog{SchemaVersion: 1, VerifiedAt: "2026-10-27", Sources: []string{
 		"https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/b10828",
-		"https://hf-mirror.com/api/models/XHToken/Spark-X2.5-1.7B-GGUF?blobs=true",
-		"https://hf-mirror.com/api/models/XHToken/Spark-X2.5-4B-GGUF?blobs=true",
+		"https://huggingface.co/api/models/XHToken/Spark-X2.6-4B-GGUF/revision/" + spark26Rev + "?blobs=true",
+		"https://huggingface.co/api/models/XHToken/Spark-X2.6-4B/revision/" + spark26Base + "?blobs=true",
 	}}
-	for _, v := range []struct {
-		tier, rev, base, hash string
-		size                  int64
-	}{
-		{"1.7B", smallRev, "14d6e83c13c7add2b62a7c39b2131f4ed1cddcf8", "902bde2522394954ac17821b3e5fd0df02defbc6944f122253f2580acf0503f4", 1107457856},
-		{"4B", largeRev, "0bcb35678590218655dff3765b9e61c83b35e9c4", "adfcfa19a4ed6a5985da8bf565fe15f8e1a7e131d79bae2d19d48d1c40109428", 2600224352},
-	} {
-		name := "Spark-X2.5-" + v.tier
-		file := name + "-Q4_K_M.gguf"
-		c.Models = append(c.Models, Model{ID: "spark-x2.5-" + v.tier, Tier: v.tier, Revision: v.rev, Quantization: "Q4_K_M", License: "Apache-2.0", Purpose: "public_execution_validation_only", ContextTokens: 8192, NativeContextTokens: 1048576,
-			Artifact: Artifact{ID: name + "-" + v.rev, URL: "https://hf-mirror.com/XHToken/" + name + "-GGUF/resolve/" + v.rev + "/" + file, FileName: file, SHA256: v.hash, Size: v.size, Format: "file"},
-			Template: Artifact{ID: name + "-template-" + v.base, URL: "https://hf-mirror.com/XHToken/" + name + "/resolve/" + v.base + "/chat_template.jinja", FileName: "chat_template.jinja", SHA256: "3e7e0b73ae9b306e60cca614366ef03c2c879a2245f2e0389f2d4a0979c568e3", Size: 4648, Format: "file"}, TemplateRevision: v.base,
-			// Two model copies permit interrupted replacement; 512MiB reserves
-			// archive/extraction and 64MiB filesystem/metadata margin.
-			InstallationBytes: 2*v.size + (576 << 20),
-		})
-	}
+	// X2.6 retains the spark2_5 architecture supported by b10828, but uses its
+	// own published template. Metadata checked against the official repo 2026-10-27.
+	c.Models = append(c.Models, Model{
+		ID: "spark-x2.6-4B", Name: "Spark-X2.6-4B-Q4_K_M", Tier: "4B", Revision: spark26Rev,
+		Quantization: "Q4_K_M", License: "Apache-2.0", Purpose: "public_execution_validation_only",
+		ContextTokens: 8192, NativeContextTokens: 1048576,
+		Artifact: Artifact{ID: "Spark-X2.6-4B-" + spark26Rev,
+			URL:      "https://hf-mirror.com/XHToken/Spark-X2.6-4B-GGUF/resolve/" + spark26Rev + "/Spark-X2.6-4B-Q4_K_M.gguf",
+			FileName: "Spark-X2.6-4B-Q4_K_M.gguf", SHA256: "91cb2811aebb47ac916aa619d27d4cdd7f4143106b7917accb8ead4cd7f5cbd9",
+			Size: 3543441312, Format: "file"},
+		Template: Artifact{ID: "Spark-X2.6-4B-template-" + spark26Base,
+			URL:      "https://hf-mirror.com/XHToken/Spark-X2.6-4B/resolve/" + spark26Base + "/chat_template.jinja",
+			FileName: "chat_template.jinja", SHA256: "480576bd2ef80726a0dba6406d72ca37f4f4f9ca747c7f1c8d159dbdf40f6929",
+			Size: 5717, Format: "file"}, TemplateRevision: spark26Base,
+		InstallationBytes: 2*3543441312 + (576 << 20),
+	})
+	q8 := c.Models[0]
+	q8.ID = "spark-x2.6-4B-Q8_0"
+	q8.Name = "Spark-X2.6-4B-Q8_0"
+	q8.Quantization = "Q8_0"
+	q8.Artifact = Artifact{ID: "Spark-X2.6-4B-Q8_0-" + spark26Rev,
+		URL:      "https://hf-mirror.com/XHToken/Spark-X2.6-4B-GGUF/resolve/" + spark26Rev + "/Spark-X2.6-4B-Q8_0.gguf",
+		FileName: "Spark-X2.6-4B-Q8_0.gguf", SHA256: "145c2aa606820663f26ad530b8fc141ed885e2e9ca29f9be7c3bfe8931d58b81",
+		Size: 4375021824, Format: "file"}
+	q8.InstallationBytes = 2*q8.Artifact.Size + (576 << 20)
+	c.Models = append(c.Models, q8)
 	for _, v := range []struct {
 		id, platform, arch, backend, asset, hash, exe string
 		size                                          int64

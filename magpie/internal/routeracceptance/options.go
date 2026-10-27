@@ -15,7 +15,7 @@ func ParseOptions(args []string, out io.Writer) (Options, error) {
 	o := Options{}
 	f := flag.NewFlagSet("diagnose-local", flag.ContinueOnError)
 	f.SetOutput(out)
-	f.StringVar(&o.Model, "model", "spark-x2.5-1.7B", "fixed catalog model ID")
+	f.StringVar(&o.Model, "model", "spark-x2.6-4B", "fixed catalog model ID")
 	f.StringVar(&o.ModelFile, "model-file", "", "complete pinned model cache file")
 	f.StringVar(&o.TemplateFile, "template-file", "", "complete pinned template cache file")
 	f.StringVar(&o.RuntimeArchive, "runtime-archive", "", "complete pinned runtime archive cache file")
@@ -27,7 +27,7 @@ func ParseOptions(args []string, out io.Writer) (Options, error) {
 	f.BoolVar(&o.PrepareOnly, "prepare-only", false, "startup and shutdown without installing or loading")
 	f.BoolVar(&o.InstallOnly, "install-only", false, "explicit verified install without loading a model")
 	f.BoolVar(&o.BusinessPreacceptance, "business-preacceptance", false, "run fixed judgment, tool-round and W5 privacy diagnostics on the owned Manager")
-	f.StringVar(&o.PrivacyDiagnostic, "privacy-diagnostic", "", "fixed 1.7B synthetic privacy suite: representative or full; no capability acceptance")
+	f.StringVar(&o.PrivacyDiagnostic, "privacy-diagnostic", "", "fixed X2.6 Q4_K_M synthetic privacy suite: representative or full; no capability acceptance")
 	if err := f.Parse(args); err != nil {
 		return o, err
 	}

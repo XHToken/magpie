@@ -89,7 +89,7 @@ var assertionNames = []string{
 
 func Main() {
 	o := options{}
-	flag.StringVar(&o.Model, "model", "spark-x2.5-1.7B", "fixed catalog model ID")
+	flag.StringVar(&o.Model, "model", "spark-x2.6-4B", "fixed catalog model ID")
 	flag.StringVar(&o.ModelFile, "model-file", "", "absolute path to complete, pinned GGUF cache file")
 	flag.StringVar(&o.TemplateFile, "template-file", "", "absolute path to pinned chat_template.jinja cache file")
 	flag.StringVar(&o.RuntimeArchive, "runtime-archive", "", "absolute path to complete b10828 archive")

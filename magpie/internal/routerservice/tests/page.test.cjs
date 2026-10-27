@@ -96,7 +96,14 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         assert.equal(sessionHeaders.origin, `http://${address}`);
         assert.equal(sessionHeaders['sec-fetch-site'], 'same-origin');
         assert.equal(sessionHeaders['x-wefto-ui'], '1');
-        assert.match(await page.title(), /Wefto/);
+        assert.equal(await page.title(), await page.locator('#pageTitle').textContent() + ' · ' + await page.evaluate(() => t('Wefto')));
+        assert.equal(await page.locator('.brand [data-t]').textContent(), await page.evaluate(() => t('Wefto')));
+        assert.equal(await page.locator('.brand .router-logo').textContent(), 'W');
+        const faviconURL = await page.locator('link[rel=icon]').getAttribute('href');
+        assert.match(faviconURL, /^\/icons\/favicon\.svg\?v=wefto-w-/);
+        const favicon = await page.request.get(`http://${address}${faviconURL}`);
+        assert.equal(favicon.status(), 200);
+        assert.match(await favicon.text(), />W<\/text>/);
         assert.deepEqual(await page.locator('#nav [data-view]').evaluateAll(nodes => nodes.map(node => node.dataset.view)), ['agents', 'providers', 'routing', 'gateway', 'local-model', 'usage']);
         assert.equal(await page.locator('#usagePane').isVisible(), true);
         assert.equal(new URL(page.url()).searchParams.get('tab'), 'usage');

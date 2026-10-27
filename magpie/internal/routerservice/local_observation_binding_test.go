@@ -192,7 +192,7 @@ func TestLocalObservationUsesSlotBindingAfterModelChange(t *testing.T) {
 	if err := manager.Disable(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if err := manager.Select(context.Background(), "spark-x2.5-4B"); err != nil {
+	if err := manager.Select(context.Background(), "spark-x2.6-4B-Q8_0"); err != nil {
 		t.Fatal(err)
 	}
 	var events []routerruntime.LocalCallObservation

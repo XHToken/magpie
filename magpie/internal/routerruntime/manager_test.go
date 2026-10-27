@@ -170,7 +170,7 @@ func managerFixture(t *testing.T, edit func(*Options, *fixtureInstaller, *fixtur
 	i := &fixtureInstaller{}
 	i.installed.Store(true)
 	f := &fixtureFactory{}
-	s := &memoryIntent{i: Intent{Enabled: true, Selected: "spark-x2.5-1.7B"}}
+	s := &memoryIntent{i: Intent{Enabled: true, Selected: "spark-x2.6-4B"}}
 	o := Options{Catalog: routermanifest.Fixed(), RuntimeID: "windows-amd64-cpu", Store: s, Installer: i, Factory: f}
 	if edit != nil {
 		edit(&o, i, f)
@@ -209,7 +209,7 @@ func TestExplicitIntentInstallationAndRestart(t *testing.T) {
 	if f.count.Load() != 0 || i.installs.Load() != 0 {
 		t.Fatal("startup started resources")
 	}
-	if err := m.Select(context.Background(), "spark-x2.5-1.7B"); err != nil {
+	if err := m.Select(context.Background(), "spark-x2.6-4B"); err != nil {
 		t.Fatal(err)
 	}
 	if err := m.Enable(context.Background()); err != nil {
@@ -339,10 +339,10 @@ func TestEnableRejectsSelectionChangedDuringDeviceCheck(t *testing.T) {
 	if err := m.Disable(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.Select(context.Background(), "spark-x2.5-4B"); err != nil {
+	if err := m.Select(context.Background(), "spark-x2.6-4B-Q8_0"); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.EnableSelected(context.Background(), "spark-x2.5-1.7B"); !errors.Is(err, ErrBusy) {
+	if err := m.EnableSelected(context.Background(), "spark-x2.6-4B"); !errors.Is(err, ErrBusy) {
 		t.Fatal(err)
 	}
 	if m.Status().Intent.Enabled {
@@ -468,13 +468,13 @@ func TestAutoEnableSelectedCannotClearExplicitDisable(t *testing.T) {
 	if err := m.Disable(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.AutoEnableSelected(context.Background(), "spark-x2.5-1.7B"); !errors.Is(err, ErrDisabled) {
+	if err := m.AutoEnableSelected(context.Background(), "spark-x2.6-4B"); !errors.Is(err, ErrDisabled) {
 		t.Fatalf("startup cleared explicit disable: %v", err)
 	}
 	if status := m.Status(); status.Intent.Enabled || !status.Intent.UserDisabled || factory.count.Load() != 0 {
 		t.Fatalf("startup changed disabled intent: %+v", status)
 	}
-	if err := m.EnableSelected(context.Background(), "spark-x2.5-1.7B"); err != nil {
+	if err := m.EnableSelected(context.Background(), "spark-x2.6-4B"); err != nil {
 		t.Fatal(err)
 	}
 	if status := m.Status(); !status.Intent.Enabled || status.Intent.UserDisabled {
@@ -977,7 +977,7 @@ func TestHealthIsIndependentOfVersionedCapabilities(t *testing.T) {
 	if err := m.Disable(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.Select(context.Background(), "spark-x2.5-4B"); err != nil {
+	if err := m.Select(context.Background(), "spark-x2.6-4B-Q8_0"); err != nil {
 		t.Fatal(err)
 	}
 	if m.Status().Capabilities[Execution].State != "unknown" || m.Status().Capabilities[Execution].Fingerprint == previous {

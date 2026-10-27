@@ -321,12 +321,12 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
             await step(page, number);
             if (number === 3) {
               await page.locator('#tutorialContent button[data-route="local"]').click();
-              assert.equal(await page.locator('.tutorial-model-label strong').textContent(), 'Spark-X2.5 · 1.7B / 4B');
+              assert.equal(await page.locator('.tutorial-model-label strong').textContent(), 'Spark-X2.6-4B · Q4_K_M / Q8_0');
               assert.equal(await page.locator('.tutorial-model-label .tutorial-inlinehint').textContent(), await page.evaluate(() => t('Both tiers use the same installation and trial flow')));
             }
             if (number === 4) {
-              assert.equal(await page.locator('.tutorial-sequence li').nth(1).locator('strong').textContent(), await page.evaluate(() => t('Select 1.7B or 4B')));
-              assert.equal(await page.locator('.tutorial-sequence li').nth(1).locator('.tutorial-inlinehint').textContent(), await page.evaluate(() => t('Choose a fixed 1.7B or 4B model. Both use the same download, configuration and capability-check flow.')));
+              assert.equal(await page.locator('.tutorial-sequence li').nth(1).locator('strong').textContent(), await page.evaluate(() => t('Select Q4_K_M or Q8_0')));
+              assert.equal(await page.locator('.tutorial-sequence li').nth(1).locator('.tutorial-inlinehint').textContent(), await page.evaluate(() => t('Choose a fixed Q4_K_M or Q8_0 model. Both use the same download, configuration and capability-check flow.')));
             }
             const heading = (await page.locator('#tutorialChapter').textContent()).trim();
             assert.ok(heading.length > 0);

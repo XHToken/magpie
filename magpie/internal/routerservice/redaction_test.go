@@ -142,7 +142,7 @@ func TestRedactionManagementProjectsOnlySafeAggregateStats(t *testing.T) {
 func TestRedactionMultiTurnSessionCacheHitAndIncrementalExtraction(t *testing.T) {
 	layout, address := fixture(t)
 	store := routerconfig.New(layout)
-	const modelID = "spark-x2.5-1.7B"
+	const modelID = "spark-x2.6-4B"
 
 	var extractedBatches [][]string
 	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

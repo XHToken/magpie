@@ -15,7 +15,7 @@ import (
 
 func TestMain(m *testing.M) { testenv.Main(m) }
 
-var fixtureRequirements = Requirements{4 * GiB, 8 * GiB}
+var fixtureRequirements = Requirements{Tier1_7BBytes: 4 * GiB, Tier4BBytes: 8 * GiB}
 
 func fixture(osName string, ram uint64, gpu ...Adapter) Snapshot {
 	arch, version := "amd64", "10.0.22631"

@@ -10,15 +10,15 @@ import (
 )
 
 func TestPrivacyContextBindingChangesModelIdentityWithoutChangingMaterialOrLimits(t *testing.T) {
-	old, err := NewExperimentalPrivacySpecification(ModelBinding{ModelID: "spark-x2.5-1.7B", RuntimeID: "windows-amd64-cpu"})
+	old, err := NewExperimentalPrivacySpecification(ModelBinding{ModelID: "spark-x2.6-4B", RuntimeID: "windows-amd64-cpu"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	long, err := NewExperimentalPrivacySpecification(ModelBinding{ModelID: "spark-x2.5-1.7B", RuntimeID: "windows-amd64-cpu", ContextTokens: 65536})
+	long, err := NewExperimentalPrivacySpecification(ModelBinding{ModelID: "spark-x2.6-4B", RuntimeID: "windows-amd64-cpu", ContextTokens: 65536})
 	if err != nil {
 		t.Fatal(err)
 	}
-	model, _ := routermanifest.Fixed().Model("spark-x2.5-1.7B")
+	model, _ := routermanifest.Fixed().Model("spark-x2.6-4B")
 	runtime, _ := routermanifest.Fixed().Runtime("windows-amd64-cpu")
 	model.ContextTokens = 65536
 	if old.RuntimeFingerprint() == long.RuntimeFingerprint() || long.RuntimeFingerprint() != model.Fingerprint(runtime) {
@@ -33,7 +33,7 @@ func TestPrivacyContextBindingChangesModelIdentityWithoutChangingMaterialOrLimit
 		t.Fatal("context binding changed privacy generation material or limits")
 	}
 	for _, window := range []int{-1, 4096, 131072, 1048577} {
-		if _, err := NewExperimentalPrivacySpecification(ModelBinding{ModelID: "spark-x2.5-1.7B", RuntimeID: "windows-amd64-cpu", ContextTokens: window}); err == nil {
+		if _, err := NewExperimentalPrivacySpecification(ModelBinding{ModelID: "spark-x2.6-4B", RuntimeID: "windows-amd64-cpu", ContextTokens: window}); err == nil {
 			t.Fatalf("uncontrolled context %d accepted", window)
 		}
 	}

@@ -43,7 +43,8 @@ func nativeProbes() Probes {
 			}
 			return status.AvailPhys, nil
 		},
-		Adapters: windowsAdapters,
+		Adapters:   windowsAdapters,
+		DiskVolume: nativeVolume,
 		Disk: func(_ context.Context, path string) (uint64, error) {
 			path, err := existingDirectory(path)
 			if err != nil {

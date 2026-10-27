@@ -132,7 +132,7 @@ func TestFormalInstallerRechecksImportedBytes(t *testing.T) {
 
 func TestFailedPreparationClosesWithoutModelStart(t *testing.T) {
 	root := t.TempDir()
-	options := options{Model: "spark-x2.5-1.7B", DataDir: filepath.Join(root, "data"), Output: filepath.Join(root, "evidence", "result.json"),
+	options := options{Model: "spark-x2.6-4B", DataDir: filepath.Join(root, "data"), Output: filepath.Join(root, "evidence", "result.json"),
 		ModelFile: filepath.Join(root, "missing.gguf"), RuntimeArchive: filepath.Join(root, "missing.zip"), TemplateFile: filepath.Join(root, "missing.jinja"),
 		LoadTimeout: time.Minute, GenerationTimeout: time.Minute, InstallTimeout: time.Minute}
 	report, err := run(context.Background(), options)
