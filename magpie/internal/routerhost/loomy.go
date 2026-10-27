@@ -96,7 +96,7 @@ func buildLoomyModels(o Options, input []FilePlan) ([]FilePlan, error) {
 		} else if !loomyCompatibleProvider(existing, wanted, models...) {
 			return nil, errors.New("Loomy Wefto provider conflicts; rename or reconcile it before applying")
 		} else {
-			set = append(set, edit.KV{Path: "provider." + loomyProvider + ".name", Value: product.Name}, edit.KV{Path: "provider." + loomyProvider + ".options.apiKey", Value: PlaceholderAPIKey})
+			set = append(set, edit.KV{Path: "provider." + loomyProvider + ".name", Value: product.DisplayName}, edit.KV{Path: "provider." + loomyProvider + ".options.apiKey", Value: PlaceholderAPIKey})
 		}
 	} else {
 		set = append(set, edit.KV{Path: "provider." + loomyProvider, Value: wanted})
@@ -172,7 +172,7 @@ func loomyProviderValues(base string, models ...string) map[string]any {
 		catalog[m] = map[string]any{"name": m, "tool_call": true}
 	}
 	return map[string]any{
-		"npm": "@ai-sdk/openai-compatible", "name": "Wefto",
+		"npm": "@ai-sdk/openai-compatible", "name": product.DisplayName,
 		"options": map[string]any{"baseURL": base, "apiKey": PlaceholderAPIKey, "useSessionAuth": false},
 		"models":  catalog,
 	}

@@ -61,7 +61,7 @@
 
 - Windows CUDA 原始引擎和依赖归档已下载并核对固定 SHA256；真实安装、组合及 9 个 VC/CUDA 依赖的校验通过。本机没有 NVIDIA GPU，因此尚未完成真实 CUDA 模型推理。
 - 两份 macOS 原始归档已核对固定 SHA256；Apple Silicon、Intel macOS 应用交叉编译及相关包 vet 通过。没有 Apple 实机，Metal 枚举、实际卸载和推理仍需实机验收。
-- 最终 9 个相关 Go 包通过 `-race` 测试，共 1,571 项测试及子测试，0 失败。Linux、Windows x64、macOS arm64/x64 的 API-router 构建及相关包 vet 通过。
+- 最终 9 个相关 Go 包通过 `-race` 测试，共 1,571 项测试及子测试，0 失败。Linux、Windows x64、macOS arm64/x64 的 端云协同 构建及相关包 vet 通过。
 - 本地模型页面通过 Chromium 和 WebKit，覆盖五种语言、桌面/手机布局、混合卸载展示及健康状态失效。
 - 驱动不可用、加载失败、零层卸载、合成推理无效、显存不足、组件缺失均覆盖自动 CPU 回退，检查不会重叠运行模型。
 - 反向验证：临时去掉实际卸载检查后，`TestAutomaticBackendFailureFallsBackWithoutOverlappingChildren/zero-offload` 明确失败；恢复实现后通过。变异仅用 Go overlay，没有改写生产源码。
@@ -69,7 +69,7 @@
 
 ### 仓库全量检查
 
-Windows 全仓 `go vet ./...`、Linux 全仓 `go vet -tags nogui ./...`、Linux 无界面主程序构建、Windows 主程序构建通过。普通 Linux GUI 的无 cgo 构建/vet 遇到现有 Wails `undefined: pointer` 编译约束；独立 API-router 四平台构建不依赖该 GUI，并已通过。
+Windows 全仓 `go vet ./...`、Linux 全仓 `go vet -tags nogui ./...`、Linux 无界面主程序构建、Windows 主程序构建通过。普通 Linux GUI 的无 cgo 构建/vet 遇到现有 Wails `undefined: pointer` 编译约束；独立 端云协同 四平台构建不依赖该 GUI，并已通过。
 
 `go test -tags nogui ./...` 原始运行：14,137 项测试及子测试通过、5 项失败、187 项跳过。不能把相关包通过写成整个仓库全部通过。
 

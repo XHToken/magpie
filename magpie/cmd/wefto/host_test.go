@@ -63,7 +63,7 @@ func previewDigest(t *testing.T, args []string) string {
 	if strings.Contains(out.String(), "test-app-secret-never-print") {
 		t.Fatalf("preview leaked entry token: %s", out.String())
 	}
-	if args[1] == "restore-preview" && !strings.Contains(summary.Notice, "bypasses Wefto") {
+	if args[1] == "restore-preview" && !strings.Contains(summary.Notice, "bypasses 端云协同") {
 		t.Fatalf("restore preview did not explain bypass: %s", out.String())
 	}
 	return summary.Digest
@@ -190,7 +190,7 @@ func TestHostCLIPreviewApplyAndOfflineRestore(t *testing.T) {
 			if err := run(append(hostArgs("restore", host, root, state), "--plan-digest", restoreDigest), &out); err != nil {
 				t.Fatal(err)
 			}
-			if !strings.Contains(out.String(), "bypasses Wefto") {
+			if !strings.Contains(out.String(), "bypasses 端云协同") {
 				t.Fatalf("restore omitted recovery notice: %s", out.String())
 			}
 		})

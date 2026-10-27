@@ -280,7 +280,7 @@ func TestHostAutoAPIMultiModelConnectInspectAndDisconnectRestore(t *testing.T) {
 	}); w.Code != http.StatusOK {
 		t.Fatalf("reconnect loomy failed: %d %s", w.Code, w.Body.String())
 	}
-	loomyRuntimeRaw := []byte(`{"model":"wefto/` + prov.ID + `/deepseek-flash","small_model":"imodel/qwen3.8-flash","provider":{"wefto":{"models":{},"name":"Wefto","npm":"@ai-sdk/openai-compatible","options":{"apiKey":"wefto-local-placeholder","baseURL":"http://` + address + `/app/loomy/v1","useSessionAuth":false}}}}`)
+	loomyRuntimeRaw := []byte(`{"model":"wefto/` + prov.ID + `/deepseek-flash","small_model":"imodel/qwen3.8-flash","provider":{"wefto":{"models":{},"name":"端云协同","npm":"@ai-sdk/openai-compatible","options":{"apiKey":"wefto-local-placeholder","baseURL":"http://` + address + `/app/loomy/v1","useSessionAuth":false}}}}`)
 	if err := os.WriteFile(filepath.Join(loomyRoot, "opencode.json"), loomyRuntimeRaw, 0o600); err != nil {
 		t.Fatal(err)
 	}

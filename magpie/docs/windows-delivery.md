@@ -1,4 +1,4 @@
-# Wefto 织流 Windows x64 本地安装与管理
+# 端云协同 Windows x64 本地安装与管理
 
 [English installation guide](https://github.com/XHToken/magpie/blob/main/README.en.md#download-and-install-on-windows-x64)
 
@@ -13,7 +13,7 @@
 在 PowerShell 中指定绝对路径（支持空格和中文）：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\Downloads\Wefto\install-windows.ps1' -ManifestPath 'C:\Downloads\Wefto\wefto-VERSION-windows-amd64.manifest.json' -PackagePath 'C:\Downloads\Wefto\wefto-VERSION-windows-amd64.zip'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\Downloads\端云协同\install-windows.ps1' -ManifestPath 'C:\Downloads\端云协同\wefto-VERSION-windows-amd64.manifest.json' -PackagePath 'C:\Downloads\端云协同\wefto-VERSION-windows-amd64.zip'
 ```
 
 把 `VERSION` 替换为实际固定版本。默认程序目录为 `%LOCALAPPDATA%\Programs\Wefto`，可用 `-InstallDir 'C:\Users\YOU\Programs\Wefto'` 指定独立产品目录。程序目录与配置、数据、模型目录必须分开，安装不会覆盖或初始化这些数据。安装不会启动服务、打开自启、下载、启用或加载任何模型。首次启动也不会下载、启用或加载模型。
@@ -23,7 +23,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\Downloads\Wefto\inst
 ## 服务与登录自启
 
 ```powershell
-$router = Join-Path $env:LOCALAPPDATA 'Programs\Wefto\wefto.exe'
+$router = Join-Path $env:LOCALAPPDATA 'Programs\端云协同\wefto.exe'
 & $router service start
 & $router service status
 & $router service restart

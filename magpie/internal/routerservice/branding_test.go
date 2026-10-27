@@ -36,15 +36,15 @@ func TestLegacyManagementHeaderKeepsSameOriginBoundary(t *testing.T) {
 	}
 }
 
-func TestConsoleServesWeftoNameAndWIcon(t *testing.T) {
+func TestConsoleServesCollaborationNameAndIcon(t *testing.T) {
 	const address = "127.0.0.1:13145"
 	h := handler(Info{Service: "wefto", Address: address}, "branding-test-token")
 	for _, check := range []struct {
 		path string
 		want []string
 	}{
-		{"/", []string{"<title>Wefto", `aria-hidden="true">W</span>`, "/icons/favicon.svg?v=wefto-w-"}},
-		{"/icons/favicon.svg", []string{">W</text>"}},
+		{"/", []string{"<title>端云协同", `aria-hidden="true">端</span>`, "/icons/favicon.svg?v=duanyun-"}},
+		{"/icons/favicon.svg", []string{">端</text>"}},
 	} {
 		r := httptest.NewRequest("GET", "http://"+address+check.path, nil)
 		r.RemoteAddr = "127.0.0.1:2345"
@@ -55,7 +55,7 @@ func TestConsoleServesWeftoNameAndWIcon(t *testing.T) {
 		}
 		for _, want := range check.want {
 			if !strings.Contains(w.Body.String(), want) {
-				t.Errorf("%s: Wefto branding missing %q", check.path, want)
+				t.Errorf("%s: 端云协同 branding missing %q", check.path, want)
 			}
 		}
 	}

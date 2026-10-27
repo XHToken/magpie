@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare/start the Wefto product on macOS/Linux; Python 3.9+, stdlib only."""
+"""Prepare/start the 端云协同 product on macOS/Linux; Python 3.9+, stdlib only."""
 import argparse
 import hashlib
 import ipaddress
@@ -107,10 +107,10 @@ def discover(system, arch, tag, stable=False):
             raise RuntimeError("Release discovery exceeded 20 pages; specify --tag.")
         ref = "main"
     if stable and not releases:
-        raise RuntimeError("No stable Wefto release. Omit --stable-only if previews are acceptable.")
+        raise RuntimeError("No stable 端云协同 release. Omit --stable-only if previews are acceptable.")
     for release in sorted(releases, key=lambda r: r.get("published_at", ""), reverse=True):
         if not TAG.fullmatch(release["tag_name"]) or (tag and release["tag_name"] != tag):
-            raise RuntimeError("Release tag differs from the requested Wefto version.")
+            raise RuntimeError("Release tag differs from the requested 端云协同 version.")
         assets = release.get("assets", [])
         stem = f"wefto-{release['tag_name'][7:]}-{system}-{arch}"
         required = [stem + ".tar.gz", stem + ".manifest.json", "SHA256SUMS"]
@@ -303,7 +303,7 @@ def prepare(target, info):
         if not required:
             raise RuntimeError("No Go requirement in product go.mod.")
         info["requiredGo"] = required[1]
-        print(f"Building Wefto {info['commit']} (Go {required[1]})", file=sys.stderr)
+        print(f"Building 端云协同 {info['commit']} (Go {required[1]})", file=sys.stderr)
         publish = root / "install"
         publish.mkdir(mode=0o700)
         exe = publish / "wefto"
@@ -351,7 +351,7 @@ def verified(exe, layout, status):
     if any(live.get(key) != status.get(key) for key in ("pid", "executable", "instanceId", "processStamp")):
         raise RuntimeError("Authenticated service identity mismatch.")
     if live.get("service") != product or not live.get("running"):
-        raise RuntimeError("Wefto did not report running.")
+        raise RuntimeError("端云协同 did not report running.")
     return {"version": live["version"], "executable": str(exe), "pid": live["pid"],
             "managementURL": origin, "config": layout["config"], "data": layout["data"]}
 
@@ -361,7 +361,7 @@ def start(exe, system, check=False):
     if system == "linux":
         status = router_json(exe, "service", "status" if check else "start")
         if not status.get("running"):
-            raise RuntimeError("Wefto is stopped.")
+            raise RuntimeError("端云协同 is stopped.")
         return verified(exe, layout, status)
     # Current Darwin external process control is unsupported. Reuse only a
     # live, authenticated record; preserve stale/unknown locks for diagnosis.
@@ -372,7 +372,7 @@ def start(exe, system, check=False):
             raise RuntimeError("Unknown service lock; inspect it without deleting it.")
         return verified(exe, layout, json.loads(record.read_text()))
     if check:
-        raise RuntimeError("Wefto is stopped.")
+        raise RuntimeError("端云协同 is stopped.")
     logs = plain(Path(layout["logs"]))
     logs.mkdir(parents=True, exist_ok=True, mode=0o700)
     log_path = plain(logs / ("skill-start-" + str(time.time_ns()) + ".log"))
@@ -384,7 +384,7 @@ def start(exe, system, check=False):
                                  stdout=log, stderr=log, start_new_session=True)
     for _ in range(100):
         if child.poll() is not None:
-            raise RuntimeError(f"Wefto exited ({child.returncode}); inspect private log: {log_path}")
+            raise RuntimeError(f"端云协同 exited ({child.returncode}); inspect private log: {log_path}")
         if record.is_file():
             status = json.loads(record.read_text())
             if status.get("pid") != child.pid:
@@ -424,7 +424,7 @@ def main():
         info = {"action": "reuse", "executable": str(exe)}
     else:
         if args.check_only:
-            raise RuntimeError("No installed Wefto to check.")
+            raise RuntimeError("No installed 端云协同 to check.")
         info = discover(system, arch, args.tag, args.stable_only)
         info["installDir"] = str(target)
         if args.download_only:

@@ -1,10 +1,10 @@
-# Wefto request ledger
+# 端云协同 request ledger
 
 [`internal/routerledger`](../../internal/routerledger/types.go) owns the minimal
 business-request store. Its only runtime storage dependency is the existing pure
 Go `modernc.org/sqlite` driver. It imports no legacy usage, settings, provider,
 gateway or session lifecycle. The service opens `state/requests.sqlite` inside
-the independent [Wefto layout](wefto-storage.md), after acquiring its
+the independent [端云协同 layout](wefto-storage.md), after acquiring its
 existing process lock; that lock must exclude a second database owner.
 
 `Open(path, Options{})` creates a new private regular file only when missing.

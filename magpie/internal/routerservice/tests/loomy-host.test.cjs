@@ -1,5 +1,5 @@
 const { skipTutorial } = require('./returning-user.cjs');
-// Installed-host acceptance is separate. This regression uses the real Router,
+// Installed-host acceptance is separate. This regression uses the real 端云协同,
 // disposable local OpenCode files and a loopback upstream with fixture keys.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

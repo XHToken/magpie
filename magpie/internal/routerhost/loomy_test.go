@@ -58,7 +58,7 @@ func TestLoomyInstalledContractAndPreviewIsolation(t *testing.T) {
 		value any
 	}{
 		{[]string{"provider", "wefto", "npm"}, "@ai-sdk/openai-compatible"},
-		{[]string{"provider", "wefto", "name"}, "Wefto"},
+		{[]string{"provider", "wefto", "name"}, "端云协同"},
 		{[]string{"provider", "wefto", "options", "baseURL"}, "http://127.0.0.1:14387/app/loomy/v1"},
 		{[]string{"provider", "wefto", "options", "apiKey"}, "wefto-local-placeholder"},
 		{[]string{"provider", "wefto", "options", "useSessionAuth"}, false},
@@ -419,5 +419,39 @@ func TestLoomyProbeRequiresCompletedText(t *testing.T) {
 		if validLoomyProbe([]byte(raw)) {
 			t.Fatal("empty/incomplete/error reply accepted", raw)
 		}
+	}
+}
+
+func TestLoomyLegacyBrandReconnectAndRestore(t *testing.T) {
+	e, o := loomySetup(t)
+	path := hostPath(o.ConfigRoot, "opencode.json")
+	original := []byte(`{"later":"user setting"}`)
+	put(t, path, original)
+	p, err := e.Preview(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.files[0].After = bytes.ReplaceAll(p.files[0].After, []byte("端云协同"), []byte("Wefto"))
+	p.Digest = planDigest(p)
+	if err := e.Apply(context.Background(), p); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Connect(context.Background(), o); err != nil {
+		t.Fatal("legacy product label blocked reconnect:", err)
+	}
+	doc, err := readJSON(get(t, path))
+	name, _ := lookup(doc, []string{"provider", loomyProvider, "name"})
+	if err != nil || name != "端云协同" {
+		t.Fatal("reconnect did not update the provider label:", name, err)
+	}
+	restore, err := e.PreviewRestore(o.Host, o.ConfigRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Restore(restore); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(get(t, path), original) {
+		t.Fatal("brand upgrade replaced the original recovery baseline")
 	}
 }

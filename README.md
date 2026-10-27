@@ -1,12 +1,12 @@
-# Wefto 织流
+# 端云协同
 
 [简体中文](README.md) | [English](README.en.md)
 
-Wefto（织流）是运行在本机的 AI 模型路由服务。在一个网页中管理云端 API、本地小模型和路由策略，再将 WorkBuddy、Loomy 接入同一服务。项目基于固定版本的 Magpie 源码改造，产品入口为 `magpie/cmd/wefto`。
+端云协同是运行在本机的 AI 模型路由服务。在一个网页中管理云端 API、本地小模型和路由策略，再将 WorkBuddy、Loomy 接入同一服务。项目基于固定版本的 Magpie 源码改造，产品入口为 `magpie/cmd/wefto`。
 
-**[下载 macOS / Linux / Windows 预览版](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.6)** · [浏览 Wefto 源码](https://github.com/XHToken/magpie/tree/main)
+**[下载 macOS / Linux / Windows 预览版](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.7)** · [浏览端云协同源码](https://github.com/XHToken/magpie/tree/main)
 
-当前版本为 **0.1.0-beta.6**，优先适配 WorkBuddy 与 Loomy 的本机模式。提供 Windows x64、macOS Apple Silicon / Intel、Linux x64 / ARM64 预编译包。仓库中的其他预置应用和协议适配器不表示全部宿主、版本、平台或模型已经通过兼容验收。
+当前版本为 **0.1.0-beta.7**，优先适配 WorkBuddy 与 Loomy 的本机模式。提供 Windows x64、macOS Apple Silicon / Intel、Linux x64 / ARM64 预编译包。仓库中的其他预置应用和协议适配器不表示全部宿主、版本、平台或模型已经通过兼容验收。
 
 ## macOS / Linux 解压启动
 
@@ -18,15 +18,15 @@ Wefto（织流）是运行在本机的 AI 模型路由服务。在一个网页�
 
 | 文件 | 用途 |
 | --- | --- |
-| `wefto-0.1.0-beta.6-windows-amd64.zip` | 程序、内嵌管理页面和安装/卸载说明 |
-| `wefto-0.1.0-beta.6-windows-amd64.manifest.json` | 安装器使用的文件大小与 SHA256 清单 |
+| `wefto-0.1.0-beta.7-windows-amd64.zip` | 程序、内嵌管理页面和安装/卸载说明 |
+| `wefto-0.1.0-beta.7-windows-amd64.manifest.json` | 安装器使用的文件大小与 SHA256 清单 |
 | `install-windows.ps1` | 独立安装脚本 |
 | `SHA256SUMS` | ZIP、manifest 和独立安装脚本的 SHA256 校验值 |
 
 在该文件夹中打开 PowerShell，执行：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -ManifestPath "$PWD\wefto-0.1.0-beta.6-windows-amd64.manifest.json" -PackagePath "$PWD\wefto-0.1.0-beta.6-windows-amd64.zip"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -ManifestPath "$PWD\wefto-0.1.0-beta.7-windows-amd64.manifest.json" -PackagePath "$PWD\wefto-0.1.0-beta.7-windows-amd64.zip"
 
 $router = Join-Path $env:LOCALAPPDATA 'Programs\Wefto\wefto.exe'
 & $router service start

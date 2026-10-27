@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 [CmdletBinding()]
 param(
     [string]$Tag, [string]$InstallDir,
@@ -159,7 +159,7 @@ function Start-RouterSkill {
         } else {
             if ($CheckOnly) { throw 'No installed executable to check.' }
             $release = Get-RouterRelease $Tag ([bool]$StableOnly)
-            if (-not $release) { throw 'No compatible complete Wefto x64 release. Specify -Tag or allow previews by omitting -StableOnly.' }
+            if (-not $release) { throw 'No compatible complete 端云协同 x64 release. Specify -Tag or allow previews by omitting -StableOnly.' }
             $version = $release.tag_name.Substring(7)
             if ($Plan) { [pscustomobject]@{ action='download-install'; tag=$release.tag_name; prerelease=$release.prerelease; releaseURL=$release.html_url; installDir=$targetDir } | ConvertTo-Json; return }
             $cacheParent = Join-Path $ordinaryLocal 'Wefto-skill/downloads'

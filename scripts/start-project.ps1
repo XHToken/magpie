@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 param([switch]$NoBrowser, [switch]$CheckOnly)
 
 $ErrorActionPreference = 'Stop'
@@ -84,7 +84,7 @@ function Start-WeftoProject {
         if ($routerStatus.previousAddress -and $routerStatus.previousAddress -ne $routerStatus.address) {
             Write-Host "The previous port was unavailable. Connected application addresses have been synchronized. Restart open applications to load the updated address."
         }
-        Write-Host "Wefto $($routerStatus.version): $($routerStatus.managementURL) (PID $($routerStatus.pid))"
+        Write-Host "端云协同 $($routerStatus.version): $($routerStatus.managementURL) (PID $($routerStatus.pid))"
         Write-Host "Config: $($routerLayout.config)"
         if (-not $NoBrowser -and -not $CheckOnly) { Start-Process $routerStatus.managementURL | Out-Null }
     } finally {

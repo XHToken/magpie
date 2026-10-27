@@ -5,7 +5,7 @@ package product
 const (
 	ID                    = "wefto"
 	Name                  = "Wefto"
-	DisplayName           = "Wefto 织流"
+	DisplayName           = "端云协同"
 	LegacyID              = "api-router"
 	LegacyProviderID      = "api_router"
 	LegacyProviderName    = "API Router"
@@ -20,7 +20,9 @@ const (
 	LegacyHostLock        = ".api-router-host.lock"
 )
 
-func IsService(id string) bool      { return id == ID || id == LegacyID }
-func IsProvider(id string) bool     { return id == ID || id == LegacyProviderID }
-func IsProviderName(value any) bool { return value == Name || value == LegacyProviderName }
-func IsPlaceholder(value any) bool  { return value == PlaceholderKey || value == LegacyPlaceholderKey }
+func IsService(id string) bool  { return id == ID || id == LegacyID }
+func IsProvider(id string) bool { return id == ID || id == LegacyProviderID }
+func IsProviderName(value any) bool {
+	return value == DisplayName || value == Name || value == LegacyProviderName
+}
+func IsPlaceholder(value any) bool { return value == PlaceholderKey || value == LegacyPlaceholderKey }

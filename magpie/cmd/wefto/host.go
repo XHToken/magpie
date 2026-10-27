@@ -31,7 +31,7 @@ const hostHelp = `Usage: wefto host <preview|apply|restore-preview|restore> [opt
 All commands require:
   --host codex|claude-code|loomy|workbuddy  Host to configure
   --config-root ABSOLUTE_DIR    Explicit host configuration directory
-  --state-dir ABSOLUTE_DIR      Private backup directory (default: Wefto state/host-config)
+  --state-dir ABSOLUTE_DIR      Private backup directory (default: 端云协同 state/host-config)
 
 preview and apply also require:
   --router-url ORIGIN           Router origin, for example http://127.0.0.1:13145
@@ -184,7 +184,7 @@ func runHost(ctx context.Context, args []string, out io.Writer) error {
 				Action string `json:"action"`
 				Stage  string `json:"stage"`
 				Notice string `json:"notice"`
-			}{action, "before-write", "Restoring bypasses Wefto and returns model access to the previous host settings."}); err != nil {
+			}{action, "before-write", "Restoring bypasses 端云协同 and returns model access to the previous host settings."}); err != nil {
 				return fmt.Errorf("cannot print recovery notice; no host configuration was changed: %w", err)
 			}
 			err = engine.Restore(plan)
@@ -197,7 +197,7 @@ func runHost(ctx context.Context, args []string, out io.Writer) error {
 	if action == "apply" {
 		notice = "Host configuration applied after connection checks."
 	} else if recovering {
-		notice = "Restoring bypasses Wefto and returns model access to the previous host settings."
+		notice = "Restoring bypasses 端云协同 and returns model access to the previous host settings."
 		if action == "restore-preview" {
 			notice += " Preview only; no host configuration was changed."
 		}

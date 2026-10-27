@@ -49,6 +49,7 @@ func legacyConnection(t *testing.T, host string) (Engine, Options) {
 	}
 	for i := range j.Files {
 		raw := strings.ReplaceAll(string(j.Files[i].After), "wefto-local-placeholder", "api-router-local-placeholder")
+		raw = strings.ReplaceAll(raw, "端云协同", "API Router")
 		raw = strings.ReplaceAll(strings.ReplaceAll(raw, "Wefto", "API Router"), "wefto", "api_router")
 		j.Files[i].After = []byte(raw)
 		put(t, hostPath(o.ConfigRoot, j.Files[i].Name), []byte(raw))
@@ -137,7 +138,7 @@ func TestLegacyConnectionRebrandsAndKeepsRecovery(t *testing.T) {
 				}
 			}
 			got := get(t, hostPath(o.ConfigRoot, updated.Files[0].Name))
-			if !bytes.Contains(got, []byte("Wefto")) || !bytes.Contains(got, []byte("wefto-local-placeholder")) || bytes.Contains(got, []byte("API Router")) {
+			if !bytes.Contains(got, []byte("端云协同")) || !bytes.Contains(got, []byte("wefto-local-placeholder")) || bytes.Contains(got, []byte("API Router")) {
 				t.Fatal("connection was not rebranded", string(got))
 			}
 			if host == "loomy" && !bytes.Contains(got, []byte("wefto/new-model")) {

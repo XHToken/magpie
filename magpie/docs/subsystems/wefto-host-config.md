@@ -1,4 +1,4 @@
-# Wefto host configuration transactions
+# 端云协同 host configuration transactions
 
 The [`routerhost`](../../internal/routerhost/types.go) package plans, journals
 and restores explicit host changes. WorkBuddy and Loomy use
@@ -25,7 +25,7 @@ and `useCustomProtocol: false`. `settings.model` is `custom-local:<primary>`.
 Stale generated entries are retired; user entries and extensions survive.
 The service resolves `ModelNames` from the same saved catalog as Loomy. New
 entries use `<model> · <provider name>`, the configured group name, or the fixed
-local model name. Reconnecting upgrades legacy `API Router`/ID labels and
+local model name. Reconnecting upgrades generated `API Router`/`Wefto`/ID labels to 端云协同 and
 refreshes generated labels while retaining user aliases. WorkBuddy 5.3.8 itself
 formats custom menu labels as `name:ID`; the readable name comes first and the
 request ID remains unchanged. No installed WorkBuddy files are patched.
@@ -45,7 +45,7 @@ display-label resolution and migration, small-model preservation and runtime ref
 [Loomy integration](wefto-loomy.md).
 Contract v3 also manages `api-router-title.mjs` and its own `plugin` list entry
 in the same transaction. The filename is retained for recovery ownership.
-The exact released API-router v1, API-router v2 with title support, and Wefto v2
+The exact released API-router v1, API-router v2 with title support, and 端云协同 v2
 with only `opencode.json` upgrade without replacing their first baseline.
 Other contract versions or field declarations remain conflicts.
 

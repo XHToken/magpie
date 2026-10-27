@@ -143,8 +143,10 @@
 
     const folded = new Set(); let query = '';
     const position = () => {
-      const r = (activePop?.btn || btn).getBoundingClientRect(), w = Math.min(380, innerWidth - 24);
-      pop.style.width = w + 'px'; pop.style.left = Math.max(12, Math.min(r.left, innerWidth - w - 12)) + 'px'; pop.style.top = Math.min(r.bottom + 6, Math.max(12, innerHeight - 420)) + 'px';
+      const r = (activePop?.btn || btn).getBoundingClientRect(), w = Math.min(480, innerWidth - 24);
+      const top = Math.min(r.bottom + 6, Math.max(12, innerHeight - 420));
+      pop.style.width = w + 'px'; pop.style.left = Math.max(12, Math.min(r.left, innerWidth - w - 12)) + 'px'; pop.style.top = top + 'px';
+      pop.style.maxHeight = Math.min(560, innerHeight - top - 12) + 'px';
     };
     const commit = (nextModels) => { app.editSeq = (app.editSeq || 0) + 1; app.models = dedup(nextModels); updateRowState(app); paint(); enqueueSave(app); };
     const paint = () => {
@@ -174,8 +176,12 @@
         for (const it of filtered) {
           const idx = sel.indexOf(it.id), on = idx >= 0;
           const mr = el('div', 'am-mr' + (on ? ' on' : '')); mr.dataset.model = it.id; mr.setAttribute('role', 'option'); mr.setAttribute('aria-selected', String(on));
+          mr.title = it.id;
           mr.append(el('span', 'ck', on ? '✓' : ''), el('span', 'am-mn', it.label));
-          if (it.tag) mr.append(el('span', 'am-tag' + (idx === 0 ? ' is-primary' : ''), idx === 0 ? `#1 · ${it.tag}` : (on ? `#${idx + 1} · ${it.tag}` : it.tag)));
+          if (it.tag) {
+            const tag = el('span', 'am-tag' + (idx === 0 ? ' is-primary' : ''), idx === 0 ? `#1 · ${it.tag}` : (on ? `#${idx + 1} · ${it.tag}` : it.tag));
+            tag.title = tag.textContent; mr.append(tag);
+          }
           if (on) {
             const ord = el('span', 'am-order'), up = el('button', 'am-mv', '↑'), down = el('button', 'am-mv', '↓');
             up.type = 'button'; up.dataset.move = 'up'; up.disabled = idx === 0;

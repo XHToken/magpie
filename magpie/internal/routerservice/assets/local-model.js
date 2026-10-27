@@ -114,8 +114,8 @@
     ['Insufficient local disk space: unable to write model or runtime files. Free up disk space for the selected model and runtime, then retry.', '本地磁盘空间不足：无法写入模型或运行时文件。请为所选模型和运行时清理足够的磁盘空间后重试。', '本機磁碟空間不足：無法寫入模型或執行階段檔案。請為所選模型和執行階段釋放足夠的磁碟空間後重試。', 'ディスク空き容量不足です。選択したモデルとランタイムに十分な空き容量を確保して再試行してください。', 'Unzureichender Speicherplatz. Geben Sie ausreichend Platz für das gewählte Modell und die Laufzeit frei und versuchen Sie es erneut.'],
     ['Local installation verification or extraction failed: files may be in use, blocked by security software, or out of disk space. Check disk space and antivirus logs, then click "Download and install" to retry.', '本地安装校验或解压失败：运行文件可能被占用、杀毒软件拦截或磁盘空间不足。请检查磁盘空间与安全软件拦截记录后点击“下载并安装”重试。', '本機安裝驗證或解壓縮失敗：執行檔案可能被佔用、防毒軟體攔截或磁碟空間不足。請檢查磁碟空間與安全軟體攔截紀錄後點擊「下載並安裝」重試。', 'ローカル検証または展開に失敗しました：ファイルが使用中、セキュリティソフトによるブロック、または容量不足の可能性があります。確認後「ダウンロードしてインストール」で再試行してください。', 'Lokale Prüfung oder Entpacken fehlgeschlagen: Dateien werden evtl. verwendet, durch Sicherheitssoftware blockiert oder der Speicherplatz reicht nicht aus. Prüfen Sie dies und klicken Sie auf „Herunterladen und installieren“.'],
     ['Public execution weights; judgment and redaction need separate acceptance evidence.', '公开执行权重；判断和脱敏需要独立验收证据。', '公開執行權重；判斷及去識別化需要獨立驗收證據。', '公開の実行用重み。判断と匿名化には個別の検証が必要です。', 'Öffentliche Ausführungsgewichte; Beurteilung und Anonymisierung brauchen eigene Nachweise.'],
-    ['Opening this page does not enable or download a model. Closing the page keeps Router running.', '打开页面不会启用或下载模型。关闭页面后 Router 继续运行。', '開啟頁面不會啟用或下載模型。關閉頁面後 Router 繼續執行。', 'ページを開いてもモデルは有効化・ダウンロードされません。閉じてもRouterは動作します。', 'Diese Seite aktiviert oder lädt kein Modell. Router läuft nach dem Schließen weiter.'],
-    ['Enabled models stay loaded while Router runs. Your on/off choice is remembered at the next startup.', '模型开启后保持加载，空闲时不会自动卸载。下次启动会记住您的开关选择。', '模型開啟後保持載入，閒置時不會自動卸載。下次啟動會記住您的開關選擇。', '有効なモデルはRouterの実行中に保持され、アイドル時も解放されません。次回起動時もオン・オフの選択が保存されます。', 'Aktivierte Modelle bleiben geladen, solange Router läuft. Ihre Ein-/Aus-Auswahl wird beim nächsten Start beibehalten.'],
+    ['Opening this page does not enable or download a model. Closing the page keeps 端云协同 running.', '打开页面不会启用或下载模型。关闭页面后 端云协同 继续运行。', '開啟頁面不會啟用或下載模型。關閉頁面後 端云协同 繼續執行。', 'ページを開いてもモデルは有効化・ダウンロードされません。閉じても端云协同は動作します。', 'Diese Seite aktiviert oder lädt kein Modell. 端云协同 läuft nach dem Schließen weiter.'],
+    ['Enabled models stay loaded while 端云协同 runs. Your on/off choice is remembered at the next startup.', '模型开启后保持加载，空闲时不会自动卸载。下次启动会记住您的开关选择。', '模型開啟後保持載入，閒置時不會自動卸載。下次啟動會記住您的開關選擇。', '有効なモデルは端云协同の実行中に保持され、アイドル時も解放されません。次回起動時もオン・オフの選択が保存されます。', 'Aktivierte Modelle bleiben geladen, solange 端云协同 läuft. Ihre Ein-/Aus-Auswahl wird beim nächsten Start beibehalten.'],
   ]) for (const [lang, text] of [['zh', zh], ['zh-TW', tw], ['ja', ja], ['de', de]]) (I18N[lang] ||= {})[key] = text;
 
   let data = null, device = null, working = false, timer;
@@ -230,7 +230,7 @@
     }
     return t('Local model operation failed. Refresh to inspect status.');
   }
-  function row(name, value) { const node = el('div', 'row pref'); const who = el('div', 'who'); who.append(el('div', 'name', t(name))); node.append(who, el('span', 'router-state', value)); return node; }
+  function row(name, value) { const node = el('div', 'row pref local-model-status'); const who = el('div', 'who'); who.append(el('div', 'name', t(name))); node.append(who, el('span', 'router-state', value)); return node; }
   function deviceGuide() {
     const guide = el('section', 'local-device-guide'); guide.id = 'localDeviceGuide';
     guide.setAttribute('aria-labelledby', 'localDeviceTitle');
@@ -345,8 +345,8 @@
   function render() {
     const root = $('#localModelContent');
     root.replaceChildren();
-    $('#localModelNote').textContent = t('Opening this page does not enable or download a model. Closing the page keeps Router running.');
-    $('#localModelLifecycle').textContent = t('Enabled models stay loaded while Router runs. Your on/off choice is remembered at the next startup.');
+    $('#localModelNote').textContent = t('Opening this page does not enable or download a model. Closing the page keeps 端云协同 running.');
+    $('#localModelLifecycle').textContent = t('Enabled models stay loaded while 端云协同 runs. Your on/off choice is remembered at the next startup.');
     if (!managementToken) { root.append(el('p', 'hint', t('Management token required'))); return; }
     if (!data) { root.append(el('p', 'hint', t('Connection unavailable'))); return; }
     const status = data.status;
@@ -369,7 +369,7 @@
     backendRow.id = 'localModelBackend'; list.append(backendRow);
     if (backend.fallbackReason) {
       const hint = backend.fallbackReason === 'accelerator_install_failed' ? 'GPU components could not be installed; CPU is available' : backend.fallbackReason === 'accelerator_not_installed' ? 'GPU components need installation or repair' : backend.state === 'cpu' && status.healthy ? 'GPU unavailable; using CPU' : 'Acceleration not verified';
-      list.append(el('p', 'hint router-note', t(hint)));
+      backendRow.append(el('p', 'local-backend-hint router-note', t(hint)));
     }
     const dependencyRow = row('Runtime dependencies', t(dependencyNames[dependencies.state] || 'Unknown') + (dependencies.version ? ' · ' + dependencies.version : ''));
     dependencyRow.id = 'localModelDependencies'; list.append(dependencyRow);

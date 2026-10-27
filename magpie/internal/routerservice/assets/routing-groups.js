@@ -1,4 +1,4 @@
-// Routing Groups view, i18n registration, member metadata resolution, and list rendering for Wefto.
+// Routing Groups view, i18n registration, member metadata resolution, and list rendering for 端云协同.
 (function () {
   var RG_I18N = {
     zh: {

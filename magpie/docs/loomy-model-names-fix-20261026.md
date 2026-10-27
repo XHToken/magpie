@@ -52,7 +52,7 @@ Loomy 源码 `src/lib/chat-model-selection.js` 的 `deriveSelectableModels` 依�
 | Chromium/WebKit：Agents 接入与 Loomy 独立接入/恢复 | 4/4 通过 |
 | 产品包 vet、Windows 全仓库 vet，以及最终两个修改包的 Linux/Windows vet | 通过 |
 | 修改的 Go 文件 gofmt、diff 空白检查 | 通过 |
-| Linux/Windows API-router 构建 | 通过 |
+| Linux/Windows 端云协同 构建 | 通过 |
 
 新增测试位于
 [`host_model_names_test.go`](../internal/routerservice/host_model_names_test.go) 和
