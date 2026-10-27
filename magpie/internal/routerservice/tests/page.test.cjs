@@ -281,9 +281,9 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     });
     await page.goto(`http://${address}/?locale=zh`);
     await page.waitForFunction(() => !!managementToken && !!serviceInfo);
-    assert.match(await page.title(), /Wefto 织流/);
-    assert.equal(await page.locator('.brand .router-logo').textContent(), 'W');
-    assert.equal(await page.locator('.brand [data-t]').textContent(), 'Wefto 织流');
+    assert.match(await page.title(), /端云协同/);
+    assert.equal(await page.locator('.brand .router-logo').textContent(), '端');
+    assert.equal(await page.locator('.brand [data-t]').textContent(), '端云协同');
     assert.equal(await page.locator('#tutorialModal').isVisible(), false, 'legacy completion prevents the guide from reopening');
     assert.equal(await page.locator('#usagePane').isVisible(), true, 'legacy UI selection survives the rename');
     await page.locator('#tutorialOpen').click();
