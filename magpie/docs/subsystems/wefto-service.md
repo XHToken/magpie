@@ -12,7 +12,7 @@ Executable comparisons resolve both existing absolute paths before comparing the
 
 Native Windows supports external process identity and per-user autostart. Linux provides external PID identity for regression runners. Other platforms currently identify only the current foreground process: an external process remains unknown, and its lock must not be archived or its process controlled. The cleanup regression exercises that refusal on those platforms rather than spawning a child that cannot be identified.
 
-The ordinary Windows development entry is [`scripts/start-project.ps1`](../../../scripts/start-project.ps1), also called by `start.cmd`. It uses `magpie/dist/wefto.exe` and ordinary Windows roots, and reports the actual management URL. `-CheckOnly -NoBrowser` is read-only. Its check accepts a whole fresh or legacy layout, never a mixture. Upgrades stop the original executable before switching builds; see the [upgrade guide](../wefto-upgrade.md).
+The ordinary Windows development entry is [`scripts/start-project.ps1`](../../../scripts/start-project.ps1), also called by `start.cmd`. It defaults to `magpie/dist/wefto.exe`, reuses a standard installed Wefto/API-router owner recorded in the ordinary Windows layout, and authenticates its exact live instance before accessing management APIs. `-CheckOnly -NoBrowser` is read-only; `-UseProjectBuild` explicitly selects the checkout build while retaining native ownership checks. Unknown records and conflicting layouts stop startup without changing configuration or downloading models. The entry reports the actual management URL. Upgrades stop the original executable before switching builds; see the [upgrade guide](../wefto-upgrade.md).
 
 ## Management and model requests
 
@@ -80,3 +80,7 @@ probes devices or sends model requests.
 `internal/routerservice/tests/tutorial.test.cjs` checks all chapters, navigation,
 previous saved progress, focus, read-only behavior, and five languages at desktop
 and mobile sizes in Chromium and WebKit against an isolated candidate service.
+
+## Local-model progress
+
+Authenticated `GET /api/local-model/events` streams schema-1 status snapshots as SSE. Runtime change notifications coalesce download progress; disconnecting an observer never cancels installation. The page pauses observation while hidden or away, reconnects with backoff, and refreshes the full model catalog on lifecycle transitions. Byte updates do not repeatedly fetch redaction readiness. See `local_model_events.go`, `routerruntime/status_watch_test.go` and `tests/local-model-updates.test.cjs`.

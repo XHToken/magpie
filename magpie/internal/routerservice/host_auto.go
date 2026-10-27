@@ -142,7 +142,20 @@ func hostAutoAPI(w http.ResponseWriter, r *http.Request, info Info, token string
 			return
 		}
 	}
-	p, err := e.ConnectAndCommit(ctx, o, func() error {
+	hostOptions := o
+	if in.Host == "workbuddy" && store != nil {
+		previous := findSavedApp(ctx, store, in.Host)
+		var aliases map[string]string
+		if previous != nil {
+			aliases = previous.ModelAliases
+		}
+		hostOptions, edit.ModelAliases, err = workBuddyModelAliases(o, aliases)
+		if err != nil {
+			fail(http.StatusConflict, "host_profile_invalid", "Model names cannot be used as host selectors; host configuration is unchanged")
+			return
+		}
+	}
+	p, err := e.ConnectAndCommit(ctx, hostOptions, func() error {
 		if store == nil {
 			return nil
 		}
@@ -155,7 +168,7 @@ func hostAutoAPI(w http.ResponseWriter, r *http.Request, info Info, token string
 	}
 	effective := o.EffectiveModels()
 	primary := o.PrimaryModel()
-	selection := "custom-local:" + primary
+	selection := "custom-local:" + hostOptions.PrimaryModel()
 	if in.Host == "loomy" {
 		raw, readErr := os.ReadFile(filepath.Join(root, "opencode.json"))
 		var doc map[string]any
@@ -272,7 +285,7 @@ func inspectAutoHostConnections(ctx context.Context, store *routerconfig.Store, 
 			}
 			enabled = saved.Configured && saved.Enabled
 		}
-		connected = connected && enabled && sameHostModelSet(models, liveModels)
+		connected = connected && enabled && sameHostModelSet(models, hostRoutingModels(saved, liveModels))
 		if connected && store != nil {
 			connected = validateAutoHostModels(ctx, store, models, local) == nil
 		}

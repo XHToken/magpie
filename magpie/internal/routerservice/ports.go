@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -85,7 +86,9 @@ func startupPortTargets(ctx context.Context, store *routerconfig.Store, stateDir
 		}
 		for _, root := range roots {
 			targetModel := model
-			if connected, live := inspectHostLiveFiles(app.ID, root); connected && len(live) > 0 && (targetModel == "" || app.ID == "loomy" || live[0] == app.Cloud.Model || (len(app.Models) > 0 && live[0] == app.Models[0])) {
+			connected, live := inspectHostLiveFiles(app.ID, root)
+			routing := hostRoutingModels(&app, live)
+			if connected && len(live) > 0 && (targetModel == "" || app.ID == "loomy" || live[0] == app.Cloud.Model || slices.Contains(app.Models, routing[0])) {
 				targetModel = live[0]
 			}
 			targets = append(targets, routerhost.PortTarget{Host: app.ID, ConfigRoot: filepath.Clean(root), Model: targetModel})

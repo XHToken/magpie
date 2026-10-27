@@ -38,6 +38,34 @@ Q4_K_M retains catalog ID `spark-x2.6-4B`, selector `local/spark-x2.6-4b`,
 artifact identity and fingerprint. Q8_0 uses catalog ID `spark-x2.6-4B-Q8_0`
 and selector `local/spark-x2.6-4b-q8_0`, with an independent weight artifact ID.
 Their display names include the corresponding quantization.
+[`Artifact.DownloadURLs`](../../internal/routermanifest/sources.go) defines
+download priority separately from artifact identity. All catalog llama.cpp
+b10828 archives (Windows CPU/CUDA/Vulkan, Linux CPU, macOS Intel/Apple Silicon)
+and the CUDA 12.4 DLL archive try `gh-proxy.com` first, then GitHub. Existing
+[`PlatformRuntime`](../../internal/routerruntime/storage.go) and
+[`RuntimeCandidates`](../../internal/routerruntime/backend.go) still select
+packages by OS, architecture and device hints; source fallback does not select
+another platform or runtime version. Microsoft VC dependencies keep their
+existing Microsoft source.
+
+X2.6 Q4_K_M, Q8_0 and the shared template try HF-Mirror first, then ModelScope.
+ModelScope's GGUF commit `8500d75a53f1e6592cfbb36fcb67c3e7380e6aab` and template
+commit `1648980d7798c24041bedf58aff82615c562b6c6` have matching size/SHA256
+metadata checked on 2026-10-27. The template was also downloaded and hashed;
+both weight URLs and the runtime mirror variants passed nonzero Range probes.
+Large weight/GPU archives were not fully downloaded for that source check.
+The original artifact URLs remain serialized, preserving capability
+fingerprints, download paths and extraction receipts. Every downloaded file,
+from either source, must pass the original size and SHA256 checks.
+
+Remote transfer or integrity failures advance to the next source under the
+same download lock. User cancellation and local filesystem/disk failures stop
+the job. Source switches restart that artifact from byte zero and clear its
+validators; a later explicit retry first resumes the persisted source if it
+still belongs to the compiled source list with matching size/hash pins.
+Installation progress reports the actual source hostname. See the
+[downloader contract](../../internal/routerdownload/README.md) for retry bounds.
+
 Model labels use `Model.DisplayName`, independently of the shared `4B` hardware
 tier. The service consumes per-quantization advice described in the
 [device reference](wefto-device.md#product-quantization-advice), including
@@ -436,6 +464,7 @@ no-store and bounded input. Encoded aliases and arbitrary URLs/paths are rejecte
 | Route under `/api/local-model` | Method / behavior |
 | --- | --- |
 | base | GET/HEAD: status and fixed catalog; no enable/install/load |
+| `/events` | GET: authenticated SSE status snapshots on Manager changes; HEAD: headers only; no query parameters or lifecycle mutations |
 | `/settings` | GET/HEAD: read-only status/catalog with saved and effective settings; mutation methods return 405 |
 | `/detect` | POST: existing `routerdevice` report and recommendation |
 | `/select` | POST `{model:<fixed-id>}`: disabled-only selection |
@@ -467,6 +496,23 @@ quality evidence.
 
 Available physical memory measured around loading is an observation, not a
 model-process peak-memory measurement.
+
+The visible local-model page reads the full status/catalog on entry, explicit
+refresh and action completion. During download, dependency preparation, loading
+or unloading it opens one `/events` stream using the management Authorization
+header. The stream sends an immediate status snapshot and coalesces change
+notifications to at most two snapshots per second; a 15-second comment heartbeat
+does not read status. Terminal transitions trigger one full read to update
+installed candidates, then close the stream. Idle pages do not poll. Hidden or
+departed pages abort observation; returning reads a fresh snapshot. Disconnects
+retain the last state, show a connection error and retry with exponential delay
+up to 30 seconds. Observation never owns or cancels installation. Slow readers
+have a bounded write deadline and never block Manager notifications.
+
+Progress and queue changes do not refresh `/api/redaction`. The page refreshes
+privacy state after explicit/full reads and changes to model intent,
+installation, dependencies, redaction capability, performance readiness or fault
+state; download byte updates share the existing privacy projection.
 
 When the selected model has no verified installation (`not_installed`, `canceled`
 or `failed`), the authenticated local-model page requests one device probe per

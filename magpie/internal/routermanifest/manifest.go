@@ -11,6 +11,11 @@ import (
 	"strings"
 )
 
+const (
+	spark26Rev  = "83b47fda018fd14f51aa63341f78266f628af5a5"
+	spark26Base = "66e3ae7bee54e0a523d692cb8ef841f35409807b"
+)
+
 // Artifact is immutable source metadata. Missing size/hash/URL means blocked.
 type Artifact struct {
 	ID            string `json:"id"`
@@ -118,12 +123,12 @@ func (c Catalog) Runtime(id string) (Runtime, bool) {
 // Fixed returns a detached catalog. Mirrors are trusted only after exact hash
 // verification against the recorded official repository metadata.
 func Fixed() Catalog {
-	const spark26Rev = "83b47fda018fd14f51aa63341f78266f628af5a5"
-	const spark26Base = "66e3ae7bee54e0a523d692cb8ef841f35409807b"
 	c := Catalog{SchemaVersion: 1, VerifiedAt: "2026-10-27", Sources: []string{
 		"https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/b10828",
 		"https://huggingface.co/api/models/XHToken/Spark-X2.6-4B-GGUF/revision/" + spark26Rev + "?blobs=true",
 		"https://huggingface.co/api/models/XHToken/Spark-X2.6-4B/revision/" + spark26Base + "?blobs=true",
+		"https://modelscope.cn/api/v1/models/XHToken/Spark-X2.6-4B-GGUF/repo/files?Revision=8500d75a53f1e6592cfbb36fcb67c3e7380e6aab&Recursive=true",
+		"https://modelscope.cn/api/v1/models/XHToken/Spark-X2.6-4B/repo/files?Revision=1648980d7798c24041bedf58aff82615c562b6c6&Recursive=true",
 	}}
 	// X2.6 retains the spark2_5 architecture supported by b10828, but uses its
 	// own published template. Metadata checked against the official repo 2026-10-27.

@@ -216,6 +216,23 @@ func (m *Manager) Status() Status {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	return m.statusLocked()
+}
+
+// WatchStatus returns a snapshot and a signal closed by the next change. Taking
+// both under the same lock prevents missed updates without retaining subscribers.
+// A nil signal means the Manager has closed.
+func (m *Manager) WatchStatus() (Status, <-chan struct{}) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var changed <-chan struct{}
+	if !m.closed {
+		changed = m.changed
+	}
+	return m.statusLocked(), changed
+}
+
+func (m *Manager) statusLocked() Status {
 	fp := m.fingerprintLocked()
 	selectedInstalled := m.selectedInstalledLocked()
 	s := Status{MemoryBeforeLoad: m.memoryBeforeLoad, MemoryAfterLoad: m.memoryAfterLoad, Settings: m.intent.Settings, EffectiveSettings: m.effectiveSettingsLocked(), Intent: m.intent, Installation: m.installation, InstallingModel: m.installingModel, Runtime: m.state, Healthy: m.healthy, Waiting: len(m.waiters), QueueLimit: QueueLimit, ExecutionSlots: 1, Progress: m.progress, Error: m.lastError, LastUsed: m.lastUsed, Capabilities: make(map[Purpose]Capability), Dependencies: m.dependencies}

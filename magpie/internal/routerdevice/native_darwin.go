@@ -16,7 +16,8 @@ func nativeProbes() Probes {
 			name := observe(ctx, func(context.Context) (string, error) { return unix.Sysctl("machdep.cpu.brand_string") })
 			return System{OS: "darwin", Version: version, Architecture: Known(runtime.GOARCH), CPU: name, LogicalCPUs: Known(runtime.NumCPU())}, nil
 		},
-		Memory: func(context.Context) (uint64, error) { return unix.SysctlUint64("hw.memsize") },
+		Memory:          func(context.Context) (uint64, error) { return unix.SysctlUint64("hw.memsize") },
+		AvailableMemory: AvailableMemory,
 		Adapters: func(context.Context) ([]Adapter, error) {
 			// Apple silicon uses unified memory and does not support eGPUs.
 			// Neither unified RAM nor Metal's working-set budget is discrete VRAM.

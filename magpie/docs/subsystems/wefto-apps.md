@@ -48,6 +48,15 @@ streamlined `#view-agents` UI for one-click Loomy and WorkBuddy integration.
     `local/mlx`)
   - `group/<id>`: persisted or auto-merged routing group ID from
     `EffectiveGroups`
+- `ModelAliases map[string]string`: WorkBuddy host display selectors mapped to
+  exact entries in `Models`. The host transaction supplies this map through the
+  server-only `AppEdit.ModelAliases` field; HTTP editors cannot supply it.
+  Ordinary Profile saves preserve aliases for retained targets and drop aliases
+  for removed targets. The map is replaced as a unit on disk, and clearing a
+  preset removes it. Validation rejects empty/unsafe selectors, other apps'
+  aliases and aliases pointing outside the selected targets. Requests resolve
+  these exact aliases before ordinary model validation and routing; they grant
+  no additional model access. Legacy qualified selectors remain supported.
 - **Primary Route Synchronization**: `normalizeAndSyncAppModels` deduplicates
   `Models` and automatically synchronizes `Models[0]` with `Mode`, `ProviderID`,
   `Cloud`, and `Local` so single-model callers and legacy fields stay consistent.

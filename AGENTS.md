@@ -3,8 +3,13 @@
 For an ordinary "start the project" request on Windows, run
 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-project.ps1 -NoBrowser`
 from the repository root. Use `-CheckOnly -NoBrowser` for a read-only check.
-The entry uses `magpie/dist/wefto.exe` and the Windows user's ordinary
-configuration/data directories, checks the authenticated service identity and
+The entry defaults to `magpie/dist/wefto.exe` when no service record exists.
+When the ordinary user layout records a standard Wefto/API-router installation,
+it reuses that owner's CLI and authenticates its service instead of switching
+builds. Use `-UseProjectBuild` only to explicitly select this checkout's build;
+native ownership checks still apply and no other service is stopped.
+The entry uses the Windows user's ordinary configuration/data directories,
+checks the authenticated service identity and
 the configured WorkBuddy endpoint, and reports the actual management URL.
 The native service automatically binds another loopback port if the saved port
 is occupied, synchronizes already connected WorkBuddy/Loomy endpoints, and

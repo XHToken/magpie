@@ -7,13 +7,17 @@ with `models` (CLI writer), and JSONC `settings.json`. It manages only the
 selected raw model ID's `url`, `apiKey`, `supportsToolCall`, `useCustomProtocol`,
 generated display `name` (contract v2), and `settings.model`. User labels remain
 unowned; v1 recovery records retain their original snapshots on upgrade.
-Selection is `custom-local:<raw ID>`; the wire model is
-the raw ID. The installed builder appends `chat/completions` to
+Selection is `custom-local:<host selector>`; the wire model is
+the host selector. Automatic connections use a readable selector mapped to a
+raw target by the Profile's `modelAliases`; legacy raw selectors remain valid.
+The installed builder appends `chat/completions` to
 `/app/workbuddy/v1`. Source hashes, precedence and minimal sanitized samples are
 in the installation investigation (historical development record; not distributed).
 The installed 5.3.8 `getModelDisplayName` formats custom models as `name:ID`.
-Router therefore supplies a readable name first while retaining the stable ID;
-this integration does not claim to remove WorkBuddy's own ID suffix.
+It omits the suffix when its display ID equals `name`. Router's automatic
+connection sets both fields to the same readable value, avoiding the host's
+reserved display overrides. Routing identity stays in the saved Profile, and
+no WorkBuddy installation files are changed.
 See [host configuration](wefto-host-config.md#workbuddy-538) for transaction
 and offline restoration, and the delivery record (historical development record; not distributed)
 for separate automated and real-cloud results.

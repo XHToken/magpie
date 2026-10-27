@@ -68,6 +68,9 @@ type AppProfile struct {
 	Builtin          bool            `json:"builtin"`
 	Configured       bool            `json:"configured"`
 	Path             string          `json:"path"`
+
+	// ModelAliases maps readable WorkBuddy selectors to the selected raw targets.
+	ModelAliases map[string]string `json:"modelAliases,omitempty"`
 }
 
 type AppEdit struct {
@@ -81,6 +84,9 @@ type AppEdit struct {
 	CredentialMode           string          `json:"credentialMode"`
 	RedactionEnabled         bool            `json:"redactionEnabled"`
 	ReferencePrice           *ReferencePrice `json:"referencePrice"`
+
+	// ModelAliases is supplied by the host connection transaction, never HTTP input.
+	ModelAliases map[string]string `json:"-"`
 }
 
 // LocalModelPrefix marks an on-device local model target in AppProfile.Models.
@@ -177,6 +183,11 @@ func validateApp(p AppProfile) error {
 		seenModel[m] = true
 	}
 	seen := map[string]bool{}
+	for alias, target := range p.ModelAliases {
+		if p.ID != "workbuddy" || strings.TrimSpace(alias) != alias || alias == "" || len(alias) > 256 || strings.ContainsAny(alias, "\r\n\x00") || strings.HasPrefix(alias, "custom-local:") || !seenModel[target] || (seenModel[alias] && alias != target) {
+			return invalidProvider("invalid application model alias")
+		}
+	}
 	for _, capability := range p.Cloud.Capabilities {
 		switch capability {
 		case "namespace", "custom", "additional_tools", "web_search":

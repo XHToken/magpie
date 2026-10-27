@@ -50,6 +50,7 @@ func newDefaultClient() *http.Client {
 type Progress struct {
 	Downloaded int64
 	Total      int64
+	Host       string
 }
 
 // Downloader's zero value uses the system disk-space check and HTTP client.
@@ -90,7 +91,7 @@ func (d *Downloader) Download(ctx context.Context, a routermanifest.Artifact, de
 	if _, err := os.Lstat(destination); err == nil {
 		if err := Verify(ctx, a, destination); err == nil {
 			if report != nil {
-				report(Progress{a.Size, a.Size})
+				report(Progress{Downloaded: a.Size, Total: a.Size})
 			}
 			return nil
 		} else if ctx.Err() != nil {
@@ -107,7 +108,85 @@ func (d *Downloader) Download(ctx context.Context, a routermanifest.Artifact, de
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
+	sources, err := resumeSources(a, destination)
+	if err != nil {
+		return err
+	}
+	var failures []error
+	for _, source := range sources {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		u, err := url.Parse(source)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {
+			return errors.New("artifact has no valid HTTP download URL")
+		}
+		var progress func(Progress)
+		if report != nil {
+			progress = func(p Progress) { p.Host = u.Hostname(); report(p) }
+		}
+		current := a
+		current.URL = source
+		err = d.downloadSource(ctx, current, destination, progress)
+		if err == nil {
+			return nil
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		var failed *sourceError
+		if !errors.As(err, &failed) {
+			return err
+		}
+		failures = append(failures, fmt.Errorf("download from %s: %w", u.Hostname(), err))
+	}
+	return errors.Join(failures...)
+}
 
+// resumeSources prefers the persisted, catalog-approved source on a resumed
+// job. A new job always uses the catalog order. Validators never cross hosts.
+func resumeSources(a routermanifest.Artifact, destination string) ([]string, error) {
+	sources := a.DownloadURLs()
+	partPath, metaPath := destination+".part", destination+".part.json"
+	for _, p := range []string{partPath, metaPath} {
+		if err := regularOrMissing(p); err != nil {
+			return nil, err
+		}
+	}
+	b, err := os.ReadFile(metaPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return sources, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var old partial
+	if err := json.Unmarshal(b, &old); err != nil {
+		return nil, fmt.Errorf("read resume metadata: %w", err)
+	}
+	if old.Size == a.Size && strings.EqualFold(old.SHA256, a.SHA256) {
+		if info, err := os.Stat(partPath); err == nil && info.Size() > 0 && info.Size() <= a.Size {
+			for i, source := range sources {
+				if source == old.URL {
+					copy(sources[1:i+1], sources[:i])
+					sources[0] = source
+					return sources, nil
+				}
+			}
+		}
+	}
+	return sources, nil
+}
+
+// Only remote transfer failures may advance to a mirror. Filesystem failures,
+// contention and cancellation remain terminal for the installation job.
+type sourceError struct{ err error }
+
+func (e *sourceError) Error() string { return e.err.Error() }
+func (e *sourceError) Unwrap() error { return e.err }
+
+// The caller keeps the destination lock across all source attempts.
+func (d *Downloader) downloadSource(ctx context.Context, a routermanifest.Artifact, destination string, report func(Progress)) error {
 	partPath, metaPath := destination+".part", destination+".part.json"
 	for _, p := range []string{partPath, metaPath} {
 		if err := regularOrMissing(p); err != nil {
@@ -150,7 +229,7 @@ func (d *Downloader) Download(ctx context.Context, a routermanifest.Artifact, de
 	if offset == a.Size {
 		if err := Verify(ctx, a, partPath); err == nil {
 			if report != nil {
-				report(Progress{a.Size, a.Size})
+				report(Progress{Downloaded: a.Size, Total: a.Size})
 			}
 			return finish(ctx, partPath, metaPath, destination)
 		} else if ctx.Err() != nil {
@@ -164,7 +243,7 @@ func (d *Downloader) Download(ctx context.Context, a routermanifest.Artifact, de
 		offset = 0
 	}
 	if report != nil {
-		report(Progress{offset, a.Size})
+		report(Progress{Downloaded: offset, Total: a.Size})
 	}
 	client := d.Client
 	if client == nil {
@@ -210,15 +289,19 @@ func (d *Downloader) Download(ctx context.Context, a routermanifest.Artifact, de
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			if stalled.Load() {
-				return fmt.Errorf("download stalled waiting for response headers after %s", stallTimeout)
+			var pathErr *os.PathError
+			if errors.As(err, &pathErr) || errors.Is(err, ErrDiskSpace) || errors.Is(err, ErrBusy) {
+				return err
 			}
-			return err
+			if stalled.Load() {
+				return &sourceError{fmt.Errorf("download stalled waiting for response headers after %s", stallTimeout)}
+			}
+			return &sourceError{err}
 		}
 		if resp.Header.Get("Content-Encoding") != "" && resp.Header.Get("Content-Encoding") != "identity" {
 			resp.Body.Close()
 			cleanup()
-			return errors.New("encoded artifact response refused")
+			return &sourceError{errors.New("encoded artifact response refused")}
 		}
 		if offset > 0 && resp.StatusCode == http.StatusPartialContent {
 			changed := (m.ETag != "" && resp.Header.Get("ETag") != m.ETag) || (m.ETag == "" && m.LastModified != "" && resp.Header.Get("Last-Modified") != m.LastModified)
@@ -230,7 +313,7 @@ func (d *Downloader) Download(ctx context.Context, a routermanifest.Artifact, de
 				}
 				validatorResets++
 				if validatorResets > 1 {
-					return errors.New("resource changed while resuming")
+					return &sourceError{errors.New("resource changed while resuming")}
 				}
 				offset, m = 0, partial{URL: a.URL, SHA256: strings.ToLower(a.SHA256), Size: a.Size}
 				continue
@@ -241,12 +324,12 @@ func (d *Downloader) Download(ctx context.Context, a routermanifest.Artifact, de
 		} else {
 			resp.Body.Close()
 			cleanup()
-			return fmt.Errorf("download HTTP status %d", resp.StatusCode)
+			return &sourceError{fmt.Errorf("download HTTP status %d", resp.StatusCode)}
 		}
 		if offset == 0 && resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
 			cleanup()
-			return errors.New("unexpected partial response to full download")
+			return &sourceError{errors.New("unexpected partial response to full download")}
 		}
 		m.ETag, m.LastModified = resp.Header.Get("ETag"), resp.Header.Get("Last-Modified")
 		b, _ := json.Marshal(m)
@@ -283,7 +366,7 @@ func (d *Downloader) Download(ctx context.Context, a routermanifest.Artifact, de
 			return err
 		}
 		if report != nil {
-			report(Progress{offset, a.Size})
+			report(Progress{Downloaded: offset, Total: a.Size})
 		}
 		startOffset := offset
 		w := &progressWriter{writer: f, downloaded: offset, total: a.Size, report: report}
@@ -295,16 +378,8 @@ func (d *Downloader) Download(ctx context.Context, a routermanifest.Artifact, de
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		if copyErr != nil {
-			if stalled.Load() {
-				if syncErr == nil && closeErr == nil && w.downloaded > startOffset && w.downloaded < a.Size && stallRetries < 3 {
-					stallRetries++
-					offset = w.downloaded
-					continue
-				}
-				return fmt.Errorf("download stalled after %s at %d/%d bytes", stallTimeout, w.downloaded, a.Size)
-			}
-			return fmt.Errorf("download body: %w", copyErr)
+		if w.err != nil {
+			return w.err
 		}
 		if syncErr != nil {
 			return syncErr
@@ -312,14 +387,26 @@ func (d *Downloader) Download(ctx context.Context, a routermanifest.Artifact, de
 		if closeErr != nil {
 			return closeErr
 		}
+		if copyErr != nil {
+			if stalled.Load() {
+				if w.downloaded > startOffset && w.downloaded < a.Size && stallRetries < 3 {
+					stallRetries++
+					offset = w.downloaded
+					continue
+				}
+				return &sourceError{fmt.Errorf("download stalled after %s at %d/%d bytes", stallTimeout, w.downloaded, a.Size)}
+			}
+			return &sourceError{fmt.Errorf("download body: %w", copyErr)}
+		}
 		if w.downloaded < a.Size {
-			return io.ErrUnexpectedEOF
+			return &sourceError{io.ErrUnexpectedEOF}
 		}
 		if err := Verify(ctx, a, partPath); err != nil {
 			if ctx.Err() == nil && errors.Is(err, ErrIntegrity) {
 				if removeErr := removePartial(partPath, metaPath); removeErr != nil {
 					return errors.Join(err, removeErr)
 				}
+				return &sourceError{err}
 			}
 			return err
 		}
@@ -424,13 +511,15 @@ type progressWriter struct {
 	writer            io.Writer
 	downloaded, total int64
 	report            func(Progress)
+	err               error
 }
 
 func (w *progressWriter) Write(b []byte) (int, error) {
 	n, err := w.writer.Write(b)
+	w.err = err
 	w.downloaded += int64(n)
 	if w.report != nil {
-		w.report(Progress{w.downloaded, w.total})
+		w.report(Progress{Downloaded: w.downloaded, Total: w.total})
 	}
 	return n, err
 }

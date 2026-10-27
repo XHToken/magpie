@@ -59,6 +59,16 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
   for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) {
     for (const width of [1600, 375]) {
       const page = await browser.newPage({ locale: 'en-US' }); await page.setViewportSize({ width, height: 950 });
+      // This suite supplies synthetic lifecycle snapshots through REST. Hold
+      // their event stream open too; the dedicated updates suite owns delivery,
+      // reconnect and visibility behavior, without the real idle Manager
+      // contradicting the synthetic downloading/preparing fixture below.
+      await page.addInitScript(() => {
+        const originalFetch = window.fetch;
+        window.fetch = (url, options) => url !== '/api/local-model/events' ? originalFetch(url, options) : Promise.resolve(new Response(new ReadableStream({
+          start(controller) { options.signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')), { once: true }); }
+        }), { headers: { 'Content-Type': 'text/event-stream' } }));
+      });
       let expectedInstallFailure = null;
       const startupResponses = [], startupFailures = [];
       page.on('response', response => {

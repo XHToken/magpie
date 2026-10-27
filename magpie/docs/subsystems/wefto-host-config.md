@@ -19,16 +19,25 @@ active members and direct provider credentials. These checks run no inference.
 `FastChecker` independently checks health; it does not prove model readiness.
 
 `WorkBuddyAdapter` manages `models.json` (native root array or CLI object with
-`models`) and JSONC `settings.json`. Each raw target ID uses
+`models`) and JSONC `settings.json`. Each model uses
 `<origin>/app/workbuddy/v1`, the public placeholder, `supportsToolCall: true`
-and `useCustomProtocol: false`. `settings.model` is `custom-local:<primary>`.
+and `useCustomProtocol: false`. `settings.model` is `custom-local:<host selector>`.
 Stale generated entries are retired; user entries and extensions survive.
 The service resolves `ModelNames` from the same saved catalog as Loomy. New
 entries use `<model> · <provider name>`, the configured group name, or the fixed
 local model name. Reconnecting upgrades generated `API Router`/`Wefto`/ID labels to 端云协同 and
 refreshes generated labels while retaining user aliases. WorkBuddy 5.3.8 itself
-formats custom menu labels as `name:ID`; the readable name comes first and the
-request ID remains unchanged. No installed WorkBuddy files are patched.
+formats custom menu labels as `name:ID` unless both values agree. Automatic
+connections therefore publish the readable label as both `id` and `name`.
+The Profile's server-owned `modelAliases` map resolves these host selectors to
+the unchanged raw targets in `Models`; aliases and host files are committed in
+the same transaction. Identical labels receive a short ordinal to distinguish
+them, rather than exposing provider UUIDs. Reserved WorkBuddy display IDs use a
+readable product suffix to avoid the host's built-in name overrides.
+Prior aliases remain valid for selected targets after renaming; removing a
+target removes all its aliases. Raw IDs used by existing sessions still work.
+Only explicit reconnect migrates a raw-ID catalog; status reads do not write.
+No installed WorkBuddy files are patched.
 
 WorkBuddy adapter contract v2 adds reversible generated labels. Valid v1 records
 upgrade in place while retaining both original file snapshots. Label writes,
@@ -36,6 +45,8 @@ recovery metadata and Profile saves share the host transaction; a failed save
 rolls them back together. The journal identifies generated entries for status
 and retirement instead of treating the current display name as an ownership
 marker. Existing user labels, including opaque values, remain unowned.
+Startup port synchronization keeps the host selector; connection inspection
+compares its mapped target with the saved Profile selection.
 
 `LoomyAdapter` manages JSONC `opencode.json`: new connections use the `wefto`
 provider, while established `api_router` connections remain recognized. It uses

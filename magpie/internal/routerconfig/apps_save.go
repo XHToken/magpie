@@ -86,6 +86,23 @@ func validatedAppDraft(f providerFiles, in AppEdit, redactionCapability Redactio
 		}
 	}
 
+	aliases := old.ModelAliases
+	if in.ModelAliases != nil {
+		aliases = in.ModelAliases
+	}
+	p.ModelAliases = make(map[string]string)
+	for alias, target := range aliases {
+		if in.ModelAliases != nil {
+			p.ModelAliases[alias] = target
+			continue
+		}
+		for _, model := range p.Models {
+			if target == model {
+				p.ModelAliases[alias] = target
+				break
+			}
+		}
+	}
 	p.CredentialMode = in.CredentialMode
 	p.RedactionEnabled = in.RedactionEnabled
 	p.ReferencePrice = in.ReferencePrice
@@ -160,6 +177,11 @@ func (s *Store) saveAppContext(ctx context.Context, in AppEdit, capability Redac
 	if len(p.Models) == 0 {
 		delete(updates, "models")
 	}
+	// Replace the map as a unit so retired aliases cannot survive mergeObject.
+	delete(updates, "modelAliases")
+	if len(p.ModelAliases) > 0 {
+		updates["modelAliases"], _ = json.Marshal(p.ModelAliases)
+	}
 	if p.ReferencePrice != nil {
 		updates["referencePrice"] = mergeObject(fields["referencePrice"], p.ReferencePrice)
 	}
@@ -220,6 +242,7 @@ func (s *Store) DeleteAppContext(ctx context.Context, id string, revision int) e
 		_ = json.Unmarshal(b, &fields)
 		fields["cloud"] = mergeObject(previous["cloud"], p.Cloud)
 		delete(fields, "models")
+		delete(fields, "modelAliases")
 		delete(fields, "entryCredentialRef")
 		for _, k := range []string{"builtin", "configured", "path", "hasEntryKey", "entryKey", "clearEntryKey"} {
 			delete(fields, k)

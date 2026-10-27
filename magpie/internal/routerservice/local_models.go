@@ -189,13 +189,13 @@ func (l *LocalModels) autoLoadInstalled(ctx context.Context) {
 
 func localModelPath(r *http.Request) bool {
 	switch r.URL.EscapedPath() {
-	case "/api/local-model", "/api/local-model/settings", "/api/local-model/detect", "/api/local-model/select", "/api/local-model/enable", "/api/local-model/install", "/api/local-model/cancel", "/api/local-model/load", "/api/local-model/disable", "/api/local-model/health", "/api/local-model/check", "/api/local-model/trial/enable", "/api/local-model/trial/disable":
+	case "/api/local-model", "/api/local-model/events", "/api/local-model/settings", "/api/local-model/detect", "/api/local-model/select", "/api/local-model/enable", "/api/local-model/install", "/api/local-model/cancel", "/api/local-model/load", "/api/local-model/disable", "/api/local-model/health", "/api/local-model/check", "/api/local-model/trial/enable", "/api/local-model/trial/disable":
 		return true
 	}
 	return false
 }
 func localModelRead(r *http.Request) bool {
-	return r.URL.Path == "/api/local-model" || r.URL.Path == "/api/local-model/settings"
+	return r.URL.Path == "/api/local-model" || r.URL.Path == "/api/local-model/settings" || r.URL.Path == "/api/local-model/events"
 }
 
 func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
@@ -212,6 +212,10 @@ func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
 	}
 	if r.URL.RawQuery != "" {
 		fail("invalid_query", 400)
+		return
+	}
+	if r.URL.Path == "/api/local-model/events" {
+		localModelEvents(w, r, l.Manager)
 		return
 	}
 	if localModelRead(r) {

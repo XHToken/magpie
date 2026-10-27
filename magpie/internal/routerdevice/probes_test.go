@@ -3,6 +3,7 @@ package routerdevice
 import (
 	"context"
 	"errors"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"math"
@@ -160,6 +161,40 @@ func TestProductionProbeImportsCannotDownloadOrStartProcesses(t *testing.T) {
 			if strings.HasPrefix(name, "net") || name == "os/exec" || strings.HasPrefix(name, "github.com/yetone/magpie/internal/") {
 				t.Errorf("detector must not depend on networking, process or product lifecycle owners: %s imports %s", path, name)
 			}
+		}
+	}
+}
+
+func TestSupportedNativeProvidersIncludeAvailableMemory(t *testing.T) {
+	// Inspect all supported platforms on every runner. Fixture providers alone
+	// cannot catch a missing native probe that permanently blocks admission.
+	for _, platform := range []string{"windows", "darwin", "linux"} {
+		f, err := parser.ParseFile(token.NewFileSet(), "native_"+platform+".go", nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wired := false
+		ast.Inspect(f, func(n ast.Node) bool {
+			literal, ok := n.(*ast.CompositeLit)
+			if !ok {
+				return true
+			}
+			typ, ok := literal.Type.(*ast.Ident)
+			if !ok || typ.Name != "Probes" {
+				return true
+			}
+			for _, element := range literal.Elts {
+				if field, ok := element.(*ast.KeyValueExpr); ok {
+					if key, ok := field.Key.(*ast.Ident); ok && key.Name == "AvailableMemory" {
+						value, isIdent := field.Value.(*ast.Ident)
+						wired = !isIdent || value.Name != "nil"
+					}
+				}
+			}
+			return true
+		})
+		if !wired {
+			t.Errorf("%s native detector lacks available memory; model admission will remain unknown", platform)
 		}
 	}
 }
