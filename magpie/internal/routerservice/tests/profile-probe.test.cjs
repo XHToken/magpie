@@ -149,10 +149,12 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       assert.equal(calls.length, beforeCalls, 'FastChecker host connection must not trigger blocking upstream generation calls');
 
       const models = await fs.readFile(path.join(workbuddy, 'models.json'), 'utf8');
-      const target = JSON.parse(models).models.find(m => m.id === targetModel);
-      assert.ok(target, 'WorkBuddy models.json must contain the selected provider/model entry');
+      const savedProfile = (await (await fetch(origin + '/api/apps', { headers })).json()).apps.find(app => app.id === 'workbuddy');
+      const target = JSON.parse(models).models.find(m => savedProfile.modelAliases[m.id] === targetModel);
+      assert.ok(target, 'readable WorkBuddy selector must map to the selected provider/model entry');
+      assert.equal(target.id, target.name, 'WorkBuddy renders a readable selector without its raw-ID suffix');
       assert.equal(target.url, origin + '/app/workbuddy/v1');
-      assert.equal(JSON.parse(await fs.readFile(path.join(workbuddy, 'settings.json'), 'utf8')).model, `custom-local:${targetModel}`);
+      assert.equal(JSON.parse(await fs.readFile(path.join(workbuddy, 'settings.json'), 'utf8')).model, `custom-local:${target.id}`);
       assert.equal(models.includes(token) || models.includes('probe-fixture-key'), false, 'host configuration must not import management or upstream credentials');
 
       assert.equal(await page.locator('body').evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);

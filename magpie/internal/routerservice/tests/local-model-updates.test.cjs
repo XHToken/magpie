@@ -40,7 +40,7 @@ test(`local model push updates (${process.env.BROWSER || 'chromium'})`, { timeou
   const original = await (await fetch(base + '/api/local-model', { headers: { Authorization: 'Bearer ' + token } })).json();
   browser = await (process.env.BROWSER === 'webkit' ? webkit : chromium).launch({ headless: true });
   for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) {
-    const page = await browser.newPage();
+    const page = await browser.newPage({ locale: 'en-US' });
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     // Keep transport delivery under test control while exercising the real
     // browser ReadableStream/decoder, abort handling and the production page.
@@ -77,10 +77,13 @@ test(`local model push updates (${process.env.BROWSER || 'chromium'})`, { timeou
     snapshot.status = { ...snapshot.status, installation: 'downloading', runtime: 'unloaded', dependencies: { state: 'ready' }, intent: { ...snapshot.status.intent, enabled: true, selected: 'spark-x2.6-4B' }, progress: { downloaded: 10 * 1048576, total: 100 * 1048576, artifact: '妯″瀷' } };
     await page.route('**/api/local-model', route => { reads++; return route.fulfill({ json: snapshot }); });
     page.on('request', request => { if (new URL(request.url()).pathname === '/api/redaction') privacyReads++; });
-    await page.clock.install();
     await skipTutorial(page); await page.goto(`${base}/?locale=${language}&view=local-model`);
     await page.waitForFunction(() => document.querySelector('#localDownloadProgress progress')?.value === 10);
     await page.evaluate(() => window.routerLocalOpen());
+    await page.waitForFunction(() => window.__streams.active === 1);
+    // Complete the real management handshake before virtual time drives the
+    // download/backoff assertions; its network timeout is not a simulated event.
+    await page.clock.install();
     const initialReads = reads, initialPrivacyReads = privacyReads;
     await page.clock.runFor(15000);
     assert.equal(reads, initialReads, 'a healthy download stream never polls full model state');
