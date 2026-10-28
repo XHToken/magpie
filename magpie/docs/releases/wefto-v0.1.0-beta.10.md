@@ -10,6 +10,7 @@
 - 本地模型检查失败显示具体结果；重试和进度提示使用一致的阶段信息。
 - macOS/Linux 运行时归档中的安全动态库软链接展开为普通文件，支持链接链和前向引用，并继续拒绝越界、循环、缺失或目录目标。Intel macOS 展开预算调整为 64 MiB。
 - 安装技能每次需要下载时实时选择最新兼容 Release，并使用该 Release 返回的附件地址。
+- 页面日期与数值格式化兼容 Linux 浏览器可能报告的 POSIX 语言标记，避免正常服务被误报为连接失败；有效的英式等地区格式继续保留。
 
 提供 Windows x64、macOS Apple Silicon / Intel、Linux x64 / ARM64 包。Windows 安装需要同版本 manifest 和 `install-windows.ps1`；所有附件校验值见 `SHA256SUMS`，准确源码与验证范围见 `BUILD-INFO.json`。升级前停止旧程序，保留配置、模型和宿主恢复记录，按[版本替换说明](../windows-delivery.md)操作。
 

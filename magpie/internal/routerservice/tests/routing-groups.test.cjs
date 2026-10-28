@@ -140,7 +140,7 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
     await page.goto(`http://${address}/?locale=${language}&view=routing`);
     const note = page.locator('[data-group-privacy="private-parent"]');
     await note.waitFor({ state: 'visible' });
-    const expected = await page.evaluate(() => window.__apiRouterRoutingGroups.tr('Inherited redaction: all cloud candidates require redaction.'));
+    const expected = await page.evaluate(() => window.__weftoRoutingGroups.tr('Inherited redaction: all cloud candidates require redaction.'));
     assert.equal(await note.textContent(), expected);
     if (language !== 'en') assert.notEqual(expected, 'Inherited redaction: all cloud candidates require redaction.');
   }

@@ -49,7 +49,9 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     }
     assert.ok(token);
     browser=await(engine==='webkit'?webkit:chromium).launch();
-    const page=await browser.newPage();
+    const page=await browser.newPage({locale:'en-US'});
+    // Linux browsers can report POSIX locale modifiers that Intl rejects.
+    await page.addInitScript(()=>Object.defineProperty(navigator,'language',{get:()=> 'en-US@posix',configurable:true}));
     const api=async(method,url,body)=>{
       const response=await page.request.fetch(`http://${address}/api/cloud-providers${url}`,{method,headers:{Authorization:'Bearer '+token},...(body?{data:body}:{})});
       assert.equal(response.status(),200,await response.text());return response.json();
@@ -66,11 +68,16 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     const listed=await api('GET','');
     assert.equal(listed.providers.find(p=>p.id===ids.cached).modelListError,'model_list_auth_failed');
     const labels={healthy:'Discovered model list',cached:'Cached models; refresh failed',preset:'Preset models; availability is not verified'};
-    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    const errors=[], managementRequests=[];page.on('pageerror',e=>errors.push(e.message));
+    page.on('response',response=>{const pathname=new URL(response.url()).pathname;if(['/api/management/session','/api/service'].includes(pathname))managementRequests.push({pathname,status:response.status()});});
+    page.on('requestfailed',request=>managementRequests.push({pathname:new URL(request.url()).pathname,failure:request.failure()?.errorText}));
     for(const language of ['zh','en','zh-TW','ja','de'])for(const width of [375,1440]){
       await page.setViewportSize({width,height:950});await skipTutorial(page);
       await page.goto(`http://${address}/?locale=${language}&view=agents`);
-      await page.waitForFunction(()=>!!managementToken&&!!serviceInfo&&document.querySelectorAll('#agents .row.agent.conn').length===2);
+      await page.waitForFunction(()=>!!managementToken&&!!serviceInfo&&document.querySelectorAll('#agents .row.agent.conn').length===2).catch(async error=>{
+        console.error('Catalogue page readiness', {language,width,...await page.evaluate(()=>({hasToken:!!managementToken,hasService:!!serviceInfo,rows:document.querySelectorAll('#agents .row.agent.conn').length,view:location.search})),errors,managementRequests});
+        throw error;
+      });
       await page.locator('#agents [data-app="loomy"] .field.ag-menu').click();
       const pop=page.locator('.am-pop');await pop.waitFor({state:'visible'});
       for(const [kind,key] of Object.entries(labels)){
@@ -95,6 +102,9 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     await page.waitForFunction(()=>document.querySelector('#providerModal').hidden);
     await page.waitForFunction(()=>document.querySelector('#providerStatus').textContent.includes('Model discovery failed'));
     assert.equal(await page.locator('#providerStatus').textContent(),'Provider saved. Model discovery failed; using cached models.');
+    assert.equal(await page.evaluate(()=>routerIntlLang()),'en');
+    await page.evaluate(()=>Object.defineProperty(navigator,'language',{get:()=> 'en-GB',configurable:true}));
+    assert.equal(await page.evaluate(()=>routerIntlLang()),'en-GB','valid English regional formatting remains available');
     assert.deepEqual(errors,[]);assert.equal(generationCalls,0);
   });
 }

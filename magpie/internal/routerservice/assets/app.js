@@ -3,6 +3,10 @@
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const isWeftoService = value => value === 'wefto' || value === 'api-router';
+const routerIntlLang = () => {
+  try { return Intl.getCanonicalLocales(intlLang())[0] || 'en'; }
+  catch { return 'en'; }
+};
 const params = new URLSearchParams(location.search);
 let preferences = {};
 try { preferences = JSON.parse(localStorage.getItem('wefto.ui') ?? localStorage.getItem('api-router.ui') ?? '{}') || {}; } catch {}
@@ -200,7 +204,7 @@ function renderService() {
   $('#sideGw').classList.toggle('off', !healthy);
   $('#sideGw span').textContent = healthy ? t('Gateway') + ' ' + location.host : t('Connection unavailable');
   $('#version').textContent = serviceInfo?.version || '—';
-  $('#started').textContent = serviceInfo ? new Date(serviceInfo.startedAt).toLocaleString(intlLang()) : '—';
+  $('#started').textContent = serviceInfo ? new Date(serviceInfo.startedAt).toLocaleString(routerIntlLang()) : '—';
   $('#model').textContent = t(serviceInfo?.modelAPIReady ? 'Ready' : 'Not connected yet');
   $('#runtime').textContent = t(serviceInfo?.runtimeReady ? 'Ready' : 'Not connected yet');
   window.routerObservationsRender?.();

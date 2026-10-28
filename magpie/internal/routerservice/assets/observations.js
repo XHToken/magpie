@@ -74,10 +74,10 @@
   let state = 'Management token required', detailError = '', loading = false, sequence = 0, status = '', operation = '', destinationFilter = '';
   let redactRecords = [], redactSummary = null, redactNextCursor = '', redactCursor = '', redactHitOnly = '', confirmingClear = false;
   const visible = () => view === 'usage';
-  const num = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString(intlLang()) : t('Unknown');
-  const milliseconds = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER ? value.toLocaleString(intlLang(), { maximumFractionDigits: 3 }) : t('Unknown');
+  const num = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString(routerIntlLang()) : t('Unknown');
+  const milliseconds = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER ? value.toLocaleString(routerIntlLang(), { maximumFractionDigits: 3 }) : t('Unknown');
   const requestDuration = record => record.status === 'processing' ? t('Processing') : record.executionKnown === false ? t('Unknown') : milliseconds(record.durationMs);
-  const date = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString(intlLang()) : t('Unknown');
+  const date = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString(routerIntlLang()) : t('Unknown');
   const label = (values, value) => values[value] ? t(values[value]) : t('Unknown');
   function button(text, click, className = 'text') { const b = el('button', className, t(text)); b.type = 'button'; b.onclick = click; b.disabled = loading; return b; }
   function empty(message) { const box = el('div', 'list router-empty'), inner = el('div', 'empty-state'); inner.setAttribute('role', 'status'); inner.append(el('b', '', t(message))); box.append(inner); return box; }
@@ -85,7 +85,7 @@
   const destination = value => t(value === 'local' ? 'Local' : value === 'cloud' ? 'Cloud' : value === 'none' ? 'No outbound attempt' : 'Unknown');
   const actualModel = record => record.destination === 'local' ? record.localModel || t('Unknown') : record.destination === 'cloud' ? record.model || t('Unknown') : t('Unknown');
   const amount = value => typeof value === 'string' && /^(0|[1-9]\d*)(\.\d+)?$/.test(value) && value.length <= 256 ? value : t('Unknown');
-  const priceNumber = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value.toLocaleString(intlLang(), { maximumFractionDigits: 20 }) : t('Unknown');
+  const priceNumber = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value.toLocaleString(routerIntlLang(), { maximumFractionDigits: 20 }) : t('Unknown');
   function section(name, className = '') { const box = el('section', 'list request-stat-section ' + className); box.append(el('h2', '', t(name))); return box; }
   function scopeNote(...messages) {
     const note = el('details', 'destination-scope'); note.append(el('summary', '', t('Statistics scope')));
@@ -145,7 +145,7 @@
       const count = el('div', 'destination-count'); count.append(el('b', '', num(group.total)), el('span', '', t('Requests')));
       const shareKnown = typeof group.share === 'number' && Number.isFinite(group.share) && group.share >= 0 && group.share <= 1;
       const share = el('div', 'destination-share');
-      share.append(el('span', '', t('Request share')), el('b', '', shareKnown ? group.share.toLocaleString(intlLang(), { style: 'percent', maximumFractionDigits: 2 }) : t('Unknown')));
+      share.append(el('span', '', t('Request share')), el('b', '', shareKnown ? group.share.toLocaleString(routerIntlLang(), { style: 'percent', maximumFractionDigits: 2 }) : t('Unknown')));
       share.title = t('Share of retained generation requests');
       const track = el('div', 'destination-track'), fill = el('div'); track.setAttribute('aria-hidden', 'true');
       if (shareKnown) fill.style.width = (group.share * 100) + '%';

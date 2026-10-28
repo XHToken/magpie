@@ -28,6 +28,11 @@ and cloud fallback attempts are recorded once under their business request.
 
 ## Embedded UI
 
+Product date and number formatting validates the shared locale tag through
+`routerIntlLang` in `assets/app.js`. Valid regional English tags are retained;
+invalid browser tags such as `en-US@posix` fall back to English instead of
+throwing during authenticated refresh and marking a healthy service offline.
+
 [`assets/index.html`](../../internal/routerservice/assets/index.html) and product scripts expose application, provider, routing, local-model and usage pages. Titles and header show 端云协同 with a 端 favicon. Copy and tutorial translations cover Simplified/Traditional Chinese, English, Japanese and German. Retained Magpie assets provide shared styles/icons without starting its lifecycle. The product 端 favicon overrides the shared icon collection, and its URL includes a brand revision to refresh browser caches.
 
 The routing-group editor omits model-match pattern controls. New groups submit
