@@ -163,6 +163,7 @@ button:disabled { cursor: default; opacity: .45; }
 .am-pop .am-tools { flex-wrap: wrap; }
 .am-pop .am-search { flex-basis: 140px; }
 .am-pop .am-gn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.am-pop .am-source { padding: 0 8px 5px; color: var(--muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
 .am-pop .am-gc { flex: none; font-variant-numeric: tabular-nums; }
 .am-pop .am-arr { flex: none; width: 6px; height: 6px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); margin: -3px 2px 0; }
 .am-pop .am-g.fold { display: block; margin: 0; padding: 0; border-radius: 0; background: none; color: inherit; }
@@ -363,6 +364,17 @@ progress.local-progress-bar::-webkit-progress-bar { background: transparent; }
 progress.local-progress-bar::-webkit-progress-value { background: var(--progress-bar-fill); border-radius: 999px; transition: inline-size .2s ease; }
 progress.local-progress-bar::-moz-progress-bar { background: var(--progress-bar-fill); border-radius: 999px; transition: inline-size .2s ease; }
 .local-status-error { margin-top: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.local-feedback { --feedback-color: var(--red); --feedback-bg: var(--red-soft); display: flex; align-items: flex-start; gap: 12px; margin: 16px 0; padding: 16px; border: 1px solid var(--feedback-color); border-radius: 12px; background: var(--feedback-bg); color: var(--fg); }
+.local-feedback[hidden] { display: none; }
+.local-feedback[data-state="warning"] { --feedback-color: var(--amber); --feedback-bg: var(--amber-soft); }
+.local-feedback[data-state="success"] { --feedback-color: var(--green); --feedback-bg: var(--green-soft); }
+.local-feedback[data-state="checking"] { --feedback-color: var(--accent); --feedback-bg: var(--accent-soft); }
+.local-feedback-icon { flex: none; display: grid; place-items: center; width: 25px; height: 25px; border: 2px solid currentColor; border-radius: 50%; color: var(--feedback-color); font-size: 15px; font-weight: 700; line-height: 1; }
+.local-feedback-body { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.local-feedback h3 { margin: 0 0 6px; color: var(--feedback-color); font-size: 15px; font-weight: 600; line-height: 1.6; }
+.local-feedback p, .local-feedback .local-status-error { margin: 0; font-size: 13px; line-height: 1.75; color: var(--fg); user-select: text; }
+.local-feedback .local-feedback-metrics { margin-top: 10px; font-variant-numeric: tabular-nums; }
+.local-feedback .local-feedback-next { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--feedback-color); }
 @media (max-width: 640px) {
  #routingGroupModal .rt-group-editor > .ebody { grid-template-columns: minmax(0, 1fr); }
  #routingGroupModal .rt-group-editor > .ebody > label { padding-top: 2px; }

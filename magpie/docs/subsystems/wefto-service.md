@@ -28,6 +28,11 @@ and cloud fallback attempts are recorded once under their business request.
 
 ## Embedded UI
 
+Product date and number formatting validates the shared locale tag through
+`routerIntlLang` in `assets/app.js`. Valid regional English tags are retained;
+invalid browser tags such as `en-US@posix` fall back to English instead of
+throwing during authenticated refresh and marking a healthy service offline.
+
 [`assets/index.html`](../../internal/routerservice/assets/index.html) and product scripts expose application, provider, routing, local-model and usage pages. Titles and header show 端云协同 with a 端 favicon. Copy and tutorial translations cover Simplified/Traditional Chinese, English, Japanese and German. Retained Magpie assets provide shared styles/icons without starting its lifecycle. The product 端 favicon overrides the shared icon collection, and its URL includes a brand revision to refresh browser caches.
 
 The routing-group editor omits model-match pattern controls. New groups submit
@@ -65,6 +70,20 @@ Service management shows process information and login startup controls without
 displaying the PowerShell start command. Stop/restart confirmation acknowledges
 the page disconnect; recovery messages refer to the user's usual launcher.
 The service API still supplies `startCommand` for CLI lifecycle compatibility.
+
+The CLI enables experimental redaction admission by default for `serve` and for
+`service start` without saved options. Legacy unversioned options also adopt
+this default: the old file cannot distinguish its automatically saved false
+from a manual opt-out. New options use `schemaVersion: 1`; a versioned
+`experimentalRedaction: false` remains an opt-out, retained by start, restart
+and login autostart. Unknown option versions and malformed files block startup.
+Both foreground and managed startup accept `--no-experimental-redaction`;
+managed startup passes an explicit on/off flag to its child so the foreground
+default cannot override a saved opt-out. `--experimental-redaction` remains
+available to enable admission explicitly. The group/application redaction intent,
+model enablement and exact model binding remain independent requirements.
+Changing the CLI default grants no formal recognition quality acceptance and
+does not bypass invalid-result blocking.
 
 The embedded `tutorial.js` guide has nine chapters: introduction, providers,
 Agent model selection and connection, optional local-model selection and

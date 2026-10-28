@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/yetone/magpie/internal/routercloud"
 	"github.com/yetone/magpie/internal/routerconfig"
 )
 
@@ -13,7 +14,49 @@ type LocalRuntime = LocalModels
 
 type groupView struct {
 	routerconfig.Group
-	Enabled bool `json:"enabled"`
+	Enabled         bool               `json:"enabled"`
+	RedactionPolicy groupRedactionView `json:"redactionPolicy"`
+}
+
+type groupRedactionView struct {
+	OwnRequired       bool     `json:"ownRequired"`
+	InheritedRequired bool     `json:"inheritedRequired"`
+	SourceGroupIDs    []string `json:"sourceGroupIds"`
+	ModelID           string   `json:"modelId"`
+	HasLocalModel     bool     `json:"hasLocalModel"`
+	RuleDependent     bool     `json:"ruleDependent"`
+	State             string   `json:"state"`
+	ReasonCode        string   `json:"reasonCode,omitempty"`
+}
+
+func describeGroupRedaction(g routerconfig.Group, groups []routerconfig.Group) groupRedactionView {
+	v := groupRedactionView{OwnRequired: g.LocalRedaction, SourceGroupIDs: []string{}, State: "not_required", RuleDependent: len(g.Rules) > 0}
+	expansion, err := routerconfig.ResolveActiveGroupExpansion(g, groups)
+	for _, member := range expansion.Members {
+		if strings.HasPrefix(bareMember(member), "local/") {
+			v.HasLocalModel = true
+		}
+	}
+	for _, source := range expansion.PrivacySources {
+		if source.GroupID != g.ID {
+			v.InheritedRequired = true
+		}
+		v.SourceGroupIDs = append(v.SourceGroupIDs, source.GroupID)
+	}
+	plan, policyErr := groupPrivacyPlan(false, expansion.PrivacySources)
+	v.ModelID = plan.RequiredModelID
+	if v.OwnRequired || v.InheritedRequired {
+		v.State = "required"
+	}
+	if err != nil {
+		v.State, v.ReasonCode = "invalid", "redaction_policy_invalid"
+	} else if policyErr != nil {
+		v.State = "invalid"
+		if e, ok := policyErr.(*routercloud.Error); ok {
+			v.ReasonCode = e.Code
+		}
+	}
+	return v
 }
 
 type groupRequest struct {
@@ -47,18 +90,23 @@ func parseFlexibleContext(raw any) int {
 	return 0
 }
 
-func toGroupView(g routerconfig.Group) groupView {
+func toGroupView(g routerconfig.Group, all ...[]routerconfig.Group) groupView {
 	if g.Members == nil {
 		g.Members = []string{}
 	}
-	return groupView{Group: g, Enabled: !g.Disabled}
+	groups := []routerconfig.Group{g}
+	if len(all) > 0 {
+		groups = all[0]
+	}
+	return groupView{Group: g, Enabled: !g.Disabled, RedactionPolicy: describeGroupRedaction(g, groups)}
 }
 
 func toGroupViews(groups []routerconfig.Group) []groupView {
 	out := make([]groupView, 0, len(groups))
 	for _, g := range groups {
 		if !g.Hidden {
-			out = append(out, toGroupView(g))
+			view := toGroupView(g, groups)
+			out = append(out, view)
 		}
 	}
 	return out
@@ -124,6 +172,18 @@ func effectiveGroups(cfg routerconfig.Config, local *LocalRuntime) []routerconfi
 	return routerconfig.EffectiveGroups(cfg, catalog)
 }
 
+// Keep tombstones visible to expansion so hidden references are excluded rather
+// than mistaken for unreadable/missing groups. Group views still hide the rows.
+func groupExpansionCatalog(cfg routerconfig.Config, local *LocalRuntime) []routerconfig.Group {
+	groups := effectiveGroups(cfg, local)
+	for _, g := range cfg.Groups {
+		if g.Hidden {
+			groups = append(groups, g)
+		}
+	}
+	return groups
+}
+
 func validateGroupInput(g routerconfig.Group) error {
 	if !g.Hidden && strings.TrimSpace(g.Name) == "" {
 		return &routerconfig.GroupValidation{Message: "group name is required"}
@@ -187,7 +247,7 @@ func routingGroupsAPI(w http.ResponseWriter, r *http.Request, store *routerconfi
 			return
 		}
 		if r.Method != http.MethodHead {
-			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "groups": toGroupViews(effectiveGroups(cfg, local))})
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "groups": toGroupViews(groupExpansionCatalog(cfg, local))})
 		}
 	case http.MethodPost:
 		var req groupRequest
@@ -196,6 +256,15 @@ func routingGroupsAPI(w http.ResponseWriter, r *http.Request, store *routerconfi
 			return
 		}
 		g := req.Group
+		cfgBefore, loadErr := store.LoadConfigContext(r.Context())
+		if loadErr != nil {
+			writeGroupStoreErr(w, "group_load_failed", loadErr)
+			return
+		}
+		previous, _ := findRuntimeGroup(cfgBefore.Groups, cfgBefore.Groups, g.ID)
+		if req.LocalRedaction == nil {
+			g.LocalRedaction = previous.LocalRedaction
+		}
 		g.Context = parseFlexibleContext(req.ContextRaw)
 		if g.Family == "" && strings.TrimSpace(req.Alias) != "" {
 			g.Family = strings.TrimSpace(req.Alias)
@@ -221,6 +290,10 @@ func routingGroupsAPI(w http.ResponseWriter, r *http.Request, store *routerconfi
 		if req.LocalRedaction != nil {
 			g.LocalRedaction = *req.LocalRedaction
 		}
+		preview := r.URL.Query().Get("preview") == "1"
+		if preview && strings.TrimSpace(g.Name) == "" {
+			g.Name = "Draft"
+		}
 		if err := validateGroupInput(g); err != nil {
 			writeGroupStoreErr(w, "invalid_group", err)
 			return
@@ -239,8 +312,33 @@ func routingGroupsAPI(w http.ResponseWriter, r *http.Request, store *routerconfi
 				g.Routing = "edge-cloud"
 			}
 		}
-		if !hasLocal {
-			g.LocalRedaction = false
+		draftGroups := make([]routerconfig.Group, 0, len(cfgBefore.Groups)+1)
+		for _, saved := range cfgBefore.Groups {
+			if saved.ID != g.ID {
+				draftGroups = append(draftGroups, saved)
+			}
+		}
+		normalized, normErr := routerconfig.NormalizeGroup(g)
+		if normErr != nil {
+			writeGroupStoreErr(w, "invalid_group", normErr)
+			return
+		}
+		cfgBefore.Groups = append(draftGroups, normalized)
+		previewGroups := groupExpansionCatalog(cfgBefore, local)
+		effectiveDraft, found := findRuntimeGroup(cfgBefore.Groups, previewGroups, normalized.ID)
+		if !found {
+			effectiveDraft = normalized
+		}
+		policy := describeGroupRedaction(effectiveDraft, previewGroups)
+		if preview {
+			view := toGroupView(normalized)
+			view.RedactionPolicy = policy
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "group": view})
+			return
+		}
+		if g.LocalRedaction && !previous.LocalRedaction && policy.State == "invalid" {
+			writeGroupErr(w, http.StatusConflict, policy.ReasonCode, "routing group redaction requires a consistent local model")
+			return
 		}
 		saved, err := store.SaveGroupContext(r.Context(), g)
 		if err != nil {
@@ -248,7 +346,7 @@ func routingGroupsAPI(w http.ResponseWriter, r *http.Request, store *routerconfi
 			return
 		}
 		cfg, _ := store.LoadConfigContext(r.Context())
-		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "group": toGroupView(saved), "groups": toGroupViews(effectiveGroups(cfg, local))})
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "group": toGroupView(saved, groupExpansionCatalog(cfg, local)), "groups": toGroupViews(groupExpansionCatalog(cfg, local))})
 	case http.MethodDelete:
 		handleGroupDelete(w, r, store, local)
 	}
@@ -292,7 +390,7 @@ func handleGroupSwitch(w http.ResponseWriter, r *http.Request, store *routerconf
 		return
 	}
 	cfg, _ = store.LoadConfigContext(r.Context())
-	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "group": toGroupView(saved), "groups": toGroupViews(effectiveGroups(cfg, local))})
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "group": toGroupView(saved, groupExpansionCatalog(cfg, local)), "groups": toGroupViews(groupExpansionCatalog(cfg, local))})
 }
 
 func findGroupForSwitch(cfg routerconfig.Config, local *LocalRuntime, id string) (routerconfig.Group, bool) {
@@ -339,5 +437,5 @@ func handleGroupDelete(w http.ResponseWriter, r *http.Request, store *routerconf
 		return
 	}
 	cfg, _ = store.LoadConfigContext(r.Context())
-	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "deleted": true, "groups": toGroupViews(effectiveGroups(cfg, local))})
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "deleted": true, "groups": toGroupViews(groupExpansionCatalog(cfg, local))})
 }

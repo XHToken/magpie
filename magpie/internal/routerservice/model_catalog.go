@@ -15,9 +15,8 @@ func ordinaryModelCandidates(base string, models []string) []string {
 	if err != nil {
 		return models
 	}
-	switch strings.TrimSuffix(strings.ToLower(address.Hostname()), ".") {
-	case "maas.qianwenaiapi.com", "dashscope.aliyuncs.com", "dashscope-intl.aliyuncs.com":
-	default:
+	host := strings.TrimSuffix(strings.ToLower(address.Hostname()), ".")
+	if host != "maas.qianwenaiapi.com" && !bailianCatalogueHost(host) {
 		return models
 	}
 	ordinary := make([]string, 0, len(models))

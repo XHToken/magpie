@@ -139,7 +139,8 @@ func stopLoomyOpencodeProcess(root string) {
 
 func isRealLoomyConfigRoot(cleanRoot string) bool {
 	slashed := "/" + strings.Trim(strings.ToLower(filepath.ToSlash(cleanRoot)), "/") + "/"
-	if !strings.Contains(slashed, "/loomy/") && !strings.Contains(slashed, "/.loomy/") {
+	nativeRoot := strings.HasSuffix(slashed, "/.config/loomy-opencode/")
+	if !nativeRoot && !strings.Contains(slashed, "/loomy/") && !strings.Contains(slashed, "/.loomy/") {
 		return false
 	}
 	tempDir := filepath.Clean(os.TempDir())

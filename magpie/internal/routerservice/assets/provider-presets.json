@@ -83,8 +83,8 @@
     "keysURL": "https://platform.deepseek.com/api_keys",
     "kind": "vendor",
     "models": [
-      "deepseek-chat",
-      "deepseek-reasoner"
+      "deepseek-flash",
+      "deepseek-v4-pro"
     ],
     "name": "DeepSeek",
     "website": "https://platform.deepseek.com"

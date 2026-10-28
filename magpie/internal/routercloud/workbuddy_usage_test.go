@@ -100,7 +100,7 @@ func TestWorkBuddyUsageShapeAndRoleBoundaries(t *testing.T) {
 	}
 	workBuddyAssertInvalidMetadataZeroOutbound(t, []byte(`{"messages":[{"role":"assistant","content":"done","rawUsage":{},"rawUsage":{}}]}`))
 	workBuddyAssertInvalidMetadataZeroOutbound(t, []byte(`{"messages":[{"role":"assistant","content":"done","rawUsage":{},"unknown":1}]}`))
-	for _, field := range []string{`"usage":` + valid, `"rawUsage":{}`} {
+	for _, field := range []string{`"usage":` + valid, `"rawUsage":{}`, `"stepSeq":0`, `"stepSeq":1`} {
 		for _, target := range []string{"responses", "anthropic"} {
 			body := []byte(`{"messages":[{"role":"assistant","content":"done",` + field + `}]}`)
 			calls := 0
@@ -108,7 +108,7 @@ func TestWorkBuddyUsageShapeAndRoleBoundaries(t *testing.T) {
 			out, err := e.Execute(context.Background(), httptest.NewRecorder(), Request{"chat", body, configured("http://fixture.invalid/v1", target)})
 			failure, ok := err.(*Error)
 			if !ok || failure.Code != "capability_message_metadata" || calls != 0 || out.Attempts != 0 {
-				t.Fatalf("isolated usage field lost for %s: %v", target, err)
+				t.Fatalf("isolated host metadata lost for %s: %v", target, err)
 			}
 		}
 	}
@@ -125,7 +125,7 @@ func TestWorkBuddyUsageOptionalSDKFieldsAndOpaqueBusinessData(t *testing.T) {
 			t.Fatalf("installed optional schema rejected: %v", err)
 		}
 	}
-	body := []byte(`{"messages":[{"role":"user","content":"usage and rawUsage are business text"}],"tools":[{"type":"function","function":{"name":"read","parameters":{"type":"object","properties":{"usage":{"type":"object"},"rawUsage":{"type":"string"}}}}}]}`)
+	body := []byte(`{"messages":[{"role":"user","content":"usage, rawUsage and stepSeq are business text"}],"tools":[{"type":"function","function":{"name":"read","parameters":{"type":"object","properties":{"usage":{"type":"object"},"rawUsage":{"type":"string"},"stepSeq":{"type":"integer"}}}}}]}`)
 	for _, target := range []string{"chat", "responses", "anthropic"} {
 		calls := 0
 		e := Executor{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) { calls++; return response(200, whole(target, false)), nil })}

@@ -25,6 +25,7 @@ var chatHostFields = map[string]hostField{
 	"requestModelName":         {"assistant|tool", "string"},
 	"traceId":                  {"assistant|tool", "string"},
 	"conversationRequestId":    {"user|assistant|tool", "string"},
+	"stepSeq":                  {"assistant|tool", "count"},
 	"rootRequestId":            {"user|assistant|tool", "string"},
 	"reasoning":                {"assistant", "text"},
 	"reasoning_details":        {"assistant", "text"},

@@ -89,6 +89,10 @@ func validStatus(s string, processing bool) bool {
 // boundaries. Unknown strings, including raw errors, collapse to router_error.
 func SafeCode(s string) string {
 	switch s {
+	case "redaction_policy_conflict", "redaction_policy_invalid", "redaction_model_missing":
+		return s
+	}
+	switch s {
 	case "capability_namespace", "capability_custom", "capability_additional_tools", "capability_web_search", "capability_reasoning_history", "capability_message_phase", "capability_item_identity", "capability_reasoning_configuration", "capability_metadata", "capability_protocol_conversion", "cloud_permission_error", "connection_check_no_text", "connection_check_unsupported", "provider_conflict":
 		return s
 	case "", "router_error", "cloud_error", "cloud_network_error", "cloud_response_error", "cloud_timeout", "cloud_auth_error", "cloud_parameter_error", "cloud_model_not_found", "cloud_rate_limit", "cloud_upstream_error", "request_canceled", "unsupported_input", "unsupported_operation", "redaction_unavailable", "invalid_target", "app_not_registered", "profile_conflict", "profile_unconfigured", "credential_missing", "credential_misuse", "budget_exhausted", "profile_invalid", "target_missing", "configuration_unavailable", "attempt_forbidden", "target_mismatch", "invalid_app_path", "unsupported_endpoint", "invalid_auth_headers", "request_interrupted", "request_too_large", "invalid_request", "invalid_content_type", "unsupported_media_type":
@@ -127,6 +131,28 @@ func validUsage(u *Usage) bool {
 const MaxAttempts = 16
 
 func validOutcome(o Outcome, processing bool) bool {
+	if p := o.Redaction; p != nil {
+		if len(p.SourceGroupIDs) > 8 || p.SourceGroupCount < len(p.SourceGroupIDs) || p.SourceGroupCount > 16384 || !display(p.ModelID, 256) {
+			return false
+		}
+		for _, id := range p.SourceGroupIDs {
+			if id == "" || !display(id, 128) {
+				return false
+			}
+		}
+		switch p.State {
+		case "not_required":
+			if p.Required || p.SourceGroupCount != 0 || p.ModelID != "" {
+				return false
+			}
+		case "pending", "not_sent", "prepared", "blocked":
+			if !p.Required {
+				return false
+			}
+		default:
+			return false
+		}
+	}
 	if !validStatus(o.Status, processing) || o.Attempts < 0 || o.Attempts > MaxAttempts || len(o.AttemptDetails) > o.Attempts || !validUsage(o.Usage) || SafeCode(o.SafeErrorCode) != o.SafeErrorCode || SafeCapabilityState(o.CapabilityState) != o.CapabilityState || !display(o.LocalModel, 256) || !identifier(o.LocalCallID, 128, true) || o.Decision != "" && o.Decision != "local" && o.Decision != "cloud" || o.JudgmentMS < 0 {
 		return false
 	}

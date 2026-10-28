@@ -104,6 +104,14 @@ invalid types, duplicate keys, media and remote history remain separate
 unsupported contracts. The fixture README records source hashes and the
 distinction between serializer executions with synthetic inputs and wire captures.
 
+Completed WorkBuddy turns also stamp `stepSeq` onto assistant messages,
+function calls and subsequent tool results. The shared registry accepts this
+nonnegative integer only on assistant/tool envelopes, including zero for calls
+that do not advance the main model loop. Native Chat retains it with `usage`
+and correlation IDs; routing treats it as host bookkeeping. The same conversion
+gate refuses metadata loss across protocols. User/system/developer placement,
+negative/fractional values, invalid types and duplicate keys remain rejected.
+
 User command-output `goalStatus` objects and typed user-text `acpResourceLink`
 objects are included as well. Attachment references remain text plus opaque
 metadata; accepting them does not fetch files or add media support. Part metadata

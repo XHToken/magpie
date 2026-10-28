@@ -1050,7 +1050,7 @@ func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protoco
 	if !businessModelRequest(options) {
 		requestID, check = "", true
 	}
-	target := routercloud.Target{Provider: state.Target.Provider, Model: state.Target.Profile.Cloud.Model, Authorization: state.Target.Authorization, RedactionRequired: state.Target.Profile.RedactionEnabled, ResponseCapabilities: state.Target.Profile.Cloud.Capabilities}
+	target := routercloud.Target{Provider: state.Target.Provider, Model: state.Target.Profile.Cloud.Model, Authorization: state.Target.Authorization, RedactionRequired: redactionRequired(prepared.Context(), state.Target.Profile.RedactionEnabled), ResponseCapabilities: state.Target.Profile.Cloud.Capabilities}
 	operation := operationFor(sub)
 	routing := options.routingOptions()
 	wire, prepareErr := routercloud.PrepareRequestBody(routercloud.Request{Protocol: protocol, Body: body, Target: target}, operation == "count_tokens")
@@ -1082,7 +1082,7 @@ func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protoco
 		}
 		beforeBody := append([]byte(nil), wire.Body()...)
 		sessionID, sessionVerified, seedSessionID := parseRedactionSessionMaterial(state.AppID, protocol, body)
-		preparedCloud, prepareErr = routing.Redactor.Prepare(redactionCtx, RedactionRequest{RequestID: state.ID, AppID: state.AppID, SourceProtocol: protocol, TargetProtocol: target.Provider.Config.Protocol, Operation: operation, SessionID: sessionID, SeedSessionID: seedSessionID, SessionVerified: sessionVerified, Versions: versions, Body: wire.Body(), Context: redactionCtx})
+		preparedCloud, prepareErr = prepareRequiredRedaction(redactionCtx, options, routing.Redactor, versions, RedactionRequest{RequestID: state.ID, AppID: state.AppID, SourceProtocol: protocol, TargetProtocol: target.Provider.Config.Protocol, Operation: operation, SessionID: sessionID, SeedSessionID: seedSessionID, SessionVerified: sessionVerified, Versions: versions, Body: wire.Body(), Context: redactionCtx})
 		if preparedCloud.Close != nil || preparedCloud.Release != nil {
 			defer func() {
 				if closeErr := closePreparedCloud(preparedCloud); closeErr != nil && err == nil {
@@ -1091,6 +1091,9 @@ func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protoco
 			}()
 		}
 		if prepareErr != nil || len(preparedCloud.Body) == 0 {
+			if prepared.Context().Err() != nil {
+				return routercloud.Result{Operation: operation, Decision: string(DecisionCloud)}, prepared.Context().Err()
+			}
 			return routercloud.Result{Operation: operation, Decision: string(DecisionCloud)}, ErrRedactionUnavailable
 		}
 		if !check && operation != "count_tokens" {

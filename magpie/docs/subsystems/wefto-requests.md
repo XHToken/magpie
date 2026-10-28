@@ -2,6 +2,15 @@
 
 ## Purpose
 
+Request details also expose the server-resolved redaction policy separately
+from individual model calls: effective requirement, source groups, model and
+preparation/block status. Missing historical policy is unknown. A prepared
+state does not prove an upstream send; actual attempt records remain authoritative.
+The group console shows inherited policy and model conflicts even when the
+group's own switch is off. Authenticated draft previews are read-only, and
+opening or saving an editor never clears existing privacy intent because a
+local member disappeared. See [redaction inheritance](wefto-redaction.md#nested-groups-and-request-scoped-requirements).
+
 Capture privacy-safe per-request diagnostic records (`routerobs`) and persistent
 token/cost usage rollups (`routerusage`) across cloud, local, and routing-group
 executions, while separating the `#view-routing` routing-group console from the

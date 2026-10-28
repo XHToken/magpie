@@ -54,7 +54,10 @@ func tarGzipBytes(t *testing.T, entries ...archiveEntry) []byte {
 		}
 		if e.mode&os.ModeSymlink != 0 {
 			h.Typeflag = tar.TypeSymlink
-			h.Linkname = "outside"
+			h.Linkname = string(e.data)
+			if h.Linkname == "" {
+				h.Linkname = "outside"
+			}
 			h.Size = 0
 		}
 		if err := tw.WriteHeader(h); err != nil {

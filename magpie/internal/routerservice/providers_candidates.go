@@ -197,4 +197,5 @@ type providerModelListResult struct {
 	Source           string   `json:"source,omitempty"`
 	DocsURL          string   `json:"docsURL,omitempty"`
 	Fallback         bool     `json:"fallback,omitempty"`
+	DiscoveryError   string   `json:"discoveryError,omitempty"`
 }

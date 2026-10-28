@@ -60,7 +60,7 @@ func TestSchemaOneMigrationPreservesUnknownsAndHistory(t *testing.T) {
 	}
 	defer s.Close()
 	old := get(t, s, "old-success")
-	if old.SchemaVersion != 2 || old.ReferencePrice != nil || old.LocalModel != "" || old.Status != "succeeded" || old.Usage == nil || old.Usage.InputTokens == nil || *old.Usage.InputTokens != 13 || old.Usage.TotalTokens != nil {
+	if old.SchemaVersion != SchemaVersion || old.ReferencePrice != nil || old.LocalModel != "" || old.Status != "succeeded" || old.Usage == nil || old.Usage.InputTokens == nil || *old.Usage.InputTokens != 13 || old.Usage.TotalTokens != nil {
 		t.Fatalf("migration rewrote history or fabricated values: %+v", old)
 	}
 	interrupted := get(t, s, "old-processing")
@@ -68,7 +68,7 @@ func TestSchemaOneMigrationPreservesUnknownsAndHistory(t *testing.T) {
 		t.Fatalf("processing migration claimed known execution: %+v", interrupted)
 	}
 	var version int
-	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 2 {
+	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != SchemaVersion {
 		t.Fatalf("schema header=%d %v", version, err)
 	}
 	calls, err := s.Calls("old-success")

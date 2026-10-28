@@ -120,7 +120,7 @@ func TestProviderPresetModelsFallbackWhenDiscoveredModelsEmpty(t *testing.T) {
 	}{
 		{name: "Spark MaaS Provider", preset: "spark-maas", baseURL: "https://maas-api.cn-huabei-1.xf-yun.com/v2", wantModel: "spark-x2.5"},
 		{name: "OpenAI Provider", preset: "openai", baseURL: "https://api.openai.com/v1", wantModel: "gpt-5.4"},
-		{name: "DeepSeek Provider", preset: "deepseek", baseURL: "https://api.deepseek.com/v1", wantModel: "deepseek-chat"},
+		{name: "DeepSeek Provider", preset: "deepseek", baseURL: "https://api.deepseek.com/v1", wantModel: "deepseek-flash"},
 		{name: "Qwen Provider", preset: "qwen-cn", baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", wantModel: "qwen3-max"},
 	}
 

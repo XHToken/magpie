@@ -118,15 +118,15 @@
     if (!data.statsAvailable) box.append(el('p', 'usage-note router-note', t('Redaction statistics are not connected.')));
     else {
       for (const [name, key] of [['Processed requests', 'processed'], ['Extracted entities', 'entities'], ['History cache hits', 'cacheHits'], ['Blocked requests', 'blocked'], ['Redaction duration (ms)', 'durationMs']]) {
-        const row = el('div', 'row pref'); row.append(el('div', 'who', t(name)), el('span', 'router-state', Number(data.statistics?.[key] || 0).toLocaleString(intlLang()))); box.append(row);
+        const row = el('div', 'row pref'); row.append(el('div', 'who', t(name)), el('span', 'router-state', Number(data.statistics?.[key] || 0).toLocaleString(routerIntlLang()))); box.append(row);
       }
       const processed = Number(data.statistics?.processed || 0), cacheHits = Number(data.statistics?.cacheHits || 0), durationMs = Number(data.statistics?.durationMs || 0);
       const failures = Object.entries(data.statistics?.failures || {}).filter(([, count]) => Number(count) > 0);
       const metrics = el('dl', 'request-fields redaction-metrics');
       for (const [label, value] of [
-        ['Session cache hit rate', processed > 0 ? (cacheHits / processed).toLocaleString(intlLang(), { style: 'percent', maximumFractionDigits: 1 }) : '—'],
-        ['Average redaction duration (ms)', processed > 0 ? (durationMs / processed).toLocaleString(intlLang(), { maximumFractionDigits: 2 }) : '—'],
-        ['Blocked reasons', failures.length ? failures.map(([code, count]) => `${t(failureLabels[code] || code)} (${code}): ${Number(count).toLocaleString(intlLang())}`).join(' · ') : t('None')],
+        ['Session cache hit rate', processed > 0 ? (cacheHits / processed).toLocaleString(routerIntlLang(), { style: 'percent', maximumFractionDigits: 1 }) : '—'],
+        ['Average redaction duration (ms)', processed > 0 ? (durationMs / processed).toLocaleString(routerIntlLang(), { maximumFractionDigits: 2 }) : '—'],
+        ['Blocked reasons', failures.length ? failures.map(([code, count]) => `${t(failureLabels[code] || code)} (${code}): ${Number(count).toLocaleString(routerIntlLang())}`).join(' · ') : t('None')],
       ]) metrics.append(el('dt', '', t(label)), el('dd', '', value));
       box.append(metrics);
     }

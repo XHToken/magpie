@@ -7,6 +7,7 @@
   var THINKING_LEVELS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
   var draft = null;
+  var privacyPreviewTimer = null, privacyPreviewGeneration = 0;
   var pickerState = {
     open: false,
     filterProvider: 'all',
@@ -68,7 +69,9 @@
       patterns: isNew ? [] : rawPatterns.slice(),
       hideMembers: !!(g.unlists || g.hideMembers),
       routing: rg.normalizeStrategy(g.routing || 'smart_hybrid'),
-      localRedaction: !!(hasLocal && g.localRedaction),
+      localRedaction: !!g.localRedaction,
+      redactionPolicy: g.redactionPolicy || null,
+      off: Array.isArray(g.off) ? g.off.slice() : [],
       active: g.pick || g.active || '',
       weights: Object.assign({}, g.weights || {}),
       memberEfforts: Object.assign({}, g.memberEfforts || {}),
@@ -115,16 +118,15 @@
   function renderLocalRedactionSection() {
     if (!draft) return;
     var hasLocal = rg.hasLocalMember ? rg.hasLocalMember(draft.members) : draft.members.some(function (m) { return String(m || '').indexOf('local/') === 0; });
-    if (!hasLocal) {
-      draft.localRedaction = false;
-    }
+    var showControl = hasLocal || draft.localRedaction;
     var lblEl = document.getElementById('rgLocalRedactionLabel');
     var secEl = document.getElementById('rgLocalRedactionSection');
-    if (lblEl) lblEl.hidden = !hasLocal;
+    if (lblEl) lblEl.hidden = !showControl;
     if (!secEl) return;
-    secEl.hidden = !hasLocal;
-    if (!hasLocal) {
+    secEl.hidden = !showControl;
+    if (!showControl) {
       secEl.innerHTML = '';
+      previewPrivacyPolicy();
       return;
     }
     var isOn = !!draft.localRedaction;
@@ -133,7 +135,29 @@
         '<button type="button" class="opt' + (isOn ? ' on' : '') + '" data-rg-local-redaction="1">' + rg.esc(rg.tr('Redact On')) + '</button>' +
         '<button type="button" class="opt' + (!isOn ? ' on' : '') + '" data-rg-local-redaction="0">' + rg.esc(rg.tr('Redact Off')) + '</button>' +
       '</div>' +
-      '<div class="hint">' + rg.esc(rg.tr(isOn ? 'Redacts sensitive information using local model and rules before routing requests.' : 'Routes requests directly without local model redaction.')) + '</div>';
+      '<div class="hint">' + rg.esc(rg.tr(isOn ? 'Cloud requests require redaction; failures block outbound requests.' : 'This switch is off. Inherited and application redaction requirements still apply.')) + '</div>';
+    previewPrivacyPolicy();
+  }
+
+  function previewPrivacyPolicy() {
+    var generation = ++privacyPreviewGeneration, current = draft;
+    clearTimeout(privacyPreviewTimer);
+    var note = document.getElementById('rgPrivacySummary');
+    if (note) note.textContent = rg.tr('Checking redaction policy');
+    if (!current) return;
+    privacyPreviewTimer = setTimeout(async function () {
+      try {
+        var data = await rg.apiRequest('/api/routing-groups?preview=1', { method: 'POST', body: {
+          id: current.id || 'privacy-preview', name: current.name || 'Draft', members: current.members.slice(),
+          localRedaction: !!current.localRedaction, rules: current.rules, off: current.off, match: current.patterns.slice(), disabled: !current.enabled
+        } });
+        if (generation !== privacyPreviewGeneration || draft !== current) return;
+        current.redactionPolicy = data.group.redactionPolicy;
+        if (note) note.textContent = rg.privacyText(current.redactionPolicy);
+      } catch (error) {
+        if (generation === privacyPreviewGeneration && draft === current && note) note.textContent = rg.tr('Redaction policy unavailable. Refresh before saving.');
+      }
+    }, 100);
   }
 
   function renderRoutingSection() {
@@ -316,11 +340,12 @@
               '<button type="button" class="opt' + (draft.localRedaction ? ' on' : '') + '" data-rg-local-redaction="1">' + rg.esc(rg.tr('Redact On')) + '</button>' +
               '<button type="button" class="opt' + (!draft.localRedaction ? ' on' : '') + '" data-rg-local-redaction="0">' + rg.esc(rg.tr('Redact Off')) + '</button>' +
             '</div>' +
-            '<div class="hint">' + rg.esc(rg.tr(draft.localRedaction ? 'Redacts sensitive information using local model and rules before routing requests.' : 'Routes requests directly without local model redaction.')) + '</div>'
+            '<div class="hint">' + rg.esc(rg.tr(draft.localRedaction ? 'Cloud requests require redaction; failures block outbound requests.' : 'This switch is off. Inherited and application redaction requirements still apply.')) + '</div>'
           : '') +
       '</div>' +
 
       // 7. On limit (shown when routing === 'order')
+      '<label>' + rg.esc(rg.tr('Redaction policy')) + '</label><div class="hint" id="rgPrivacySummary" role="status">' + rg.esc(rg.privacyText(draft.redactionPolicy)) + '</div>' +
       (draft.routing === 'order'
         ? '<label>' + rg.esc(rg.tr('On limit')) + '</label>' +
           '<div>' +
@@ -679,6 +704,8 @@
   }
 
   function closeEditor() {
+    ++privacyPreviewGeneration;
+    clearTimeout(privacyPreviewTimer);
     closeModelPicker();
     var modal = document.getElementById('routingGroupModal');
     if (modal) modal.hidden = true;
@@ -741,7 +768,8 @@
       alias: draft.alias || '',
       enabled: draft.enabled !== false,
       routing: draft.routing,
-      localRedaction: !!(hasLocal && draft.localRedaction),
+      localRedaction: !!draft.localRedaction,
+      off: draft.off.slice(),
       members: draft.members.slice(),
       match: cleanPatterns,
       patterns: cleanPatterns,

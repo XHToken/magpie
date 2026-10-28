@@ -86,6 +86,26 @@ func TestExperimentalRedactionRequiresStartupChoiceAndExactBinding(t *testing.T)
 	}
 }
 
+func TestExperimentalRedactionRequiresCatalogTrialSupport(t *testing.T) {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
+		t.Run(modelID, func(t *testing.T) {
+			m, _, factory, _ := managerFixture(t, func(o *Options, _ *fixtureInstaller, _ *fixtureFactory) {
+				o.ExperimentalRedaction = true
+				o.Store = &memoryIntent{i: Intent{Enabled: true, Selected: modelID}}
+				for i := range o.Catalog.Models {
+					if o.Catalog.Models[i].ID == modelID {
+						o.Catalog.Models[i].RedactionTrial = false
+					}
+				}
+			})
+			fingerprint := m.Status().Capabilities[Redaction].Fingerprint
+			if _, err := m.NewExperimentalRedactionInvoker(fingerprint, experimentalFixtureSuite()); !errors.Is(err, ErrCapability) || factory.count.Load() != 0 {
+				t.Fatal("undeclared model support admitted a trial or loaded a model", err)
+			}
+		})
+	}
+}
+
 func TestExperimentalRedactionRejectsDisabledClosedAndMissingSelection(t *testing.T) {
 	{
 		m, _, factory, _ := managerFixture(t, func(o *Options, _ *fixtureInstaller, _ *fixtureFactory) {

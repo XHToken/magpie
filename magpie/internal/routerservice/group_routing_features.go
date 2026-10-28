@@ -933,7 +933,7 @@ func rewriteCandidateRequestBody(protocol string, body []byte, effort string, is
 // --- Patience & Error Classification ---
 
 func isRetriableGroupFailure(err error) bool {
-	if err == nil {
+	if err == nil || terminalRedactionFailure(err) {
 		return false
 	}
 	if errors.Is(err, errFirstTokenTimeout) {

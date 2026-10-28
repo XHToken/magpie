@@ -2,7 +2,6 @@ package routerservice
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/yetone/magpie/internal/routerconfig"
 	"io"
@@ -26,7 +25,9 @@ func providerModels(ctx context.Context, p routerconfig.ResolvedProvider) ([]str
 			return nil, modelListFailure("model_key_required", "enter an API key before fetching OpenAI models")
 		}
 	}
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	// Reserve time inside the management API's ten-second budget to record a
+	// failed refresh and return explicit cache/preset provenance after a timeout.
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 	transport := &http.Transport{Proxy: http.ProxyFromEnvironment, ResponseHeaderTimeout: 8 * time.Second}
 	switch p.Config.ProxyMode {
@@ -41,11 +42,8 @@ func providerModels(ctx context.Context, p routerconfig.ResolvedProvider) ([]str
 	}
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	base := strings.TrimRight(p.Config.BaseURL, "/")
-	if p.Config.Protocol == "anthropic" && !strings.HasSuffix(base, "/v1") {
-		base += "/v1"
-	}
-	endpoint := base + "/models"
+	catalogue := providerCatalogue(p.Config)
+	endpoint := catalogue.endpoint(1)
 	models := []string{}
 	seen := map[string]bool{}
 	for page := 0; page < 10; page++ {
@@ -55,13 +53,13 @@ func providerModels(ctx context.Context, p routerconfig.ResolvedProvider) ([]str
 		}
 		req.Header.Set("Accept", "application/json")
 		if p.APIKey != "" {
-			if p.Config.Protocol == "anthropic" {
+			if catalogue.auth == "anthropic" {
 				req.Header.Set("x-api-key", p.APIKey)
 			} else {
 				req.Header.Set("Authorization", "Bearer "+p.APIKey)
 			}
 		}
-		if p.Config.Protocol == "anthropic" {
+		if catalogue.auth == "anthropic" {
 			req.Header.Set("anthropic-version", "2023-06-01")
 		}
 		for key, value := range p.Headers {
@@ -73,13 +71,6 @@ func providerModels(ctx context.Context, p routerconfig.ResolvedProvider) ([]str
 				return nil, modelListFailure("model_list_timeout", "model list request timed out; check address and proxy")
 			}
 			return nil, modelListFailure("model_list_connection_failed", "could not connect to the model list; check address and proxy")
-		}
-		var result struct {
-			Data []struct {
-				ID string `json:"id"`
-			} `json:"data"`
-			HasMore bool   `json:"has_more"`
-			LastID  string `json:"last_id"`
 		}
 		data, readErr := io.ReadAll(io.LimitReader(response.Body, (2<<20)+1))
 		response.Body.Close()
@@ -98,34 +89,37 @@ func providerModels(ctx context.Context, p routerconfig.ResolvedProvider) ([]str
 				return nil, modelListFailure("model_list_upstream_failed", "upstream model-list request failed; check provider status or enter a model ID manually")
 			}
 		}
-		if readErr != nil || len(data) > 2<<20 || json.Unmarshal(data, &result) != nil || result.Data == nil {
+		if readErr != nil || len(data) > 2<<20 {
 			if errors.Is(readErr, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return nil, modelListFailure("model_list_timeout", "model list request timed out; check address and proxy")
 			}
 			return nil, modelListFailure("model_list_invalid_response", "upstream returned an unsupported model list; enter a model ID manually")
 		}
+		result, err := catalogue.decode(data, page+1)
+		if err != nil {
+			return nil, err
+		}
 		added := 0
-		for _, model := range result.Data {
-			if model.ID == "" || len(model.ID) > 256 || strings.ContainsAny(model.ID, "\r\n\x00") {
+		for _, id := range result.ids {
+			if id == "" || len(id) > 256 || strings.ContainsAny(id, "\r\n\x00") {
 				return nil, errors.New("upstream returned an invalid model ID")
 			}
-			if !seen[model.ID] {
-				seen[model.ID] = true
-				models = append(models, model.ID)
+			if !seen[id] {
+				seen[id] = true
+				models = append(models, id)
 				added++
 			}
 			if len(models) > 1000 {
 				return nil, errors.New("model list is too large; enter a model ID manually")
 			}
 		}
-		if !result.HasMore {
+		if !result.more || (result.total > 0 && len(models) >= result.total) {
 			return ordinaryModelCandidates(p.Config.BaseURL, models), nil
 		}
-		if p.Config.Protocol != "anthropic" || result.LastID == "" || added == 0 {
+		if result.next == "" || added == 0 {
 			return nil, errors.New("upstream model pagination is unsupported; enter a model ID manually")
 		}
-		query := url.Values{"after_id": {result.LastID}, "limit": {"100"}}
-		endpoint = base + "/models?" + query.Encode()
+		endpoint = result.next
 	}
 	return nil, errors.New("model list has too many pages; enter a model ID manually")
 }

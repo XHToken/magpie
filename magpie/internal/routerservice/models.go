@@ -21,7 +21,7 @@ import (
 type ModelOptions struct {
 	serviceControl    *serviceController
 	tutorialStateFile string
-	// ExperimentalRedaction is a local startup opt-in, never request input or
+	// ExperimentalRedaction is a local startup permission, never request input or
 	// formal capability evidence. It permits only the bound fixed-model trial policy.
 	ExperimentalRedaction bool
 	// HostStateDir is the service-owned private recovery directory. It is never

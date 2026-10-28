@@ -57,7 +57,8 @@ func (e *ExperimentalRedactionInvoker) Require(p Purpose) error {
 	if !m.intent.Enabled || m.closed || m.stopping {
 		return ErrDisabled
 	}
-	if (m.intent.Selected != "spark-x2.6-4B" && m.intent.Selected != "spark-x2.6-4B-Q8_0") || e.fingerprint == "" || e.fingerprint != m.fingerprintLocked() || !validExperimentalRedactionSuite(e.suite) {
+	model, ok := m.o.Catalog.Model(m.intent.Selected)
+	if !ok || !model.SupportsRedactionTrial() || e.fingerprint == "" || e.fingerprint != m.fingerprintLocked() || !validExperimentalRedactionSuite(e.suite) {
 		return ErrCapability
 	}
 	return nil

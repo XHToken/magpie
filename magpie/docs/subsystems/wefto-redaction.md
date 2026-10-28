@@ -71,6 +71,45 @@ Redaction settings live under `redaction` in `config.json`:
 
 ## Invariants
 
+### Nested groups and request-scoped requirements
+
+`routerconfig.ResolveActiveGroupExpansion` returns both model members and
+privacy sources. `routerservice.groupPrivacyPlan` merges requirements from the
+application, every active group in the selected expansion, and the matched rule's
+group target before ordering or deduplication. A requirement protects every cloud
+candidate in that request, including sibling fallbacks. Hidden, disabled and
+excluded groups contribute nothing; incomplete expansion fails closed.
+
+The server-owned context plan survives candidate target replacement. Required
+models are selected from each source group's own effective member order; unequal
+model IDs (including different quantizations) return `redaction_policy_conflict`.
+A source with no local member returns `redaction_model_missing`. These are 409
+configuration errors. Unavailable/invalid preparation returns 503
+`redaction_unavailable` and terminates both the candidate loop and patience
+retries. Ordinary local judgment/execution failures can still select a cloud
+candidate, which must pass the same privacy gate.
+
+`prepareRequiredRedaction` shares one preparation deadline across candidates
+(at most 30 seconds, bounded by the request deadline) and pins routing versions
+before and after extraction. It reuses the existing exact extractor/cache
+identities; inheritance does not change extraction material or grant capability
+acceptance. Protocol/target preparation still precedes redaction, so provider
+extra body is checked. Prepared bodies are not exchanged between providers.
+
+Saved `localRedaction` intent is not automatically cleared when a model/member
+disappears. New enablement without a consistent local model is rejected by the
+management save API. `/api/routing-groups?preview=1` accepts an authenticated
+POST for read-only draft policy resolution. Group views expose `redactionPolicy`
+with own/inherited requirements, source group IDs, model, local-member presence,
+rule dependence and fixed invalid-reason codes. Rule-dependent summaries are
+static; only the matched rule affects an actual request.
+
+Request policy state is persisted separately from model call status; see the
+[request ledger](wefto-request-ledger.md). Local completion without any cloud
+preparation is `not_sent`, not proof of successful cloud redaction. Relevant
+regressions are `group_redaction_policy_test.go`, `groups_privacy_test.go`, and
+the routing-group browser suite.
+
 ### Local model preparation budget and policy identity
 
 The local-model preparation path uses
@@ -106,8 +145,21 @@ the policy update does not require new weights or grant capability acceptance.
 Explicit experimental privacy preparation accepts the current `spark-x2.6-4B`
 and `spark-x2.6-4B-Q8_0` variants, using independent pinned model fingerprints
 and the same `privacy-trial-v2` material, parser and budget. It still requires the trusted
-startup opt-in and exact current binding; adding a model grants no formal
+startup permission (enabled by default by the product CLI) and exact current binding; adding a model grants no formal
 redaction quality acceptance or automatic privacy enablement.
+
+Both X2.6 catalog entries explicitly declare `redactionTrial: true` and the
+purpose `public_execution_and_redaction_validation_only`. The specification
+and runtime invoker share `Model.SupportsRedactionTrial` for admission; a
+descriptive purpose string is not an authorization input. This metadata change
+updates the bound model fingerprints, invalidating old capability/cache
+bindings, while retaining the same pinned weights, template and runtime bytes.
+Existing downloads need no replacement. The original extraction, restoration,
+30-second budget and failure-blocking paths remain in use for both variants.
+Saved installation manifests may retain historical descriptive metadata until
+refreshed by installation; admission uses the service's fixed catalog, not that
+saved purpose string. Historical held-out evaluation names identify their
+material provenance and do not restrict the production model allowlist.
 
 ### Plaintext lifetime
 

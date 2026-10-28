@@ -39,6 +39,10 @@ func TestModelCatalogFiltersSpecialAccessOnlyOnOfficialPlatforms(t *testing.T) {
 				if r.Method != "GET" || r.Header.Get("Authorization") != "Bearer test-cloud-api-key" {
 					t.Error("model fetch changed method or precise provider credential")
 				}
+				if r.URL.Path == "/api/v1/models" {
+					_, _ = io.WriteString(w, `{"success":true,"output":{"total":5,"models":[{"model":"cmaas-qwen3.8-flash"},{"model":"qwen3.8-flash"},{"model":"cmaas-deepseek-v4-pro-0813"},{"model":"kimi-k3"},{"model":"my-cmaas-model"}]}}`)
+					return
+				}
 				_, _ = io.WriteString(w, `{"data":[{"id":"cmaas-qwen3.8-flash"},{"id":"qwen3.8-flash"},{"id":"cmaas-deepseek-v4-pro-0813"},{"id":"kimi-k3"},{"id":"my-cmaas-model"},{"id":"qwen3.8-flash"}]}`)
 			}))
 			defer proxy.Close()

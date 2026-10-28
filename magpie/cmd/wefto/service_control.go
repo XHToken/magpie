@@ -14,7 +14,8 @@ import (
 
 const serviceHelp = `Usage: wefto service <start|stop|restart|status|autostart enable|autostart disable|autostart status>
 start [--experimental-redaction|--no-experimental-redaction] starts a hidden per-user process.
-Without a flag, start/restart/login autostart retain the last explicit trial choice.
+Without a flag, start/restart/login autostart retain a versioned saved trial choice.
+Redaction trials default on for new and legacy unversioned service options.
 Login autostart is off by default. Enable and disable are explicit Windows per-user choices.
 No service operation enables, downloads or loads a model. stop preserves host configuration.
 If the page is stopped, use the installed EXE with service start to open it again.

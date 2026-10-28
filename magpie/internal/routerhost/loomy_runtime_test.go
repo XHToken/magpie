@@ -15,6 +15,22 @@ func TestIsRealLoomyConfigRoot(t *testing.T) {
 	if !isRealLoomyConfigRoot(nonTemp) {
 		t.Fatalf("expected %q to be recognized as a real Loomy config root", nonTemp)
 	}
+	// Loomy's native macOS/Linux directory is not nested under Loomy/.
+	// It must trigger bundled-runtime invalidation after a model/group edit.
+	native := filepath.Join(string(filepath.Separator), "Users", "tester", ".config", "loomy-opencode")
+	if !isRealLoomyConfigRoot(native) {
+		t.Fatalf("native Loomy configuration %q would leave the embedded model catalog stale", native)
+	}
+	for _, root := range []string{
+		filepath.Join(t.TempDir(), ".config", "loomy-opencode"),
+		native + "-backup",
+		filepath.Join(native, "unrelated"),
+		filepath.Join(string(filepath.Separator), "Users", "tester", ".config", "opencode"),
+	} {
+		if isRealLoomyConfigRoot(root) {
+			t.Fatalf("unrelated or temporary root %q must not invalidate a bundled runtime", root)
+		}
+	}
 	other := filepath.Join(string(filepath.Separator), "Users", "Public", "WorkBuddy", "opencode")
 	if isRealLoomyConfigRoot(other) {
 		t.Fatalf("expected non-Loomy root %q to return false", other)

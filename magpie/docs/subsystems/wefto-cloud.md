@@ -69,6 +69,13 @@ When a cloud target (`<providerId>/<model>`) is selected directly by an
 
 ## Invariants
 
+- Cloud targets combine the fixed request privacy plan with the profile's
+  redaction requirement. Candidate replacement cannot clear that requirement;
+  missing adapters, unavailable preparation and policy conflicts block dispatch.
+  Nested groups and matched rule targets protect sibling fallbacks as described
+  in [redaction policy inheritance](wefto-redaction.md#nested-groups-and-request-scoped-requirements).
+  This applies to native token counting as well as generation and streaming.
+
 - Standard `chat`, `responses`, and `anthropic` payloads translate end-to-end
   across cloud protocols (`cloudcodec`). Host-specific Chat Completions
   extensions (such as WorkBuddy message `agent`, Loomy top-level `$comment`,

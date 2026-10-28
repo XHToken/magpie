@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strings"
 )
 
@@ -147,68 +146,8 @@ func ExpandActiveGroupMembers(g Group, all []Group) []string {
 }
 
 func expandGroupMembers(g Group, all []Group, activeOnly bool) []string {
-	if activeOnly && (g.Disabled || g.Hidden) {
-		return nil
-	}
-	byID := make(map[string]Group, len(all))
-	for _, item := range all {
-		if item.ID != "" && !item.Hidden {
-			byID[item.ID] = item
-		}
-	}
-	if g.ID != "" {
-		byID[g.ID] = g
-	}
-
-	seen := make(map[string]bool)
-	visitedGroups := make(map[string]bool)
-	var result []string
-
-	memberBase := func(ref string) string {
-		ref = strings.TrimSpace(ref)
-		if bare, _, ok := SplitMemberEffort(ref); ok {
-			return bare
-		}
-		return ref
-	}
-	var walk func(cur Group, depth int, excluded []string)
-	walk = func(cur Group, depth int, excluded []string) {
-		if depth > MaxGroupNest {
-			return
-		}
-		if cur.ID != "" {
-			if visitedGroups[cur.ID] {
-				return
-			}
-			visitedGroups[cur.ID] = true
-			defer func() { visitedGroups[cur.ID] = false }()
-		}
-		if activeOnly {
-			excluded = append(append([]string(nil), excluded...), cur.Off...)
-		}
-		allMembers := make([]string, 0, len(cur.Members)+len(cur.Matched))
-		allMembers = append(allMembers, cur.Members...)
-		for _, m := range cur.Matched {
-			allMembers = append(allMembers, m)
-		}
-		for _, m := range allMembers {
-			if activeOnly && slices.ContainsFunc(excluded, func(off string) bool { return memberBase(off) == memberBase(m) }) {
-				continue
-			}
-			if subID, ok := GroupIDOf(m); ok {
-				if sub, exists := byID[subID]; exists && !sub.Disabled {
-					walk(sub, depth+1, excluded)
-				}
-				continue
-			}
-			if !seen[m] {
-				seen[m] = true
-				result = append(result, m)
-			}
-		}
-	}
-	walk(g, 0, nil)
-	return result
+	result, _ := resolveGroupExpansion(g, all, activeOnly, false)
+	return result.Members
 }
 
 func readGroupsFromDoc(d Document) ([]Group, error) {

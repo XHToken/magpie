@@ -69,3 +69,22 @@ privacy preparation and real loopback HTTP in direct, cloud-judgment and
 unavailable-judgment modes with JSON/SSE, without contacting a vendor or reading
 live host settings. Cross-protocol conversion keeps its explicit zero-attempt
 capability error when destination codecs cannot preserve these fields.
+
+## WorkBuddy completed-turn step sequence audit, 2026-10-28
+
+The `workbuddy-5.8.3-*-step-seq` cases execute the same hash-matched installed
+`providerDataOf`, `itemsToMessages` and content normalization functions with
+synthetic messages and identities. `withModelMessageCorrelation` stamps
+`messageId`, `conversationRequestId` and `stepSeq` onto model output, including
+function calls; saved tool results also carry this correlation. The sequence
+starts at zero and advances for main-loop model calls. Ordinary completed-turn,
+tool continuation and zero-step auxiliary histories are separate cases. Their
+normalized `usage` includes the array detail shapes emitted by the installed
+client. These are serializer reproductions, not captured HTTP requests.
+
+Before adding `stepSeq` to the shared registry, all three cases fail native
+cloud validation with `unsupported or invalid model input`; the existing
+completed-turn `usage` regression already passes. The common fixture matrix
+also exercises routing, privacy, native forwarding, cross-protocol refusal,
+and direct/routed loopback HTTP with JSON/SSE. This does not establish support
+in an installed release or a real cloud conversation.

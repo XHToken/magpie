@@ -68,6 +68,7 @@ func (p PreparedRequest) WithBody(body []byte) PreparedRequest {
 // Result is one business operation, regardless of Attempts. Unknown usage is
 // represented by nil; it must not be recorded as zero by the entry's ledger.
 type Result struct {
+	Redaction       *RedactionPolicy
 	Attempts        int
 	OutputCommitted bool
 	Usage           *cloudcodec.Usage
@@ -83,6 +84,15 @@ type Result struct {
 	Decision         string
 	JudgmentDuration time.Duration
 	CapabilityState  string
+}
+
+// RedactionPolicy is safe execution metadata, never request or entity content.
+type RedactionPolicy struct {
+	SourceGroupCount int      `json:"sourceGroupCount"`
+	Required         bool     `json:"required"`
+	SourceGroupIDs   []string `json:"sourceGroupIds"`
+	ModelID          string   `json:"modelId"`
+	State            string   `json:"state"`
 }
 
 // Error is safe for protocol errors and audit metadata. It deliberately omits

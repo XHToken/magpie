@@ -38,9 +38,15 @@ Callbacks run synchronously, so callers should publish progress without blocking
 
 `Extract` first verifies a ZIP or tar.gz against the pinned artifact. It applies
 the positive `ExpandedBytes` hard bound, a 10,000-entry ceiling, portable path
-checks and regular-file-only extraction. Links, traversal, Windows device/ADS
-paths, duplicate/case-colliding entries, unexpected lengths and CRC failures are
-rejected. Temporary extraction stays in an adjacent private directory until a
+checks and regular-file-only output. Tar symlinks are recorded without creating
+filesystem links. After ordinary files and the complete gzip stream verify,
+relative link chains resolve only to archived regular files; each alias is
+copied with its target's executable permission and recorded size/SHA256. Those
+copies count against the same expansion bound. Escaping/absolute targets,
+cycles, missing/directory targets, directory-link traversal, tar hard links,
+ZIP links, special files, Windows device/ADS paths, duplicate/case-colliding
+entries, unexpected lengths and CRC failures are rejected.
+Temporary extraction stays in an adjacent private directory until a
 complete tree and its `.router-verified.json` receipt can be renamed atomically.
 The receipt records exact file sizes and SHA256 values and binds them to the
 archive digest and size. `VerifyDirectory` rehashes files and rejects missing,
@@ -94,5 +100,10 @@ Tests use `testenv.Main`, temporary directories and local `httptest` servers.
 `TestDownloadResumesAfterChildProcessExit` crosses a real process boundary.
 Run from `magpie/`: `go test -tags nogui ./internal/routerdownload`; coordinate
 the shared heavy-test lock before `go test -race -tags nogui ./internal/routerdownload`.
+For explicit offline acceptance against downloaded official archives, run
+`go test -tags nogui ./internal/routerdownload -run TestPinnedRuntimeArchives -v -args -pinned-runtime-archive-dir=/absolute/archive/cache`.
+This verifies fixed catalog pins, extraction, receipt validation, regular-only
+output and repeated installation for every matching catalog runtime. It never
+downloads archives or proves native model loading on another OS.
 Windows evidence is an actual Windows test executable run on the user's PC;
 WSL tests and cross-platform vet alone do not establish Windows behavior.

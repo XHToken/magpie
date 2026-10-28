@@ -68,6 +68,9 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   };
   config.localModels = [{ id: 'spark-x2.6-4b', installed: true, enabled: true, status: 'ready' }];
   config.groups = [
+    { id: 'private-child', name: 'Private Child', localRedaction: true, members: ['local/spark-x2.6-4b', 'openai/gpt-4o'] },
+    { id: 'private-parent', name: 'Private Parent', members: ['group/private-child'], localRedaction: false },
+    { id: 'missing-redactor', name: 'Missing Redactor', members: ['openai/gpt-4o'], localRedaction: true },
     {
       id: 'coding',
       name: 'Coding Group',
@@ -132,6 +135,27 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   assert.equal(await codingCard.locator('.rt-member-chip[data-member="openai/gpt-4o"]').isVisible(), true);
 
   const autoCard = page.locator('#autoRoutingGroupsList .rt-group-card[data-group-id="auto-deepseek-chat"]');
+  // The parent's own switch is off, but its effective privacy requirement is inherited.
+  for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) {
+    await page.goto(`http://${address}/?locale=${language}&view=routing`);
+    const note = page.locator('[data-group-privacy="private-parent"]');
+    await note.waitFor({ state: 'visible' });
+    const expected = await page.evaluate(() => window.__weftoRoutingGroups.tr('Inherited redaction: all cloud candidates require redaction.'));
+    assert.equal(await note.textContent(), expected);
+    if (language !== 'en') assert.notEqual(expected, 'Inherited redaction: all cloud candidates require redaction.');
+  }
+  await page.goto(`http://${address}/?locale=zh&view=routing`);
+  await page.locator('[data-rg-edit="private-parent"]').click();
+  await page.waitForFunction(() => document.querySelector('#rgPrivacySummary')?.textContent.includes('已继承'));
+  assert.equal(await page.locator('[data-rg-local-redaction="0"]').evaluate(node => node.classList.contains('on')), true);
+  await page.locator('#rgSaveBtn').click();
+  await page.locator('#routingGroupModal').waitFor({ state: 'hidden' });
+  await page.locator('[data-rg-edit="missing-redactor"]').click();
+  await page.waitForFunction(() => document.querySelector('#rgPrivacySummary')?.textContent.includes('缺少'));
+  assert.equal(await page.locator('[data-rg-local-redaction="1"]').evaluate(node => node.classList.contains('on')), true);
+  await page.locator('#rgSaveBtn').click();
+  await page.locator('#routingGroupModal').waitFor({ state: 'hidden' });
+  assert.match(await page.locator('[data-group-privacy="missing-redactor"]').textContent(), /缺少/);
   await autoCard.waitFor({ state: 'visible' });
   assert.equal(await autoCard.locator('.rt-group-title').textContent(), 'deepseek-chat');
   assert.equal(await autoCard.locator('[data-copy-call="group/auto-deepseek-chat"]').textContent(), 'group/auto-deepseek-chat');

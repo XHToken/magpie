@@ -36,7 +36,7 @@ func run(args []string, out io.Writer) error {
 
 func runContext(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || args[0] == "--help")) {
-		_, err := fmt.Fprintln(out, "Usage: wefto <install|uninstall|service|serve [--experimental-redaction]|healthcheck|version|dirs|config init|config check|host|diagnose-local>\nUse wefto install --help for fixed Windows package installation and safe uninstall.\nUse wefto service --help for hidden start, stop, restart, status and explicit login autostart.\nserve starts the foreground local service and embedded management page. Stop with Ctrl+C or SIGTERM.\n--experimental-redaction permits an explicitly labeled X2.6 Q4_K_M/Q8_0 redaction trial with a 30-second total budget; recognition quality is not formally accepted. Invalid results still block cloud requests.\nUse wefto host --help for host configuration preview, apply and offline restore.\nUse wefto diagnose-local --help for the fixed local diagnostic suite.")
+		_, err := fmt.Fprintln(out, "Usage: wefto <install|uninstall|service|serve [--experimental-redaction|--no-experimental-redaction]|healthcheck|version|dirs|config init|config check|host|diagnose-local>\nUse wefto install --help for fixed Windows package installation and safe uninstall.\nUse wefto service --help for hidden start, stop, restart, status and explicit login autostart.\nserve starts the foreground local service and embedded management page. Stop with Ctrl+C or SIGTERM.\nRedaction startup permission is enabled by default. --no-experimental-redaction disables it; --experimental-redaction explicitly enables it. X2.6 Q4_K_M/Q8_0 redaction trials have a 30-second total budget; recognition quality is not formally accepted. Invalid results still block cloud requests.\nUse wefto host --help for host configuration preview, apply and offline restore.\nUse wefto diagnose-local --help for the fixed local diagnostic suite.")
 		return err
 	}
 	if len(args) == 1 && args[0] == "version" {
@@ -56,11 +56,12 @@ func runContext(ctx context.Context, args []string, out io.Writer) error {
 		return runDiagnoseLocal(ctx, args[1:], out)
 	}
 	command := ""
-	experimentalRedaction := len(args) == 2 && args[0] == "serve" && args[1] == "--experimental-redaction"
+	experimentalRedaction := true
 	if len(args) == 1 && (args[0] == "dirs" || args[0] == "serve" || args[0] == "healthcheck") {
 		command = args[0]
-	} else if experimentalRedaction {
+	} else if len(args) == 2 && args[0] == "serve" && (args[1] == "--experimental-redaction" || args[1] == "--no-experimental-redaction") {
 		command = "serve"
+		experimentalRedaction = args[1] == "--experimental-redaction"
 	} else if len(args) == 2 && args[0] == "config" && (args[1] == "init" || args[1] == "check") {
 		command = args[1]
 	} else {

@@ -83,7 +83,7 @@ func executeBoundTarget(w http.ResponseWriter, prepared *http.Request, protocol,
 	if err != nil {
 		return routercloud.Result{Operation: op}, err
 	}
-	groups := effectiveGroups(cfg, options.LocalRuntime)
+	groups := groupExpansionCatalog(cfg, options.LocalRuntime)
 	g, found := findRuntimeGroup(cfg.Groups, groups, groupID)
 	if !found || g.Hidden {
 		return routercloud.Result{Operation: op}, &routercloud.Error{Code: "target_missing", Message: "configured routing group does not exist", Status: http.StatusConflict}
@@ -91,26 +91,55 @@ func executeBoundTarget(w http.ResponseWriter, prepared *http.Request, protocol,
 	if g.Disabled {
 		return routercloud.Result{Operation: op}, &routercloud.Error{Code: "group_disabled", Message: "routing group is disabled", Status: http.StatusConflict}
 	}
-	baseMembers := expandActiveGroupMembers(g, groups, body)
+	expansion, expandErr := routerconfig.ResolveActiveGroupExpansion(g, groups)
+	if expandErr != nil {
+		return routercloud.Result{Operation: op}, privacyPolicyError("redaction_policy_invalid")
+	}
+	baseMembers := expansion.Members
+	state, _ := routerrequest.FromContext(prepared.Context())
 	if len(baseMembers) == 0 {
+		plan, policyErr := groupPrivacyPlan(redactionRequired(prepared.Context(), state.Target.Profile.RedactionEnabled), expansion.PrivacySources)
+		prepared = installRedactionPlan(prepared, plan)
+		if policyErr != nil {
+			return routercloud.Result{Operation: op}, policyErr
+		}
 		return routercloud.Result{Operation: op}, &routercloud.Error{Code: "target_missing", Message: "routing group has no active members", Status: http.StatusConflict}
 	}
 	ruleMembers, matchedRule := evaluateGroupRules(g, groups, protocol, body, baseMembers)
 	ruleHasTarget := matchedRule != nil && (strings.TrimSpace(matchedRule.Use) != "" || strings.TrimSpace(matchedRule.Target) != "")
+	if ruleHasTarget {
+		ruleTarget := strings.TrimSpace(matchedRule.Use)
+		if ruleTarget == "" {
+			ruleTarget = strings.TrimSpace(matchedRule.Target)
+		}
+		if id, isGroup := routerconfig.GroupIDOf(ruleTarget); isGroup {
+			subGroup, exists := findRuntimeGroup(cfg.Groups, groups, id)
+			if !exists {
+				return routercloud.Result{Operation: op}, privacyPolicyError("redaction_policy_invalid")
+			}
+			if !subGroup.Disabled && !subGroup.Hidden {
+				subGroup.Off = append(append([]string(nil), subGroup.Off...), g.Off...)
+				ruleExpansion, err := routerconfig.ResolveActiveGroupExpansion(subGroup, groups)
+				if err != nil {
+					return routercloud.Result{Operation: op}, privacyPolicyError("redaction_policy_invalid")
+				}
+				expansion.PrivacySources = append(expansion.PrivacySources, ruleExpansion.PrivacySources...)
+			}
+		}
+	}
+	plan, planErr := groupPrivacyPlan(redactionRequired(prepared.Context(), state.Target.Profile.RedactionEnabled), expansion.PrivacySources)
+	plan.RedactLocal = g.LocalRedaction
+	prepared = installRedactionPlan(prepared, plan)
+	if planErr != nil {
+		return routercloud.Result{Operation: op}, planErr
+	}
 
 	strategy := strings.ToLower(strings.TrimSpace(g.Routing))
 	gOpts := &groupExecOptions{group: &g, matchedRule: matchedRule}
-	if g.LocalRedaction {
-		localModel := "local-redactor"
-		for _, m := range baseMembers {
-			if lm, ok := strings.CutPrefix(bareMember(m), "local/"); ok && strings.TrimSpace(lm) != "" {
-				localModel = strings.TrimSpace(lm)
-				break
-			}
-		}
-		options = withGroupLocalRedaction(options, localModel)
+	if plan.RequiredModelID != "" {
+		options = withGroupLocalRedaction(options, plan.RequiredModelID)
 		defer closeEphemeralGroupRedactor(options)
-		if !ruleHasTarget {
+		if g.LocalRedaction && !ruleHasTarget {
 			var clouds []string
 			for _, m := range ruleMembers {
 				if !strings.HasPrefix(bareMember(m), "local/") {
@@ -317,7 +346,7 @@ func executeSmartSplitGroupWithOpts(w http.ResponseWriter, prepared *http.Reques
 	}
 	if judgeErr == nil && decision == DecisionLocal {
 		res, localErr := dispatchGroupWithPatience(w, prepared, protocol, sub, body, locals, locals, false, options, emit, writer, gOpts)
-		if localErr != nil && !writer.committed && prepared.Context().Err() == nil {
+		if localErr != nil && !terminalRedactionFailure(localErr) && !writer.committed && prepared.Context().Err() == nil {
 			localCapState := res.CapabilityState
 			res, localErr = dispatchGroupWithPatience(w, prepared, protocol, sub, body, clouds, clouds, false, options, emit, writer, gOpts)
 			if res.CapabilityState == "" {
@@ -454,7 +483,7 @@ func dispatchCandidatesOnce(w http.ResponseWriter, prepared *http.Request, proto
 		if ftTimer != nil {
 			ftTimer.Stop()
 			writer.commit = prevCommit
-			if err != nil && errors.Is(context.Cause(attemptReq.Context()), errFirstTokenTimeout) && prepared.Context().Err() == nil {
+			if err != nil && !terminalRedactionFailure(err) && errors.Is(context.Cause(attemptReq.Context()), errFirstTokenTimeout) && prepared.Context().Err() == nil {
 				err = &routercloud.Error{Code: "cloud_timeout", Message: "first token timeout exceeded", Status: http.StatusGatewayTimeout}
 			}
 			cancelAttempt(nil)
@@ -486,7 +515,7 @@ func dispatchCandidatesOnce(w http.ResponseWriter, prepared *http.Request, proto
 		total += res.Attempts
 		details = mergeGroupAttempts(details, res.AttemptDetails)
 		res.Attempts, res.AttemptDetails = total, details
-		if err == nil || writer.committed || prepared.Context().Err() != nil {
+		if err == nil || terminalRedactionFailure(err) || writer.committed || prepared.Context().Err() != nil {
 			return res, err
 		}
 		lastRes, lastErr = res, err
@@ -547,11 +576,12 @@ func executeLocalCandidate(w http.ResponseWriter, prepared *http.Request, protoc
 	}
 	execBody := normReq.ExecutionBody()
 	var prep PreparedCloudRequest
-	if isGroupLocalRedaction(options) && options.Routing != nil && options.Routing.Redactor != nil {
+	work := redactionWork(prepared.Context())
+	if isGroupLocalRedaction(options) && options.Routing != nil && options.Routing.Redactor != nil && (work == nil || work.plan.RedactLocal) {
 		beforeBody := append([]byte(nil), execBody...)
 		sessionID, sessionVerified, seedSessionID := parseRedactionSessionMaterial(state.AppID, protocol, execBody)
 		var prepErr error
-		prep, prepErr = options.Routing.Redactor.Prepare(prepared.Context(), RedactionRequest{
+		prep, prepErr = prepareRequiredRedaction(prepared.Context(), options, options.Routing.Redactor, options.Routing.Versions, RedactionRequest{
 			RequestID:       state.ID,
 			AppID:           state.AppID,
 			SourceProtocol:  protocol,
@@ -568,6 +598,9 @@ func executeLocalCandidate(w http.ResponseWriter, prepared *http.Request, protoc
 		}
 		if prepErr != nil || len(prep.Body) == 0 {
 			res.CapabilityState = "redaction_unavailable"
+			if prepared.Context().Err() != nil {
+				return res, prepared.Context().Err()
+			}
 			return res, ErrRedactionUnavailable
 		}
 		if !check && op != "count_tokens" {
@@ -721,7 +754,7 @@ func executeCloudCandidate(w http.ResponseWriter, prepared *http.Request, protoc
 	if err != nil {
 		return routercloud.Result{Operation: operationFor(sub), Decision: string(DecisionCloud)}, err
 	}
-	if isGroupLocalRedaction(options) {
+	if redactionRequired(prepared.Context(), state.Target.Profile.RedactionEnabled) || isGroupLocalRedaction(options) {
 		appTarget.Profile.RedactionEnabled = true
 	}
 	state.BeginMemberDispatch()

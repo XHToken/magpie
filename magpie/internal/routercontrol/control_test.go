@@ -67,14 +67,40 @@ func TestControlAddressCannotSendManagementTokenElsewhere(t *testing.T) {
 }
 func TestSavedTrialOptionsAndBrokenStateFailClosed(t *testing.T) {
 	l := dirs.Layout{State: t.TempDir()}
-	if got, err := preference(l); err != nil || got {
-		t.Fatal(got, err)
+	if got, err := preference(l); err != nil || !got {
+		t.Fatal("fresh service did not default to redaction", got, err)
+	}
+	if err := os.WriteFile(filepath.Join(l.State, "service-options.json"), []byte(`{}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := preference(l); err != nil || !got {
+		t.Fatal("missing redaction field did not use the startup default", got, err)
+	}
+	for _, legacy := range []string{`{"experimentalRedaction":false}`, `{"experimentalRedaction":true}`} {
+		if err := os.WriteFile(filepath.Join(l.State, "service-options.json"), []byte(legacy), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got, err := preference(l); err != nil || !got {
+			t.Fatal("legacy startup did not adopt the enabled default", got, err)
+		}
 	}
 	if err := SaveOptions(l, true); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := preference(l); err != nil || !got {
 		t.Fatal("explicit trial lost", got, err)
+	}
+	if err := SaveOptions(l, false); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := preference(l); err != nil || got {
+		t.Fatal("saved redaction opt-out lost", got, err)
+	}
+	if err := os.WriteFile(filepath.Join(l.State, "service-options.json"), []byte(`{"schemaVersion":2,"experimentalRedaction":false}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := preference(l); err == nil {
+		t.Fatal("unknown service options version treated as a default")
 	}
 	if err := os.WriteFile(filepath.Join(l.State, "service-options.json"), []byte("broken"), 0o600); err != nil {
 		t.Fatal(err)

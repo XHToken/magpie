@@ -98,7 +98,7 @@ func (s *Store) initialize(created bool) error {
 	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		return ErrCorrupt
 	}
-	if !created && version != 1 && version != SchemaVersion {
+	if !created && version != 1 && version != 2 && version != SchemaVersion {
 		return ErrSchema
 	}
 	var pageSize int
@@ -115,13 +115,13 @@ func (s *Store) initialize(created bool) error {
 		}
 		var unexpected int
 		allowed := "name != 'requests'"
-		if version == SchemaVersion {
+		if version >= 2 {
 			allowed += " AND name != 'calls'"
 		}
 		if err := s.db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type IN ('view','trigger') OR (type='table' AND " + allowed + ")").Scan(&unexpected); err != nil || unexpected != 0 {
 			return ErrSchema
 		}
-		if version == SchemaVersion {
+		if version >= 2 {
 			if err := s.db.QueryRow("SELECT sql FROM sqlite_master WHERE type='table' AND name='calls'").Scan(&schema); err != nil || schema != callsTableSQL {
 				return ErrSchema
 			}
@@ -148,7 +148,7 @@ func (s *Store) initialize(created bool) error {
 				rows.Close()
 				return ErrCorrupt
 			}
-			if r.Status == "processing" || version == 1 {
+			if r.Status == "processing" || version != SchemaVersion {
 				records = append(records, r)
 			}
 			count++
@@ -162,7 +162,7 @@ func (s *Store) initialize(created bool) error {
 			return ErrCorrupt
 		}
 		rows.Close()
-		if version == SchemaVersion {
+		if version >= 2 {
 			if err := s.validateCalls(); err != nil {
 				return err
 			}
@@ -188,10 +188,15 @@ func (s *Store) initialize(created bool) error {
 		}
 	}
 	if created || version == 1 {
-		for _, statement := range []string{callsTableSQL, "CREATE INDEX calls_request ON calls(request_id,started_ns,call_id)", "CREATE INDEX calls_order ON calls(started_ns,call_id)", "PRAGMA user_version=2"} {
+		for _, statement := range []string{callsTableSQL, "CREATE INDEX calls_request ON calls(request_id,started_ns,call_id)", "CREATE INDEX calls_order ON calls(started_ns,call_id)"} {
 			if _, err := tx.Exec(statement); err != nil {
 				return ErrUnavailable
 			}
+		}
+	}
+	if created || version != SchemaVersion {
+		if _, err := tx.Exec("PRAGMA user_version=3"); err != nil {
+			return ErrUnavailable
 		}
 	}
 	now := time.Now().UTC()
@@ -227,11 +232,18 @@ func decodeRecordVersion(data string, version int) (Record, error) {
 	var r Record
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
 	decoder.DisallowUnknownFields()
-	if len(data) > 8192 || !json.Valid([]byte(data)) || decoder.Decode(&r) != nil || r.SchemaVersion != version || !validMetadata(r.Metadata) || !validOutcome(r.Outcome, true) || r.StartedAt.IsZero() || r.DurationMS < 0 || (r.Status == "processing") != (r.EndedAt == nil) {
+	limit := 16384
+	if version < 3 {
+		limit = 8192
+	}
+	if len(data) > limit || !json.Valid([]byte(data)) || decoder.Decode(&r) != nil || r.SchemaVersion != version || version < 3 && r.Redaction != nil || !validMetadata(r.Metadata) || !validOutcome(r.Outcome, true) || r.StartedAt.IsZero() || r.DurationMS < 0 || (r.Status == "processing") != (r.EndedAt == nil) {
 		return r, ErrCorrupt
 	}
 	var fields map[string]json.RawMessage
 	if json.Unmarshal([]byte(data), &fields) != nil {
+		return r, ErrCorrupt
+	}
+	if version < 3 && fields["redactionPolicy"] != nil {
 		return r, ErrCorrupt
 	}
 	if price := fields["referencePrice"]; len(price) > 0 && !bytes.Equal(bytes.TrimSpace(price), []byte("null")) {
@@ -258,7 +270,7 @@ func decodeRecordVersion(data string, version int) (Record, error) {
 
 func update(tx *sql.Tx, r Record) error {
 	data, err := json.Marshal(r)
-	if err != nil || len(data) > 8192 {
+	if err != nil || len(data) > 16384 {
 		return ErrInvalid
 	}
 	_, err = tx.Exec("UPDATE requests SET status=?,data=? WHERE request_id=?", r.Status, string(data), r.RequestID)

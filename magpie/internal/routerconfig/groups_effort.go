@@ -237,16 +237,8 @@ func NormalizeGroup(g Group) (Group, error) {
 		g.Rules = nil
 	}
 
-	hasLocal := false
-	for _, m := range members {
-		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(m)), "local/") {
-			hasLocal = true
-			break
-		}
-	}
-	if !hasLocal {
-		g.LocalRedaction = false
-	}
+	// Keep explicit privacy intent when members disappear or a model is disabled.
+	// Execution resolves nested members and fails closed if the model is missing.
 
 	// Clear runtime-derived fields before persistence.
 	g.Matched = nil

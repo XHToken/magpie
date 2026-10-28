@@ -8,7 +8,7 @@
 
 ## 安装固定版本
 
-从同一 [Wefto 发布版本](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.9)取得 `*.zip`、`*.manifest.json`、`SHA256SUMS` 和独立 `install-windows.ps1`，保存在同一个本地文件夹。`SHA256SUMS` 列出 ZIP、manifest 和独立安装脚本的校验值，可用 `Get-FileHash -Algorithm SHA256` 核对。安装器只接受明确给定的本地包，不执行网络脚本文本，不查询或隐式使用 latest；当前不实现自动升级、自动回滚或其他平台安装。
+从同一 [Wefto 发布版本](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.10)取得 `*.zip`、`*.manifest.json`、`SHA256SUMS` 和独立 `install-windows.ps1`，保存在同一个本地文件夹。`SHA256SUMS` 列出 ZIP、manifest 和独立安装脚本的校验值，可用 `Get-FileHash -Algorithm SHA256` 核对。安装器只接受明确给定的本地包，不执行网络脚本文本，不查询或隐式使用 latest；当前不实现自动升级、自动回滚或其他平台安装。
 
 在 PowerShell 中指定绝对路径（支持空格和中文）：
 
@@ -40,9 +40,10 @@ $router = Join-Path $env:LOCALAPPDATA 'Programs\端云协同\wefto.exe'
 源码开发的日常入口为仓库根 `start.cmd`，会额外核对 WorkBuddy 接入地址；
 不要用历史验收中的临时端口或已移除的测试目录作为日常启动入口。
 
-模型、脱敏试用与登录自启是独立选择。首次默认不开启试用；如明确选择 1.7B 实验性脱敏，使用：
+服务默认允许 X2.6 Q4_K_M/Q8_0 实验性脱敏，无需额外启动参数。是否执行脱敏仍由路由组或应用开关控制；模型启用与登录自启分别设置。旧版无版本标记的启动选项会采用新的开启默认值（旧文件无法区分默认关闭与手动关闭）；新版显式关闭会保留。需要重新开启时使用：
 
 ```powershell
+& $router service stop
 & $router service start --experimental-redaction
 # 以后重启和登录自启保留已明确选择的试用参数。
 & $router service restart

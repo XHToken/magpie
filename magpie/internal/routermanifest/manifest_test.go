@@ -1,6 +1,7 @@
 package routermanifest
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -25,7 +26,7 @@ func TestFixedCatalogHasOnlyVerifiedExecutionArtifacts(t *testing.T) {
 		if err := m.Template.Validate(); err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(m.Artifact.URL, m.Revision) || !strings.Contains(m.Template.URL, m.TemplateRevision) || (m.Quantization != "Q4_K_M" && m.Quantization != "Q8_0") || m.Purpose != "public_execution_validation_only" || m.InstallationBytes <= m.Artifact.Size || m.License == "" || m.ContextTokens > m.NativeContextTokens {
+		if !strings.Contains(m.Artifact.URL, m.Revision) || !strings.Contains(m.Template.URL, m.TemplateRevision) || (m.Quantization != "Q4_K_M" && m.Quantization != "Q8_0") || m.Purpose != "public_execution_and_redaction_validation_only" || m.InstallationBytes <= m.Artifact.Size || m.License == "" || m.ContextTokens > m.NativeContextTokens {
 			t.Fatal(m)
 		}
 		for _, r := range c.Runtimes {
@@ -56,6 +57,54 @@ func TestFixedCatalogHasOnlyVerifiedExecutionArtifacts(t *testing.T) {
 	c.Models[0].Artifact.SHA256 = "changed"
 	if Fixed().Models[0].Artifact.SHA256 != first {
 		t.Fatal("mutable shared catalog")
+	}
+}
+
+func TestRedactionTrialSupportRejectsUnlistedOrUndeclaredModels(t *testing.T) {
+	for _, model := range Fixed().Models {
+		if !model.SupportsRedactionTrial() {
+			t.Fatalf("fixed model %s cannot enter redaction trial", model.ID)
+		}
+		model.RedactionTrial = false
+		if model.SupportsRedactionTrial() {
+			t.Fatal("model without trial support was authorized")
+		}
+		model.RedactionTrial, model.ID = true, "unlisted-model"
+		if model.SupportsRedactionTrial() {
+			t.Fatal("unlisted model inherited trial support")
+		}
+	}
+}
+
+func TestFixedCatalogAdvertisesBothX26RedactionTrials(t *testing.T) {
+	raw, err := json.Marshal(Fixed())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var catalog struct {
+		Models []struct {
+			ID             string `json:"id"`
+			Purpose        string `json:"purpose"`
+			RedactionTrial bool   `json:"redactionTrial"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(raw, &catalog); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
+		found := false
+		for _, model := range catalog.Models {
+			if model.ID != id {
+				continue
+			}
+			found = true
+			if !model.RedactionTrial || model.Purpose != "public_execution_and_redaction_validation_only" {
+				t.Fatalf("%s does not advertise experimental redaction: %+v", id, model)
+			}
+		}
+		if !found {
+			t.Fatalf("missing fixed model %s", id)
+		}
 	}
 }
 

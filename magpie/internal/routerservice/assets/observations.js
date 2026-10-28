@@ -1,6 +1,13 @@
 'use strict';
 (() => {
   for (const [key, zh, tw, ja, de] of [
+    ['Redaction requirement', '是否要求脱敏', '是否要求去識別化', '匿名化の要否', 'Anonymisierung erforderlich'],
+    ['Redaction sources', '脱敏要求来源', '去識別化要求來源', '匿名化要件の出所', 'Quellen der Anonymisierungsanforderung'],
+    ['Redaction model', '脱敏模型', '去識別化模型', '匿名化モデル', 'Anonymisierungsmodell'],
+    ['Redaction policy', '脱敏策略', '去識別化策略', '匿名化ポリシー', 'Anonymisierungsrichtlinie'],
+    ['No redaction required', '无需脱敏', '無須去識別化', '匿名化不要', 'Keine Anonymisierung erforderlich'],
+    ['Redaction prepared', '已完成脱敏准备', '已完成去識別化準備', '匿名化の準備完了', 'Anonymisierung vorbereitet'],
+    ['Cloud request blocked', '已阻断云端请求', '已阻擋雲端請求', 'クラウド送信を遮断', 'Cloud-Anfrage blockiert'],
     ['Statistics scope', '统计口径', '統計口徑', '集計対象', 'Zählweise'],
     ['Request share', '请求占比', '請求占比', 'リクエストの割合', 'Anfrageanteil'],
     ['Token count', 'Token 数', 'Token 數', 'トークン数', 'Token-Anzahl'],
@@ -67,10 +74,10 @@
   let state = 'Management token required', detailError = '', loading = false, sequence = 0, status = '', operation = '', destinationFilter = '';
   let redactRecords = [], redactSummary = null, redactNextCursor = '', redactCursor = '', redactHitOnly = '', confirmingClear = false;
   const visible = () => view === 'usage';
-  const num = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString(intlLang()) : t('Unknown');
-  const milliseconds = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER ? value.toLocaleString(intlLang(), { maximumFractionDigits: 3 }) : t('Unknown');
+  const num = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString(routerIntlLang()) : t('Unknown');
+  const milliseconds = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER ? value.toLocaleString(routerIntlLang(), { maximumFractionDigits: 3 }) : t('Unknown');
   const requestDuration = record => record.status === 'processing' ? t('Processing') : record.executionKnown === false ? t('Unknown') : milliseconds(record.durationMs);
-  const date = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString(intlLang()) : t('Unknown');
+  const date = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString(routerIntlLang()) : t('Unknown');
   const label = (values, value) => values[value] ? t(values[value]) : t('Unknown');
   function button(text, click, className = 'text') { const b = el('button', className, t(text)); b.type = 'button'; b.onclick = click; b.disabled = loading; return b; }
   function empty(message) { const box = el('div', 'list router-empty'), inner = el('div', 'empty-state'); inner.setAttribute('role', 'status'); inner.append(el('b', '', t(message))); box.append(inner); return box; }
@@ -78,7 +85,7 @@
   const destination = value => t(value === 'local' ? 'Local' : value === 'cloud' ? 'Cloud' : value === 'none' ? 'No outbound attempt' : 'Unknown');
   const actualModel = record => record.destination === 'local' ? record.localModel || t('Unknown') : record.destination === 'cloud' ? record.model || t('Unknown') : t('Unknown');
   const amount = value => typeof value === 'string' && /^(0|[1-9]\d*)(\.\d+)?$/.test(value) && value.length <= 256 ? value : t('Unknown');
-  const priceNumber = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value.toLocaleString(intlLang(), { maximumFractionDigits: 20 }) : t('Unknown');
+  const priceNumber = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value.toLocaleString(routerIntlLang(), { maximumFractionDigits: 20 }) : t('Unknown');
   function section(name, className = '') { const box = el('section', 'list request-stat-section ' + className); box.append(el('h2', '', t(name))); return box; }
   function scopeNote(...messages) {
     const note = el('details', 'destination-scope'); note.append(el('summary', '', t('Statistics scope')));
@@ -138,7 +145,7 @@
       const count = el('div', 'destination-count'); count.append(el('b', '', num(group.total)), el('span', '', t('Requests')));
       const shareKnown = typeof group.share === 'number' && Number.isFinite(group.share) && group.share >= 0 && group.share <= 1;
       const share = el('div', 'destination-share');
-      share.append(el('span', '', t('Request share')), el('b', '', shareKnown ? group.share.toLocaleString(intlLang(), { style: 'percent', maximumFractionDigits: 2 }) : t('Unknown')));
+      share.append(el('span', '', t('Request share')), el('b', '', shareKnown ? group.share.toLocaleString(routerIntlLang(), { style: 'percent', maximumFractionDigits: 2 }) : t('Unknown')));
       share.title = t('Share of retained generation requests');
       const track = el('div', 'destination-track'), fill = el('div'); track.setAttribute('aria-hidden', 'true');
       if (shareKnown) fill.style.width = (group.share * 100) + '%';
@@ -208,6 +215,11 @@
     const purposeStatus = purpose => { const calls = selected.calls?.filter(call => call.purpose === purpose); return calls?.length ? label(callResults, calls[calls.length - 1].result) : t('Not observed'); };
     field(dl, 'Judgment status', purposeStatus('judgment')); field(dl, 'Execution status', purposeStatus('execution')); field(dl, 'Redaction status', purposeStatus('redaction'));
     field(dl, 'Judgment duration (ms)', milliseconds(selected.judgmentMs));
+    const policy = selected.redactionPolicy;
+    field(dl, 'Redaction requirement', policy ? t(policy.required ? 'Yes' : 'No') : t('Unknown'));
+    field(dl, 'Redaction policy', policy ? label({ not_required: 'No redaction required', not_sent: 'No outbound attempt', prepared: 'Redaction prepared', blocked: 'Cloud request blocked', pending: 'Processing' }, policy.state) : t('Unknown'));
+    field(dl, 'Redaction sources', policy ? (policy.sourceGroupIds || []).join(', ') + (policy.sourceGroupCount > (policy.sourceGroupIds || []).length ? ' …' : '') || '—' : t('Unknown'));
+    field(dl, 'Redaction model', policy?.modelId || t('Unknown'));
     const redactionCalls = selected.calls?.filter(call => call.purpose === 'redaction') || [], lastRedaction = redactionCalls[redactionCalls.length - 1];
     field(dl, 'Redaction call duration (ms)', redactionCalls.length ? milliseconds(lastRedaction?.timings?.totalMs) : t('Not observed'));
     const judgmentCalls = selected.calls?.filter(call => call.purpose === 'judgment') || [], judgment = judgmentCalls[judgmentCalls.length - 1];
