@@ -111,7 +111,8 @@ test('default gate retains all product packages and every product page, includin
   assert.ok(commands[1].args.includes('-race')); assert.ok(commands[1].args.includes('-count=1'));
   for (const engine of ['chromium', 'webkit']) {
     const call = commands.find(call => call.env.BROWSER === engine);
-    assert.equal(summary.browserFiles.length, 14);
+    assert.equal(summary.browserFiles.length, 15);
+    assert.ok(summary.browserFiles.includes('internal/routerservice/tests/local-model-errors.test.cjs'));
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/local-model-updates.test.cjs'));
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/tutorial.test.cjs'));
     assert.ok(summary.browserFiles.includes('internal/routerservice/tests/spark-models.test.cjs'));
