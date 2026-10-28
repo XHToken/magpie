@@ -11,7 +11,7 @@ const { chromium, webkit } = require('playwright');
 const { skipTutorial } = require('./returning-user.cjs');
 const binary = process.env.WEFTO_BINARY || path.resolve(__dirname, '../../../dist/wefto');
 
-test(`installation errors explain the failed stage and safe retry (${process.env.BROWSER || 'chromium'})`, { timeout: 120000 }, async t => {
+test(`local model failures and response checks explain outcomes and recovery (${process.env.BROWSER || 'chromium'})`, { timeout: 180000 }, async t => {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'api-router-install-errors-'));
   let service, exited, browser;
   t.after(async () => {
@@ -113,6 +113,80 @@ test(`installation errors explain the failed stage and safe retry (${process.env
       await page.waitForFunction(() => document.querySelector('#localModelError').textContent.includes('SHA256'));
       assert.ok(!(await page.locator('#localModelError').textContent()).includes('hf-mirror.com'), 'an operation reply without progress does not invent a failed source');
       assert.equal(actions.filter(action => action === '/api/local-model/install').length, 1);
+      // Response checks report progress, the actual outcome and a useful next
+      // step immediately below the actions, including HTTP-success/slow results.
+      snapshot.status = { ...original.status, installation: 'installed', runtime: 'idle', healthy: true, pid: 4242,
+        intent: { ...original.status.intent, selected: 'spark-x2.6-4B', enabled: true }, dependencies: { state: 'ready' },
+        performance: { state: 'unknown' }, error: null };
+      await page.evaluate(() => window.routerLocalOpen());
+      let finishCheck, checkStarted;
+      await page.route('**/api/local-model/check', async route => {
+        await new Promise(resolve => { finishCheck = resolve; checkStarted(); });
+        await route.fulfill({ json: { schemaVersion: 1, status: snapshot.status } });
+      });
+      const checkButton = page.locator('#localModelContent [data-action=experience]');
+      const feedback = page.locator('#localModelFeedback');
+      const beginCheck = async () => {
+        const arrived = new Promise(resolve => { checkStarted = resolve; });
+        await checkButton.click();
+        await arrived;
+        await page.waitForFunction(() => document.querySelector('#localModelFeedback').dataset.state === 'checking');
+      };
+      await beginCheck();
+      assert.equal(await checkButton.isDisabled(), true, 'a pending check cannot be submitted twice');
+      snapshot.status.performance = { state: 'slow', tokensPerSecond: 2.4, firstTokenMs: 18100 };
+      finishCheck();
+      await page.waitForFunction(() => document.querySelector('#localModelFeedback').dataset.state === 'warning');
+      assert.equal(await page.locator('#localModelFeedbackTitle').textContent(), await page.evaluate(() => t('Local responses are slow')));
+      assert.match(await feedback.textContent(), /2\.4.*18\.1/);
+      assert.equal(await page.locator('#localModelFeedbackNext').isVisible(), true);
+      assert.equal(await feedback.getAttribute('aria-live'), 'polite');
+      assert.equal(await page.evaluate(() => {
+        const panel = document.querySelector('#localModelFeedback');
+        return !!(panel.compareDocumentPosition(document.querySelector('#localModelLifecycle')) & Node.DOCUMENT_POSITION_FOLLOWING);
+      }), true, 'the result precedes the low-priority lifecycle note');
+      assert.ok(!(await feedback.textContent()).match(/\{\w+\}/), 'result placeholders are translated and filled');
+      if (language !== 'en') assert.notEqual(await page.locator('#localModelFeedbackTitle').textContent(), 'Local responses are slow');
+      for (const state of ['unknown', 'acceptable']) {
+        await beginCheck();
+        snapshot.status.performance = { state, ...(state === 'acceptable' ? { tokensPerSecond: 12, firstTokenMs: 800 } : {}) };
+        finishCheck();
+        await page.waitForFunction(expected => document.querySelector('#localModelFeedback').dataset.state === expected, state === 'acceptable' ? 'success' : 'warning');
+        assert.equal(await page.locator('#localModelFeedbackMetrics').isVisible(), state === 'acceptable', 'unknown samples never reuse old measurements');
+      }
+      await page.unroute('**/api/local-model/check');
+      await page.route('**/api/local-model/check', route => route.fulfill({ status: 409, json: { error: { code: 'capability_acceptance_suites_not_provided' } } }));
+      await checkButton.click();
+      await page.waitForFunction(() => document.querySelector('#localModelFeedback').dataset.state === 'error');
+      assert.equal(await page.locator('#localModelFeedbackTitle').textContent(), await page.evaluate(() => t('Local response check failed')));
+      assert.equal(await page.locator('#localModelError').textContent(), await page.evaluate(() => t('Capability acceptance suites have not been provided.')));
+      assert.equal(await page.locator('#localModelFeedbackNext').isVisible(), true, 'failed checks explain what to do next');
+      if (process.env.LOCAL_FEEDBACK_SCREENSHOTS && language === 'zh') await feedback.screenshot({ path: path.join(process.env.LOCAL_FEEDBACK_SCREENSHOTS, `local-feedback-${width}-failure.png`) });
+      for (const [code, key] of [
+        ['local_runtime_timed_out', 'The local operation timed out. Check the runtime state, close resource-heavy apps and retry.'],
+        ['local_model_queue_full', 'The local model is busy or its queue is full. Wait for current requests to finish, then retry.'],
+        ['local_model_process_fault', 'The local model process is unhealthy. Check process health above; if it remains faulty, turn the model off and on, then retry.'],
+      ]) {
+        await page.unroute('**/api/local-model/check');
+        await page.route('**/api/local-model/check', route => route.fulfill({ status: 409, json: { error: { code } } }));
+        await checkButton.click();
+        await page.waitForFunction(expected => document.querySelector('#localModelError').textContent === t(expected), key);
+        assert.equal(await feedback.getAttribute('data-state'), 'error');
+        assert.equal(await page.locator('#localModelFeedbackMetrics').isVisible(), false, 'a failed check does not present an earlier success measurement');
+      }
+      await page.unroute('**/api/local-model/check');
+      await page.route('**/api/local-model/check', route => route.fulfill({ json: { schemaVersion: 1, status: snapshot.status } }));
+      await checkButton.click();
+      await page.waitForFunction(() => document.querySelector('#localModelFeedback').dataset.state === 'success');
+      assert.ok(!(await feedback.textContent()).includes(await page.evaluate(() => t('Local response check failed'))), 'retry replaces the old failure');
+      if (process.env.LOCAL_FEEDBACK_SCREENSHOTS && language === 'zh') {
+        snapshot.status.performance = { state: 'slow', tokensPerSecond: 2.4, firstTokenMs: 18100 };
+        await page.evaluate(() => window.routerLocalOpen());
+        await feedback.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: path.join(process.env.LOCAL_FEEDBACK_SCREENSHOTS, `local-feedback-${width}.png`) });
+        await page.emulateMedia({ colorScheme: 'dark' });
+        await page.screenshot({ path: path.join(process.env.LOCAL_FEEDBACK_SCREENSHOTS, `local-feedback-${width}-dark.png`) });
+      }
       // A stream failure follows the same rendering path as the initial REST
       // snapshot; its completion refresh still observes the failed state.
       snapshot.status = { ...failed('template', 'integrity'), installation: 'downloading', error: null };

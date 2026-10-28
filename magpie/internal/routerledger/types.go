@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const SchemaVersion = 2
+const SchemaVersion = 3
 
 var (
 	ErrUnavailable = errors.New("ledger_unavailable")
@@ -77,23 +77,33 @@ type Attempt struct {
 }
 
 type Outcome struct {
-	ExecutionKnown         bool            `json:"executionKnown"`
-	Status                 string          `json:"status"`
-	Destination            string          `json:"destination"`
-	LocalModel             string          `json:"localModel"`
-	LocalCallID            string          `json:"localCallId"`
-	Attempts               int             `json:"attempts"`
-	OutputCommitted        bool            `json:"outputCommitted"`
-	SafeErrorCode          string          `json:"safeErrorCode"`
-	FailureStage           string          `json:"failureStage"`
-	Usage                  *Usage          `json:"usage"`
-	AttemptDetails         []Attempt       `json:"attemptDetails"`
-	Decision               string          `json:"decision,omitempty"`
-	JudgmentMS             int64           `json:"judgmentMs,omitempty"`
-	CapabilityState        string          `json:"capabilityState,omitempty"`
-	ResolvedProviderID     string          `json:"-"`
-	ResolvedModel          string          `json:"-"`
-	ResolvedReferencePrice *ReferencePrice `json:"-"`
+	Redaction              *RedactionPolicy `json:"redactionPolicy,omitempty"`
+	ExecutionKnown         bool             `json:"executionKnown"`
+	Status                 string           `json:"status"`
+	Destination            string           `json:"destination"`
+	LocalModel             string           `json:"localModel"`
+	LocalCallID            string           `json:"localCallId"`
+	Attempts               int              `json:"attempts"`
+	OutputCommitted        bool             `json:"outputCommitted"`
+	SafeErrorCode          string           `json:"safeErrorCode"`
+	FailureStage           string           `json:"failureStage"`
+	Usage                  *Usage           `json:"usage"`
+	AttemptDetails         []Attempt        `json:"attemptDetails"`
+	Decision               string           `json:"decision,omitempty"`
+	JudgmentMS             int64            `json:"judgmentMs,omitempty"`
+	CapabilityState        string           `json:"capabilityState,omitempty"`
+	ResolvedProviderID     string           `json:"-"`
+	ResolvedModel          string           `json:"-"`
+	ResolvedReferencePrice *ReferencePrice  `json:"-"`
+}
+
+// RedactionPolicy is optional for backward compatibility with historical records.
+type RedactionPolicy struct {
+	SourceGroupCount int      `json:"sourceGroupCount"`
+	Required         bool     `json:"required"`
+	SourceGroupIDs   []string `json:"sourceGroupIds"`
+	ModelID          string   `json:"modelId"`
+	State            string   `json:"state"`
 }
 
 type Record struct {

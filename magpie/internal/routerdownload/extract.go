@@ -84,6 +84,9 @@ func Extract(ctx context.Context, a routermanifest.Artifact, archivePath, destin
 	if err != nil {
 		return err
 	}
+	if err := e.materializeLinks(); err != nil {
+		return err
+	}
 	if len(e.receipt.Files) == 0 {
 		return errors.New("archive contains no regular files")
 	}
@@ -109,27 +112,40 @@ type extractor struct {
 	limit, total int64
 	seen         map[string]bool
 	receipt      receipt
+	links        []archiveLink
 }
 
-func (e *extractor) entry(name string, size int64, mode fs.FileMode, source io.Reader) error {
+func (e *extractor) claim(name string) (string, error) {
 	if err := e.ctx.Err(); err != nil {
-		return err
+		return "", err
 	}
 	clean, err := safeEntry(name)
 	if err != nil {
-		return err
+		return "", err
 	}
 	key := strings.ToLower(clean)
 	if e.seen[key] || len(e.seen) >= maxEntries {
-		return errors.New("duplicate or excessive archive entries")
+		return "", errors.New("duplicate or excessive archive entries")
 	}
 	e.seen[key] = true
+	return clean, nil
+}
+
+func (e *extractor) entry(name string, size int64, mode fs.FileMode, source io.Reader) error {
+	clean, err := e.claim(name)
+	if err != nil {
+		return err
+	}
+	return e.writeEntry(clean, size, mode, source)
+}
+
+func (e *extractor) writeEntry(clean string, size int64, mode fs.FileMode, source io.Reader) error {
 	dest := filepath.Join(e.root, filepath.FromSlash(clean))
 	if mode.IsDir() {
 		return os.MkdirAll(dest, 0o700)
 	}
 	if !mode.IsRegular() {
-		return fmt.Errorf("archive links and special files refused: %s", name)
+		return fmt.Errorf("archive links and special files refused: %s", clean)
 	}
 	if size < 0 || size > e.limit-e.total {
 		return errors.New("archive exceeds expanded-byte bound")
@@ -158,7 +174,7 @@ func (e *extractor) entry(name string, size int64, mode fs.FileMode, source io.R
 		return closeErr
 	}
 	if n != size {
-		return fmt.Errorf("archive entry length differs: %s", name)
+		return fmt.Errorf("archive entry length differs: %s", clean)
 	}
 	e.total += n
 	e.receipt.Files = append(e.receipt.Files, extractedFile{Path: clean, Size: n, SHA256: hex.EncodeToString(h.Sum(nil))})
@@ -229,6 +245,15 @@ func (e *extractor) tarGzip(archivePath string) error {
 			return err
 		}
 		mode := h.FileInfo().Mode()
+		if h.Typeflag == tar.TypeSymlink {
+			if h.Size != 0 {
+				return errors.New("archive symlink has a payload")
+			}
+			if err := e.deferLink(h.Name, h.Linkname); err != nil {
+				return err
+			}
+			continue
+		}
 		if h.Typeflag != tar.TypeReg && h.Typeflag != tar.TypeRegA && h.Typeflag != tar.TypeDir {
 			return fmt.Errorf("archive links and special files refused: %s", h.Name)
 		}

@@ -204,8 +204,16 @@ an ignoring server restarts from byte zero. Resource changes, malformed ranges,
 short/overlong responses and bad SHA are handled by the
 [downloader](../../internal/routerdownload/README.md). OS file locks reject
 duplicate writers across processes. Final files are flushed, exactly verified
-and atomically renamed. Extraction rejects links/traversal/Windows aliases and
-is bounded before atomic directory publication.
+and atomically renamed. Extraction materializes internal tar symlink chains as
+ordinary file copies after all regular files and the gzip stream verify. Only
+archived regular-file targets are accepted; absolute/escaping, cyclic, missing,
+directory and directory-link targets are refused. Hard links, ZIP links,
+special files, traversal and Windows aliases remain rejected; installed-tree
+verification still refuses filesystem links. Alias copies have their own
+size/SHA256 receipt entries and count toward the expansion limit before atomic
+publication. The pinned macOS arm64 archive occupies 60,365,990 bytes after
+materialization; Intel occupies 57,260,670 bytes, so its expansion budget is
+64 MiB. Existing artifact URLs, archive hashes and cache paths are preserved.
 
 Installation is proved by exact model/template hashes and reverified extraction
 receipts, **never** by file existence, progress, config or `models/manifest.json`.
@@ -443,10 +451,13 @@ extraction, replacement/restoration and fail-closed cloud gating. Existing
 `routerrequest` redaction-unavailable rejection is unchanged: disabling a runtime
 does not clear any application's redaction intent or send original text to cloud.
 
-`Options.ExperimentalRedaction` is a trusted startup choice, false by default,
-with no management HTTP setter. Only that choice permits
+`Options.ExperimentalRedaction` is a trusted startup choice with no management
+HTTP setter. The runtime's zero value remains false; the product CLI enables
+it by default unless explicitly disabled (see [service startup](wefto-service.md)).
+Only that choice permits
 `NewExperimentalRedactionInvoker(fingerprint,suite)`. The immutable handle
-admits Redaction for either enabled fixed Spark-X2.5 1.7B or 4B selection and exact
+admits Redaction for either enabled fixed Spark-X2.6 Q4_K_M or Q8_0 selection
+declared by `Model.SupportsRedactionTrial`, and its exact
 current artifact fingerprint, with a complete `privacy-trial-v2:` suite plus
 64 lowercase hexadecimal digits. `VerifyBinding` checks the experimental
 extractor's exact fingerprint and suite on every request. Disabled, closing,
@@ -572,6 +583,18 @@ performance preserves user intent and the loaded process but prevents new
 automatic hybrid use. Trusted diagnostic managers retain their prior optional
 policy. The page exposes a response-experience recheck through the existing
 `/check` action. No measurement downloads a second model or calls a cloud provider.
+
+Directly below the local-model actions, a persistent, politely announced result
+card distinguishes a pending response check, an operation failure, slow or
+unconfirmed performance, and passed response performance. Failures and warnings
+show a descriptive heading, the reason and relevant recovery guidance before the
+lifecycle notes. Available aggregate speed and first-token measurements are shown
+with the existing 5 tokens/s and 15-second reference thresholds; unknown samples
+never display a previous check's metrics. A retry replaces the previous operation
+error. Passing response performance does not claim capability or quality acceptance.
+Installation and runtime errors use the same visible card, preserving their
+stage-specific explanations. Verification: `local-model-errors.test.cjs` covers
+these outcomes and retries in five languages at desktop and mobile widths.
 
 Core tests use controlled time, loopback download servers and the executable
 fake; no real weights/network are needed. `product-regression.cjs` includes all

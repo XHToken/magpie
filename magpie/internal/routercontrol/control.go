@@ -333,20 +333,30 @@ func WaitStopped(ctx context.Context, l dirs.Layout, r Record) error {
 }
 
 type launchOptions struct {
+	SchemaVersion         int  `json:"schemaVersion"`
 	ExperimentalRedaction bool `json:"experimentalRedaction"`
 }
 
 func preference(l dirs.Layout) (bool, error) {
 	b, err := readRegular(filepath.Join(l.State, "service-options.json"))
 	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
+		return true, nil
 	}
 	if err != nil {
 		return false, err
 	}
-	var p launchOptions
+	p := launchOptions{ExperimentalRedaction: true}
 	if err = json.Unmarshal(b, &p); err != nil {
 		return false, fmt.Errorf("invalid saved service options: %w", err)
+	}
+	// Legacy options persisted the old false default without recording whether
+	// it was chosen explicitly. Adopt the new default once; versioned opt-outs
+	// remain stable across subsequent starts and restarts.
+	if p.SchemaVersion == 0 {
+		return true, nil
+	}
+	if p.SchemaVersion != 1 {
+		return false, errors.New("unsupported saved service options version")
 	}
 	return p.ExperimentalRedaction, nil
 }
@@ -357,7 +367,7 @@ func SaveOptions(l dirs.Layout, trial bool) error {
 	if err := os.MkdirAll(l.State, 0o700); err != nil {
 		return err
 	}
-	b, _ := json.Marshal(launchOptions{trial})
+	b, _ := json.Marshal(launchOptions{SchemaVersion: 1, ExperimentalRedaction: trial})
 	return steady.WriteFile(filepath.Join(l.State, "service-options.json"), b, 0o600)
 }
 
@@ -408,6 +418,8 @@ func Start(ctx context.Context, l dirs.Layout, trial *bool) (result Status, fail
 	args := []string{"serve"}
 	if selected {
 		args = append(args, "--experimental-redaction")
+	} else {
+		args = append(args, "--no-experimental-redaction")
 	}
 	if err := safePath(filepath.Join(l.Logs, "service.log")); err != nil {
 		return s, err

@@ -2045,6 +2045,202 @@
           }
         ]
       }
+    },
+    {
+      "id": "workbuddy-5.8.3-second-turn-step-seq",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 providerDataOf / itemsToMessages; synthetic correlation and completed-turn/tool history",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture first turn"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "fixture completed",
+                "annotations": []
+              }
+            ],
+            "messageId": "fixture-message-1",
+            "conversationRequestId": "fixture-request",
+            "stepSeq": 1,
+            "agent": "fixture-agent",
+            "model": "fixture-model",
+            "requestModelId": "fixture-model",
+            "requestModelName": "fixture-model",
+            "traceId": "fixture-trace",
+            "rawUsage": {
+              "prompt_tokens": 3,
+              "completion_tokens": 2,
+              "total_tokens": 5
+            },
+            "usage": {
+              "requests": 1,
+              "inputTokens": 3,
+              "outputTokens": 2,
+              "totalTokens": 5,
+              "inputTokensDetails": [
+                {
+                  "cached_tokens": 0
+                }
+              ],
+              "outputTokensDetails": [
+                {
+                  "reasoning_tokens": 1
+                }
+              ]
+            }
+          },
+          {
+            "role": "user",
+            "content": "fixture follow-up"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-tool-history-step-seq",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 providerDataOf / itemsToMessages; synthetic correlation and completed-turn/tool history",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture tool task"
+          },
+          {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "fixture-call",
+                "type": "function",
+                "function": {
+                  "name": "read",
+                  "arguments": "{}"
+                }
+              }
+            ],
+            "messageId": "fixture-message-1",
+            "conversationRequestId": "fixture-request",
+            "stepSeq": 1
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "fixture-call",
+            "content": "fixture result",
+            "messageId": "fixture-message-1",
+            "conversationRequestId": "fixture-request",
+            "stepSeq": 1
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "fixture completed",
+                "annotations": []
+              }
+            ],
+            "messageId": "fixture-message-2",
+            "conversationRequestId": "fixture-request",
+            "stepSeq": 2,
+            "agent": "fixture-agent",
+            "model": "fixture-model",
+            "requestModelId": "fixture-model",
+            "requestModelName": "fixture-model",
+            "traceId": "fixture-trace",
+            "rawUsage": {
+              "prompt_tokens": 3,
+              "completion_tokens": 2,
+              "total_tokens": 5
+            },
+            "usage": {
+              "requests": 1,
+              "inputTokens": 3,
+              "outputTokens": 2,
+              "totalTokens": 5,
+              "inputTokensDetails": [
+                {
+                  "cached_tokens": 0
+                }
+              ],
+              "outputTokensDetails": [
+                {
+                  "reasoning_tokens": 1
+                }
+              ]
+            }
+          },
+          {
+            "role": "user",
+            "content": "fixture follow-up"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-auxiliary-zero-step-seq",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 providerDataOf / itemsToMessages; synthetic correlation and completed-turn/tool history",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture auxiliary task"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "fixture completed",
+                "annotations": []
+              }
+            ],
+            "messageId": "fixture-message-0",
+            "conversationRequestId": "fixture-request",
+            "stepSeq": 0,
+            "agent": "fixture-agent",
+            "model": "fixture-model",
+            "requestModelId": "fixture-model",
+            "requestModelName": "fixture-model",
+            "traceId": "fixture-trace",
+            "rawUsage": {
+              "prompt_tokens": 3,
+              "completion_tokens": 2,
+              "total_tokens": 5
+            },
+            "usage": {
+              "requests": 1,
+              "inputTokens": 3,
+              "outputTokens": 2,
+              "totalTokens": 5,
+              "inputTokensDetails": [
+                {
+                  "cached_tokens": 0
+                }
+              ],
+              "outputTokensDetails": [
+                {
+                  "reasoning_tokens": 1
+                }
+              ]
+            }
+          },
+          {
+            "role": "user",
+            "content": "fixture follow-up"
+          }
+        ]
+      }
     }
   ]
 }

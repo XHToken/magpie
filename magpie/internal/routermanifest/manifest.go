@@ -50,12 +50,19 @@ type Model struct {
 	Quantization        string   `json:"quantization"`
 	License             string   `json:"license"`
 	Purpose             string   `json:"purpose"`
-	ContextTokens       int      `json:"contextTokens"` // Explicit serving cap, not native maximum.
+	RedactionTrial      bool     `json:"redactionTrial"` // Supported admission, not recognition quality acceptance.
+	ContextTokens       int      `json:"contextTokens"`  // Explicit serving cap, not native maximum.
 	NativeContextTokens int      `json:"nativeContextTokens"`
 	Artifact            Artifact `json:"artifact"`
 	Template            Artifact `json:"template"`
 	TemplateRevision    string   `json:"templateRevision"`
 	InstallationBytes   int64    `json:"installationBytes"` // Conservative peak reservation.
+}
+
+// SupportsRedactionTrial keeps the fixed model allowlist and its declared
+// support together. Runtime enablement and exact binding are checked separately.
+func (m Model) SupportsRedactionTrial() bool {
+	return m.RedactionTrial && (m.ID == "spark-x2.6-4B" || m.ID == "spark-x2.6-4B-Q8_0")
 }
 
 // DisplayName keeps the published model version separate from its hardware tier.
@@ -134,7 +141,7 @@ func Fixed() Catalog {
 	// own published template. Metadata checked against the official repo 2026-10-27.
 	c.Models = append(c.Models, Model{
 		ID: "spark-x2.6-4B", Name: "Spark-X2.6-4B-Q4_K_M", Tier: "4B", Revision: spark26Rev,
-		Quantization: "Q4_K_M", License: "Apache-2.0", Purpose: "public_execution_validation_only",
+		Quantization: "Q4_K_M", License: "Apache-2.0", Purpose: "public_execution_and_redaction_validation_only", RedactionTrial: true,
 		ContextTokens: 8192, NativeContextTokens: 1048576,
 		Artifact: Artifact{ID: "Spark-X2.6-4B-" + spark26Rev,
 			URL:      "https://hf-mirror.com/XHToken/Spark-X2.6-4B-GGUF/resolve/" + spark26Rev + "/Spark-X2.6-4B-Q4_K_M.gguf",

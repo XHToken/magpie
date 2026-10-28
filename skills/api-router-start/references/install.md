@@ -6,6 +6,8 @@
 
 每次需要下载安装时，实时查询 [项目 Releases](https://github.com/XHToken/magpie/releases)，按 `published_at` 从新到旧筛选 `wefto-v*`、非草稿、当前系统/架构的发布。默认包含预览版，不使用仅面向正式版的 `/releases/latest` 代替筛选。默认不传 `-Tag` 或 `--tag`，不固定任何历史版本。以下为已支持的包类型，具体版本号及文件 URL 始终取自本次查询结果：
 
+查询入口为 `https://api.github.com/repos/XHToken/magpie/releases?per_page=100&page=1`，有后续页时继续读取，再按发布时间筛选。从选中 Release 的 `assets` 中识别匹配系统/架构的项目包及配套文件，使用各附件返回的 `browser_download_url` 下载；不从本 skill、README 示例、历史验收或缓存复制固定包地址。包名模板只用于识别附件，不能代替实时发现。每次新的下载任务都重新查询，不把本次查到的版本写回默认值；查询失败时报告原因，不能改下固定旧包。此规则针对项目程序包，本地模型权重仍遵循产品目录的版本和校验要求。
+
 | 系统 | 架构 | 包后缀 |
 | --- | --- | --- |
 | Windows | x64 | `windows-amd64.zip` |

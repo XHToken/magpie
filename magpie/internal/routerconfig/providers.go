@@ -37,6 +37,7 @@ type CloudProvider struct {
 	// Providers neither persist nor expose a default model.
 	Model            string   `json:"-"`
 	DiscoveredModels []string `json:"discoveredModels,omitempty"`
+	ModelListError   string   `json:"modelListError,omitempty"`
 	ProxyMode        string   `json:"proxyMode"`
 	HasKey           bool     `json:"hasKey"`
 	HeaderNames      []string `json:"headerNames"`

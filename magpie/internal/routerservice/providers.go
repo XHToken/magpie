@@ -141,6 +141,7 @@ type redactedCloudProvider struct {
 	Models           []string `json:"models"`
 	EffectiveModels  []string `json:"effectiveModels"`
 	ModelSource      string   `json:"modelSource,omitempty"`
+	ModelListError   string   `json:"modelListError,omitempty"`
 }
 
 func redactProvider(p routerconfig.CloudProvider) redactedCloudProvider {
@@ -168,6 +169,7 @@ func redactProvider(p routerconfig.CloudProvider) redactedCloudProvider {
 		Models:           effective,
 		EffectiveModels:  effective,
 		ModelSource:      source,
+		ModelListError:   p.ModelListError,
 	}
 }
 

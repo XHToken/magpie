@@ -58,10 +58,11 @@ func executePreparedModel(w http.ResponseWriter, prepared *http.Request, sub str
 	return executePreparedModelBody(w, prepared, sub, body, options)
 }
 
-func executePreparedModelBody(w http.ResponseWriter, prepared *http.Request, sub string, body []byte, options ModelOptions) (routercloud.Result, error) {
+func executePreparedModelBody(w http.ResponseWriter, prepared *http.Request, sub string, body []byte, options ModelOptions) (result routercloud.Result, err error) {
 	ctx, options := snapshotRuntimeSettings(prepared.Context(), options)
-	prepared = prepared.WithContext(ctx)
+	prepared = ensureProfileRedactionPlan(prepared.WithContext(ctx))
 	state, _ := routerrequest.FromContext(prepared.Context())
+	defer func() { result.Redaction = redactionSnapshot(prepared.Context(), err) }()
 	// C binds the request's observer after Prepare. Promote that trusted
 	// context value into A's producer options so judgment, execution and
 	// redaction events carry the current request watch. The service-level
@@ -70,7 +71,7 @@ func executePreparedModelBody(w http.ResponseWriter, prepared *http.Request, sub
 		options.LocalObserver = observer
 	}
 	target := routercloud.Target{Provider: state.Target.Provider, Model: state.Target.Profile.Cloud.Model,
-		Authorization: state.Target.Authorization, RedactionRequired: state.Target.Profile.RedactionEnabled,
+		Authorization: state.Target.Authorization, RedactionRequired: redactionRequired(prepared.Context(), state.Target.Profile.RedactionEnabled),
 		ResponseCapabilities: state.Target.Profile.Cloud.Capabilities}
 	controller := http.NewResponseController(w)
 	// B validates the full input (including duplicate keys). Read only the model
@@ -117,7 +118,7 @@ func executePreparedModelBody(w http.ResponseWriter, prepared *http.Request, sub
 		}
 		return nil
 	}}
-	result, err := executor.ExecutePath(prepared.Context(), writer, "/v1/"+sub, routercloud.Request{Body: body, Target: target})
+	result, err = executor.ExecutePath(prepared.Context(), writer, "/v1/"+sub, routercloud.Request{Body: body, Target: target})
 	result.Decision = string(DecisionCloud)
 	if result.Attempts > 0 {
 		result.Destination = string(DecisionCloud)

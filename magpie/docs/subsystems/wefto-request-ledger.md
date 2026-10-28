@@ -17,7 +17,7 @@ does. No database/SQL/file-download management endpoint is provided.
 
 ## Schema and data contract
 
-Schema 2 is registered in SQLite `PRAGMA user_version` and in every projected
+Schema 3 is registered in SQLite `PRAGMA user_version` and in every projected
 record's `schemaVersion`. The `requests` table stores immutable indexed
 `request_id`, `started_ns`, `app_id`, `operation`, and mutable indexed `status`,
 plus a bounded safe JSON projection in `data`. The exact owned table schema,
@@ -29,6 +29,15 @@ and actual usage survive, while new reference prices and local identities remain
 unknown. No internal calls are invented for old requests. Invalid schema 1 rows
 are checked before even expired rows can be deleted. Failed migration rolls back
 the table, version and record changes; unknown future versions are rejected.
+
+Schema 3 adds the optional `redactionPolicy` projection: required flag, bound
+model ID, state (`not_required`, `pending`, `prepared`, `blocked`, `not_sent`),
+up to eight source group IDs and the full source count. These bounded fields
+contain no prompt or entity values. Request JSON is bounded to 16 KiB; legacy
+schema 1/2 rows retain their 8 KiB validation bound before migration. Valid
+schema 2 records and calls migrate transactionally, preserving history. Older
+records have a nil policy, displayed as unknown rather than no requirement.
+Old binaries reject schema 3; this migration is not a downgrade mechanism.
 
 `Metadata` is a request-time snapshot of `requestId`, `appId`, `appName`, the
 safe app-relative `path`, `operation`, `providerId` and `model`. Later Profile

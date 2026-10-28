@@ -1,6 +1,13 @@
 'use strict';
 (() => {
   for (const [key, zh, tw, ja, de] of [
+    ['Redaction requirement', '是否要求脱敏', '是否要求去識別化', '匿名化の要否', 'Anonymisierung erforderlich'],
+    ['Redaction sources', '脱敏要求来源', '去識別化要求來源', '匿名化要件の出所', 'Quellen der Anonymisierungsanforderung'],
+    ['Redaction model', '脱敏模型', '去識別化模型', '匿名化モデル', 'Anonymisierungsmodell'],
+    ['Redaction policy', '脱敏策略', '去識別化策略', '匿名化ポリシー', 'Anonymisierungsrichtlinie'],
+    ['No redaction required', '无需脱敏', '無須去識別化', '匿名化不要', 'Keine Anonymisierung erforderlich'],
+    ['Redaction prepared', '已完成脱敏准备', '已完成去識別化準備', '匿名化の準備完了', 'Anonymisierung vorbereitet'],
+    ['Cloud request blocked', '已阻断云端请求', '已阻擋雲端請求', 'クラウド送信を遮断', 'Cloud-Anfrage blockiert'],
     ['Statistics scope', '统计口径', '統計口徑', '集計対象', 'Zählweise'],
     ['Request share', '请求占比', '請求占比', 'リクエストの割合', 'Anfrageanteil'],
     ['Token count', 'Token 数', 'Token 數', 'トークン数', 'Token-Anzahl'],
@@ -208,6 +215,11 @@
     const purposeStatus = purpose => { const calls = selected.calls?.filter(call => call.purpose === purpose); return calls?.length ? label(callResults, calls[calls.length - 1].result) : t('Not observed'); };
     field(dl, 'Judgment status', purposeStatus('judgment')); field(dl, 'Execution status', purposeStatus('execution')); field(dl, 'Redaction status', purposeStatus('redaction'));
     field(dl, 'Judgment duration (ms)', milliseconds(selected.judgmentMs));
+    const policy = selected.redactionPolicy;
+    field(dl, 'Redaction requirement', policy ? t(policy.required ? 'Yes' : 'No') : t('Unknown'));
+    field(dl, 'Redaction policy', policy ? label({ not_required: 'No redaction required', not_sent: 'No outbound attempt', prepared: 'Redaction prepared', blocked: 'Cloud request blocked', pending: 'Processing' }, policy.state) : t('Unknown'));
+    field(dl, 'Redaction sources', policy ? (policy.sourceGroupIds || []).join(', ') + (policy.sourceGroupCount > (policy.sourceGroupIds || []).length ? ' …' : '') || '—' : t('Unknown'));
+    field(dl, 'Redaction model', policy?.modelId || t('Unknown'));
     const redactionCalls = selected.calls?.filter(call => call.purpose === 'redaction') || [], lastRedaction = redactionCalls[redactionCalls.length - 1];
     field(dl, 'Redaction call duration (ms)', redactionCalls.length ? milliseconds(lastRedaction?.timings?.totalMs) : t('Not observed'));
     const judgmentCalls = selected.calls?.filter(call => call.purpose === 'judgment') || [], judgment = judgmentCalls[judgmentCalls.length - 1];

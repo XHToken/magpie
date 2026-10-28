@@ -75,6 +75,17 @@ provider is preserved. Existing sidecar custom-model flags and selection backup
 are synchronized so Loomy retains the primary selection on startup.
 An explicit reconnect repairs existing sidecar flags even when `opencode.json`
 already matches the requested connection.
+After committed configuration changes, runtime invalidation recognizes the
+native macOS/Linux `~/.config/loomy-opencode` directory as well as the Windows
+layout. It targets the bundled OpenCode engine, including Loomy's executable
+copy under `~/.local/state/loomy/bin/<platform>-<arch>/opencode` when present.
+Loomy's existing dead-server recovery starts the engine with the new model
+catalog on a subsequent request; the desktop application can remain open.
+This is an engine restart, not an in-place catalog update: ongoing engine
+requests can be interrupted, and Loomy's cached liveness check can briefly
+delay recovery. Unchanged configuration and temporary test roots do not
+invalidate a bundled engine. Run `TestRefreshLoomyRuntimeInvalidatesNativeCatalog`
+on macOS/Linux to verify the invalidation commands without stopping real apps.
 If Loomy has switched its primary selection back to a native provider while
 retaining the Router catalog, explicit reconnect can select the saved Router
 target again. It validates the existing Router provider before reconciling the

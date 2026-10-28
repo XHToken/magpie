@@ -290,6 +290,9 @@ func (r *Request) finish(result routercloud.Result, err error, status, code, sta
 	}
 	outcome := routerledger.Outcome{Status: status, Destination: destination, Attempts: count, OutputCommitted: committed, SafeErrorCode: code, FailureStage: stage, AttemptDetails: attempts, Decision: result.Decision, JudgmentMS: nonnegative(result.JudgmentDuration.Milliseconds()), CapabilityState: routerledger.SafeCapabilityState(result.CapabilityState), ResolvedProviderID: cloudProviderID, ResolvedModel: cloudModel, ResolvedReferencePrice: cloudPrice}
 	outcome.LocalModel = localModel
+	if policy := result.Redaction; policy != nil {
+		outcome.Redaction = &routerledger.RedactionPolicy{Required: policy.Required, SourceGroupIDs: append([]string(nil), policy.SourceGroupIDs...), SourceGroupCount: policy.SourceGroupCount, ModelID: policy.ModelID, State: policy.State}
+	}
 	if r.metadata.Operation == "generate" && destination == "local" {
 		outcome.Usage = localUsage
 		outcome.LocalCallID = localCallID

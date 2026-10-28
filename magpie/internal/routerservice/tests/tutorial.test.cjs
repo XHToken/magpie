@@ -378,6 +378,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       await step(page, 7);
       const privacyCopy = await page.locator('#tutorialContent').textContent();
       assert.match(privacyCopy, /Redact On/);
+      assert.match(privacyCopy, /Redaction startup permission is enabled by default/);
       assert.match(privacyCopy, /original text and replacement values/);
       assert.match(privacyCopy, /seven days and 500 request IDs/);
       assert.match(privacyCopy, /30-second budget/);

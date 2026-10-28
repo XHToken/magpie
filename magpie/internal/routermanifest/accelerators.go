@@ -14,7 +14,9 @@ func acceleratedRuntimes() []Runtime {
 		// Apple CPU fallback reuses the verified universal-backend archive with
 		// explicit device=none and GPU layers=0, without copying model weights.
 		{"darwin-arm64-cpu", "darwin", "arm64", "cpu", "llama-b10828-bin-macos-arm64.tar.gz", "a9748e059515dfe853940f7cfc0ac7ac7af33901c773a64569b9435e27b0f6cb", "llama-server", 11133769, 32 << 20},
-		{"darwin-amd64-cpu", "darwin", "amd64", "cpu", "llama-b10828-bin-macos-x64.tar.gz", "61605c150e82f4a7e6ac0207b1e58dcd90ee74b29b6cc7b929d926283eaed856", "llama-server", 11188497, 32 << 20},
+		// Library aliases are materialized as regular files: the pinned Intel
+		// archive expands to 57,260,670 bytes including those copies.
+		{"darwin-amd64-cpu", "darwin", "amd64", "cpu", "llama-b10828-bin-macos-x64.tar.gz", "61605c150e82f4a7e6ac0207b1e58dcd90ee74b29b6cc7b929d926283eaed856", "llama-server", 11188497, 64 << 20},
 	} {
 		format := "tar.gz"
 		if v.platform == "windows" {

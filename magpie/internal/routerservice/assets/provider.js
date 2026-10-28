@@ -48,6 +48,11 @@
     ['{count} discovered models', '已探测 {count} 个模型', '已探測 {count} 個模型', '{count} 個の検出モデル', '{count} erkannte Modelle'],
     ['{count} preset models', '预设 {count} 个模型', '預設 {count} 個模型', '{count} 個のプリセットモデル', '{count} Standardmodelle'],
     ['No models cached', '暂无缓存模型', '暫無快取模型', 'キャッシュモデルなし', 'Keine Modelle zwischengespeichert'],
+    ['{count} cached models (refresh failed)', '{count} 个缓存模型（更新失败）', '{count} 個快取模型（更新失敗）', 'キャッシュ済みモデル {count} 件（更新失敗）', '{count} zwischengespeicherte Modelle (Aktualisierung fehlgeschlagen)'],
+    ['{count} preset models (refresh failed)', '{count} 个预设模型（更新失败）', '{count} 個預設模型（更新失敗）', 'プリセットモデル {count} 件（更新失敗）', '{count} Standardmodelle (Aktualisierung fehlgeschlagen)'],
+    ['Provider saved. Model discovery failed; using cached models.', '供应商已保存。模型列表更新失败，当前使用已有缓存。', '供應商已儲存。模型清單更新失敗，目前使用現有快取。', '保存しました。モデル一覧の更新に失敗したため、キャッシュを使用します。', 'Anbieter gespeichert. Modellabruf fehlgeschlagen; gespeicherte Modelle werden verwendet.'],
+    ['Provider saved. Model discovery failed; using unverified preset models.', '供应商已保存。模型列表获取失败，当前显示未验证的内置预设。', '供應商已儲存。模型清單取得失敗，目前顯示未驗證的內建預設。', '保存しました。モデル一覧を取得できないため、未検証のプリセットを表示します。', 'Anbieter gespeichert. Modellabruf fehlgeschlagen; ungeprüfte Standardmodelle werden angezeigt.'],
+    ['Provider saved. Model discovery failed; add model IDs in the application model picker.', '供应商已保存。模型列表获取失败，请在应用模型选择器中手动添加模型 ID。', '供應商已儲存。模型清單取得失敗，請在應用程式模型選擇器中手動新增模型 ID。', '保存しました。モデル一覧を取得できません。アプリのモデル選択でモデルIDを追加してください。', 'Anbieter gespeichert. Modellabruf fehlgeschlagen; Modell-IDs in der Modellauswahl der Anwendung hinzufügen.'],
     ['Installed', '已安装', '已安裝', 'インストール済み', 'Installiert'],
   ]) for (const [lang, text] of [['zh', zh], ['zh-TW', tw], ['ja', ja], ['de', de]]) I18N[lang][key] = text;
 
@@ -71,9 +76,10 @@
       ...(body ? { body: JSON.stringify(body) } : {})
     });
     if (!response.ok) {
+      const failure = message => Object.assign(new Error(message), { status: response.status });
       if (response.status === 401) { managementToken = ''; serviceInfo = null; renderService(); window.routerAppsDisconnected?.(); providers = []; renderProviders(); throw new Error('Connect management, then click Save again.'); }
-      if (response.status === 409) throw new Error('This provider changed. Reopen the editor before saving.');
-      throw new Error(response.status === 400 ? 'Provider configuration is invalid. Check fields and advanced JSON.' : 'Provider configuration is unavailable. Check permissions and configuration files.');
+      if (response.status === 409) throw failure('This provider changed. Reopen the editor before saving.');
+      throw failure(response.status === 400 ? 'Provider configuration is invalid. Check fields and advanced JSON.' : 'Provider configuration is unavailable. Check permissions and configuration files.');
     }
     return response.json();
   }
@@ -98,6 +104,8 @@
   function providerModelSummary(provider, preset) {
     const discovered = Array.isArray(provider?.discoveredModels) ? provider.discoveredModels : [];
     const effective = Array.isArray(provider?.effectiveModels) ? provider.effectiveModels : (Array.isArray(provider?.models) ? provider.models : (Array.isArray(preset?.models) ? preset.models : []));
+    if (provider?.modelListError && discovered.length) return { text: t('{count} cached models (refresh failed)', { count: discovered.length }), source: 'cached' };
+    if (provider?.modelListError && effective.length) return { text: t('{count} preset models (refresh failed)', { count: effective.length }), source: 'preset' };
     if (discovered.length > 0 || (provider?.modelSource === 'discovered' && effective.length > 0)) return { text: t('{count} discovered models', { count: discovered.length || effective.length }), source: 'discovered' };
     if (effective.length > 0) return { text: t('{count} preset models', { count: effective.length }), source: 'preset' };
     return { text: t('No models cached'), source: 'none' };
@@ -219,11 +227,11 @@
       else if (result?.source === 'none') { state.discoveredModels = []; state.effectiveModels = []; state.modelSource = 'none'; }
       else if (!result?.fallback && result?.source !== 'preset' && rawModels.length) { state.discoveredModels = [...rawModels]; state.effectiveModels = [...rawModels]; state.modelSource = result?.source || 'discovered'; }
       else { const models = rawModels.length ? rawModels : presetFallbackModels; state.discoveredModels = []; state.effectiveModels = [...models]; state.modelSource = models.length ? 'preset' : 'none'; }
-      if (d.id) { const idx = providers.findIndex(p => p.id === d.id); if (idx >= 0) providers[idx] = { ...providers[idx], discoveredModels: [...state.discoveredModels], models: [...state.effectiveModels], effectiveModels: [...state.effectiveModels], modelSource: state.modelSource }; }
+      if (d.id) { const idx = providers.findIndex(p => p.id === d.id); if (idx >= 0) providers[idx] = { ...providers[idx], discoveredModels: [...state.discoveredModels], models: [...state.effectiveModels], effectiveModels: [...state.effectiveModels], modelSource: state.modelSource, modelListError: result?.discoveryError || '' }; }
       return { models: state.effectiveModels, discoveredModels: state.discoveredModels, source: state.modelSource, fallback: Boolean(result?.fallback || state.modelSource === 'preset' || state.modelSource === 'none') };
     } catch (error) {
-      if (!useFallback) throw error;
-      const cached = Array.isArray(d?.discoveredModels) && d.discoveredModels.length ? [...d.discoveredModels] : [];
+      if (!useFallback || error.status === 409 || !managementToken) throw error;
+      const cached = !hasUnsavedConnectionChanges(d) && Array.isArray(d?.discoveredModels) && d.discoveredModels.length ? [...d.discoveredModels] : [];
       if (cached.length) { state.discoveredModels = cached; state.effectiveModels = cached; state.modelSource = 'discovered'; }
       else { state.discoveredModels = []; state.effectiveModels = [...presetFallbackModels]; state.modelSource = presetFallbackModels.length ? 'preset' : 'none'; }
       return { models: state.effectiveModels, discoveredModels: state.discoveredModels, source: state.modelSource, fallback: true };
@@ -233,7 +241,10 @@
     const saved = await api('', 'POST', draft()), savedProvider = saved?.provider;
     const fetchResult = savedProvider?.id ? await fetchModels(savedProvider, { persist: true, fallback: true }) : null;
     $('#cloudKey').value = ''; formBusy = false; closeProvider(); await openPage();
-    if (fetchResult && fetchResult.source === 'discovered' && fetchResult.discoveredModels?.length) $('#providerStatus').textContent = t('Provider saved. Models discovered and cached.');
+    if (fetchResult?.fallback && fetchResult.source === 'discovered') $('#providerStatus').textContent = t('Provider saved. Model discovery failed; using cached models.');
+    else if (fetchResult?.fallback && fetchResult.source === 'preset') $('#providerStatus').textContent = t('Provider saved. Model discovery failed; using unverified preset models.');
+    else if (fetchResult?.fallback && fetchResult.source === 'none') $('#providerStatus').textContent = t('Provider saved. Model discovery failed; add model IDs in the application model picker.');
+    else if (fetchResult && fetchResult.source === 'discovered' && fetchResult.discoveredModels?.length) $('#providerStatus').textContent = t('Provider saved. Models discovered and cached.');
     else if (fetchResult && fetchResult.source === 'preset' && fetchResult.models?.length) $('#providerStatus').textContent = t('Provider saved. Using built-in preset models.');
     else $('#providerStatus').textContent = t("Provider saved. Bind it to an application Profile to send cloud requests. Saving does not verify upstream access.");
   }

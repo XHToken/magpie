@@ -1,6 +1,6 @@
 # 用户明确要求更新时
 
-先读取目标标签的 [Windows 交付、备份和恢复文档](https://github.com/XHToken/magpie/blob/main/magpie/docs/windows-delivery.md)，执行以目标版本为准。仅选择 XHToken/magpie 的 `wefto-v*`，不混用旧仓库附件。
+更新到最新版时，先按 [安装启动](install.md) 实时查询 [XHToken/magpie Releases](https://github.com/XHToken/magpie/releases)，确定最新兼容发布及其附件下载地址，不预设固定包；用户明确指定版本时才按该版本查询。再读取目标标签的 [Windows 交付、备份和恢复文档](https://github.com/XHToken/magpie/blob/main/magpie/docs/windows-delivery.md)，执行以目标版本为准。仅选择 XHToken/magpie 的 `wefto-v*`，不混用旧仓库附件。
 
 从 API-router 更名切换到端云协同时，另读目标标签的 [更名升级说明](https://github.com/XHToken/magpie/blob/main/magpie/docs/wefto-upgrade.md)：用旧 EXE 查看 `dirs`、私有备份、记录并关闭旧自启、停止旧实例，保留旧程序及恢复记录，再将端云协同安装到新的独立程序目录。新程序自行原地复用完整旧数据布局，不手动移动、改名或合并数据目录；新旧布局冲突时保留两套并澄清。普通启动可继续复用旧 API-router，不隐式执行这次迁移。以下同名版本替换流程不取代更名升级流程。
 

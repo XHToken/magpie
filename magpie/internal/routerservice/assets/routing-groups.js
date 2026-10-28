@@ -171,6 +171,27 @@
     }
   };
 
+  [
+    ['This switch is off. Inherited and application redaction requirements still apply.', '此开关已关闭，继承及应用级脱敏要求仍然适用。', '此開關已關閉，繼承及應用程式去識別化要求仍然適用。', 'この設定はオフです。継承された要件とアプリの匿名化要件は適用されます。', 'Dieser Schalter ist aus. Geerbte und anwendungsbezogene Anonymisierungsregeln gelten weiterhin.'],
+    ['Redaction policy', '脱敏策略', '去識別化策略', '匿名化ポリシー', 'Anonymisierungsrichtlinie'],
+    ['Cloud requests require redaction; failures block outbound requests.', '云端请求必须脱敏成功，失败将阻断出站。', '雲端請求必須完成去識別化，失敗將阻擋傳送。', 'クラウド送信前に匿名化が必要です。失敗時は送信を遮断します。', 'Cloud-Anfragen erfordern Anonymisierung; Fehler blockieren die Übertragung.'],
+    ['Inherited redaction: all cloud candidates require redaction.', '已继承脱敏要求：所有云端候选均须脱敏。', '已繼承去識別化要求：所有雲端候選都須去識別化。', '匿名化要件を継承：すべてのクラウド候補に適用されます。', 'Geerbte Anonymisierung gilt für alle Cloud-Kandidaten.'],
+    ['Redaction policy is invalid; cloud requests are blocked.', '脱敏策略无效，云端请求将被阻断。', '去識別化策略無效，雲端請求將被阻擋。', '匿名化ポリシーが無効です。クラウド送信は遮断されます。', 'Anonymisierungsrichtlinie ungültig; Cloud-Anfragen werden blockiert.'],
+    ['Rules may add redaction requirements. Application requirements still apply.', '规则可能增加脱敏要求，应用级脱敏要求仍然适用。', '規則可能增加去識別化要求，應用程式要求仍然適用。', 'ルールで匿名化要件が追加される場合があります。アプリの要件も適用されます。', 'Regeln können Anonymisierung verlangen. Anwendungsregeln gelten weiterhin.'],
+    ['This group adds no redaction requirement. Application requirements still apply.', '此组未增加脱敏要求，应用级脱敏要求仍然适用。', '此組未增加去識別化要求，應用程式要求仍然適用。', 'このグループからの匿名化要件はありません。アプリの要件は引き続き適用されます。', 'Diese Gruppe verlangt keine Anonymisierung. Anwendungsregeln gelten weiterhin.'],
+    ['Checking redaction policy', '正在核对脱敏策略', '正在核對去識別化策略', '匿名化ポリシーを確認中', 'Anonymisierungsrichtlinie wird geprüft'],
+    ['Redaction policy unavailable. Refresh before saving.', '无法确认脱敏策略，请刷新后再保存。', '無法確認去識別化策略，請重新整理後再儲存。', '匿名化ポリシーを確認できません。更新してから保存してください。', 'Anonymisierungsrichtlinie nicht verfügbar. Vor dem Speichern aktualisieren.'],
+    ['Redaction sources', '脱敏要求来源', '去識別化要求來源', '匿名化要件の出所', 'Quellen der Anonymisierungsanforderung'],
+    ['Redaction model', '脱敏模型', '去識別化模型', '匿名化モデル', 'Anonymisierungsmodell'],
+    ['Required redaction model is missing.', '缺少所需的本地脱敏模型。', '缺少所需的本機去識別化模型。', '必要なローカル匿名化モデルがありません。', 'Erforderliches lokales Anonymisierungsmodell fehlt.'],
+    ['Routing groups require different redaction models.', '引用组要求不同的脱敏模型，请统一配置。', '引用組要求不同的去識別化模型，請統一設定。', '参照グループの匿名化モデルが異なります。設定を統一してください。', 'Referenzierte Gruppen verlangen verschiedene Anonymisierungsmodelle. Einstellungen vereinheitlichen.']
+  ].forEach(function (row) {
+    ['en', 'zh', 'zh-TW', 'ja', 'de'].forEach(function (lang, index) {
+      if (!RG_I18N[lang]) RG_I18N[lang] = {};
+      RG_I18N[lang][row[0]] = row[index];
+    });
+  });
+
   if (typeof I18N !== 'undefined') {
     Object.keys(RG_I18N).forEach(function (lang) {
       if (!I18N[lang]) I18N[lang] = {};
@@ -255,8 +276,21 @@
 
   function hasLocalMember(members) {
     return Array.isArray(members) && members.some(function (m) {
-      return String(m || '').trim().indexOf('local/') === 0;
+      var ref = String(m || '').trim();
+      if (ref.indexOf('local/') === 0) return true;
+      var group = ref.indexOf('group/') === 0 && state.groups.find(function (g) { return g.id === ref.slice(6); });
+      return !!(group && group.redactionPolicy && group.redactionPolicy.hasLocalModel);
     });
+  }
+
+  function privacyText(policy) {
+    if (!policy) return tr('Redaction policy unavailable. Refresh before saving.');
+    if (policy.state === 'invalid') {
+      if (policy.reasonCode === 'redaction_model_missing') return tr('Required redaction model is missing.') + ' ' + tr('Redaction policy is invalid; cloud requests are blocked.');
+      if (policy.reasonCode === 'redaction_policy_conflict') return tr('Routing groups require different redaction models.') + ' ' + tr('Redaction policy is invalid; cloud requests are blocked.');
+      return tr('Redaction policy is invalid; cloud requests are blocked.');
+    }
+    return tr(policy.inheritedRequired ? 'Inherited redaction: all cloud candidates require redaction.' : policy.ownRequired ? 'Cloud requests require redaction; failures block outbound requests.' : policy.ruleDependent ? 'Rules may add redaction requirements. Application requirements still apply.' : 'This group adds no redaction requirement. Application requirements still apply.');
   }
 
   function normalizeStrategy(raw) {
@@ -418,6 +452,9 @@
     });
     var data = await res.json().catch(function () { return {}; });
     if (!res.ok || data.ok === false) {
+      if (data.code === 'redaction_model_missing') throw new Error('Required redaction model is missing.');
+      if (data.code === 'redaction_policy_conflict') throw new Error('Routing groups require different redaction models.');
+      if (data.code === 'redaction_policy_invalid') throw new Error('Redaction policy is invalid; cloud requests are blocked.');
       throw new Error(data.error || ('HTTP ' + res.status));
     }
     return data;
@@ -477,6 +514,7 @@
         (!g.auto || g.overridden ? '<button type="button" class="text danger" data-rg-delete="' + esc(g.id) + '">' + esc(tr('Delete')) + '</button>' : '') +
       '</div>' +
       '<div class="rt-group-members">' + membersHtml + '</div>' +
+      '<p class="hint" data-group-privacy="' + esc(g.id) + '">' + esc(privacyText(g.redactionPolicy)) + '</p>' +
     '</div>';
   }
 
@@ -502,6 +540,7 @@
   window.__weftoRoutingGroups = {
     STRATEGIES: STRATEGIES,
     hasLocalMember: hasLocalMember,
+    privacyText: privacyText,
     normalizeStrategy: normalizeStrategy,
     strategyMeta: strategyMeta,
     state: state,

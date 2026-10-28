@@ -1,6 +1,22 @@
 'use strict';
 (() => {
   for (const [key, zh, tw, ja, de] of [
+    ['Local model needs attention', '本地模型需要处理', '本機模型需要處理', 'ローカルモデルの確認が必要です', 'Lokales Modell benötigt Aufmerksamkeit'],
+    ['This version is missing the checks needed to confirm judgment and execution capabilities. Update the app and try again.', '当前版本缺少验证判断与执行能力所需的检查项。请更新应用后重试。', '目前版本缺少驗證判斷與執行能力所需的檢查項目。請更新應用程式後重試。', 'このバージョンには判断・実行機能の確認項目がありません。アプリを更新して再試行してください。', 'In dieser Version fehlen die Prüfungen für Beurteilung und Ausführung. Aktualisieren Sie die App und versuchen Sie es erneut.'],
+    ['Next: check the runtime state and process health above, then retry the response check.', '建议：查看上方运行状态并检测进程健康，再重试本地响应检查。', '建議：查看上方執行狀態並檢查程序健康，再重試本機回應檢查。', '対処：上の実行状態とプロセス状態を確認してから、応答の確認を再試行してください。', 'Nächster Schritt: Prüfen Sie oben Laufzeit- und Prozesszustand und wiederholen Sie die Antwortprüfung.'],
+    ['Local response check failed', '本地响应检查失败', '本機回應檢查失敗', 'ローカル応答の確認に失敗しました', 'Prüfung der lokalen Antwort fehlgeschlagen'],
+    ['The local operation timed out. Check the runtime state, close resource-heavy apps and retry.', '本地操作超时。请查看运行状态，关闭占用较高的应用后重试。', '本機操作逾時。請查看執行狀態，關閉資源佔用較高的應用程式後重試。', 'ローカル処理がタイムアウトしました。実行状態を確認し、負荷の高いアプリを閉じて再試行してください。', 'Der lokale Vorgang hat das Zeitlimit überschritten. Prüfen Sie den Laufzeitstatus, schließen Sie ressourcenintensive Apps und versuchen Sie es erneut.'],
+    ['The local model is busy or its queue is full. Wait for current requests to finish, then retry.', '本地模型正在忙碌或等待队列已满。请等待当前请求完成后重试。', '本機模型忙碌中或等候佇列已滿。請等候目前請求完成後重試。', 'ローカルモデルが処理中かキューが満杯です。現在のリクエストが完了してから再試行してください。', 'Das lokale Modell ist beschäftigt oder die Warteschlange ist voll. Warten Sie auf den Abschluss laufender Anfragen und versuchen Sie es erneut.'],
+    ['The local model process is unhealthy. Check process health above; if it remains faulty, turn the model off and on, then retry.', '本地模型进程异常。请先点击上方“检测进程健康”；若仍异常，关闭再开启模型后重试。', '本機模型程序異常。請先點擊上方「檢查程序健康」；若仍異常，關閉再開啟模型後重試。', 'ローカルモデルのプロセスに異常があります。プロセス状態を確認し、改善しない場合はモデルを再度有効化して再試行してください。', 'Der lokale Modellprozess ist fehlerhaft. Prüfen Sie oben den Prozesszustand; bei anhaltendem Fehler schalten Sie das Modell aus und wieder ein.'],
+    ['Checking local response…', '正在检查本地响应…', '正在檢查本機回應…', 'ローカル応答を確認中…', 'Lokale Antwort wird geprüft…'],
+    ['Running local samples. Please wait for the result.', '正在运行本地测试样本，请等待检查结果。', '正在執行本機測試樣本，請等候檢查結果。', 'ローカルのテストサンプルを実行しています。結果をお待ちください。', 'Lokale Testläufe werden ausgeführt. Bitte warten Sie auf das Ergebnis.'],
+    ['Local responses are slow', '本地响应偏慢', '本機回應偏慢', 'ローカル応答が遅くなっています', 'Lokale Antworten sind langsam'],
+    ['Local response is not confirmed', '本地响应尚未确认', '本機回應尚未確認', 'ローカル応答を確認できていません', 'Lokale Antwort noch nicht bestätigt'],
+    ['The check did not produce enough valid samples to confirm response performance. Automatic hybrid use stays off.', '本次检查未获得足够的有效样本，无法确认响应性能，暂不开启自动端云协同。', '本次檢查未取得足夠的有效樣本，無法確認回應效能，暫不開啟自動端雲協同。', '有効なサンプルが不足しているため性能を確認できません。自動ハイブリッド利用は無効のままです。', 'Die Prüfung lieferte nicht genügend gültige Messungen. Die automatische Hybridnutzung bleibt aus.'],
+    ['Next: close resource-heavy apps, check GPU acceleration above, then click “Check local response experience” again.', '建议：关闭占用较高的应用，查看上方 GPU 加速状态，再点击“检查本地响应体验”重试。', '建議：關閉資源佔用較高的應用程式，查看上方 GPU 加速狀態，再點擊「檢查本機回應體驗」重試。', '対処：負荷の高いアプリを閉じ、上の GPU 状態を確認してから再度応答性能を確認してください。', 'Nächster Schritt: Schließen Sie ressourcenintensive Apps, prüfen Sie oben die GPU-Beschleunigung und wiederholen Sie die Antwortprüfung.'],
+    ['Generation: {rate} tokens/s · First response: {latency} s', '生成速度：{rate} tokens/s · 首次响应：{latency} 秒', '生成速度：{rate} tokens/s · 首次回應：{latency} 秒', '生成速度：{rate} tokens/s・最初の応答：{latency} 秒', 'Generierung: {rate} tokens/s · Erste Antwort: {latency} s'],
+    ['Reference: at least 5 tokens/s and first response within 15 s.', '参考标准：生成速度至少 5 tokens/s，首次响应不超过 15 秒。', '參考標準：生成速度至少 5 tokens/s，首次回應不超過 15 秒。', '基準：生成速度 5 tokens/s 以上、最初の応答 15 秒以内。', 'Richtwert: mindestens 5 tokens/s und erste Antwort innerhalb von 15 s.'],
+    ['Response performance passed; capability and quality checks remain separate.', '响应性能检查通过；能力可用性与质量验收需单独确认。', '回應效能檢查通過；能力可用性與品質驗收需另外確認。', '応答性能は確認済みです。機能の利用可否と品質は別途確認が必要です。', 'Antwortleistung geprüft; Fähigkeiten und Qualität werden separat geprüft.'],
     ['Q4 can be downloaded and tried manually on this Mac. Available memory is below the automatic recommendation.', '这台 Mac 可下载并手动试运行 Q4；当前可用内存低于自动推荐值。', '這台 Mac 可下載並手動試執行 Q4；目前可用記憶體低於自動推薦值。', 'この Mac では Q4 をダウンロードして手動で試せます。利用可能メモリは自動推奨値を下回っています。', 'Auf diesem Mac können Sie Q4 herunterladen und manuell testen. Der verfügbare Speicher liegt unter dem Wert für automatische Empfehlungen.'],
     ['You can download this model now. Check the resource details before loading it.', '当前可下载此模型；加载前请检查资源详情。', '目前可下載此模型；載入前請檢查資源詳情。', 'このモデルはダウンロードできます。読み込み前にリソースの詳細を確認してください。', 'Sie können dieses Modell jetzt herunterladen. Prüfen Sie vor dem Laden die Ressourcen.'],
     ['Available memory: {available} GiB; {required} GiB is recommended for automatic use.', '当前可用内存 {available} GiB，自动推荐参考值为 {required} GiB。', '目前可用記憶體 {available} GiB，自動推薦參考值為 {required} GiB。', '利用可能メモリは {available} GiB、自動利用の推奨値は {required} GiB です。', 'Verfügbarer Speicher: {available} GiB; für automatische Nutzung werden {required} GiB empfohlen.'],
@@ -125,6 +141,49 @@
   let data = null, device = null, working = false;
   let stream, refreshController, retryTimer, readGeneration = 0, retryDelay = 1000, redactionKey = '';
   let detectionAttempted = false, detecting = false, detectionFailed = false, connection = 0, selectedModelId = '';
+  let operationError = '', checking = false, checkCompleted = false, failedCheck = false;
+  function setOperationError(message = '', isCheck = false) {
+    operationError = message;
+    failedCheck = isCheck;
+    renderFeedback();
+  }
+  function renderFeedback() {
+    const panel = $('#localModelFeedback'), status = data?.status;
+    const performance = status?.performance;
+    let state = '', title = '', message = '', next = '', metrics = '';
+    if (checking && !operationError) {
+      state = 'checking'; title = 'Checking local response…'; message = t('Running local samples. Please wait for the result.');
+    } else if (operationError || status?.error) {
+      state = 'error';
+      title = failedCheck ? 'Local response check failed' : 'Local model needs attention';
+      message = operationError || statusErrorMessage(status);
+      if (operationError === t('Capability acceptance suites have not been provided.')) next = t('This version is missing the checks needed to confirm judgment and execution capabilities. Update the app and try again.');
+      else if (failedCheck) next = t('Next: check the runtime state and process health above, then retry the response check.');
+    } else if (performance?.state === 'slow') {
+      state = 'warning'; title = 'Local responses are slow';
+      message = t('Slow local responses; automatic hybrid use is not recommended');
+      next = t('Next: close resource-heavy apps, check GPU acceleration above, then click “Check local response experience” again.');
+    } else if (checkCompleted || (performance?.checkedAt && !performance.checkedAt.startsWith('0001-'))) {
+      const passed = performance?.state === 'acceptable';
+      state = passed ? 'success' : 'warning';
+      title = passed ? 'Response performance checked' : 'Local response is not confirmed';
+      message = t(passed ? 'Response performance passed; capability and quality checks remain separate.' : 'The check did not produce enough valid samples to confirm response performance. Automatic hybrid use stays off.');
+      if (!passed) next = t('Next: close resource-heavy apps, check GPU acceleration above, then click “Check local response experience” again.');
+    }
+    if (['warning', 'success'].includes(state) && ['slow', 'acceptable'].includes(performance?.state) && Number.isFinite(performance.tokensPerSecond) && Number.isFinite(performance.firstTokenMs)) {
+      metrics = t('Generation: {rate} tokens/s · First response: {latency} s', { rate: performance.tokensPerSecond.toFixed(1), latency: (performance.firstTokenMs / 1000).toFixed(1) }) + ' ' + t('Reference: at least 5 tokens/s and first response within 15 s.');
+    }
+    panel.hidden = !state || !managementToken;
+    panel.dataset.state = state;
+    $('#localModelFeedbackIcon').textContent = { error: '!', warning: '!', checking: '…', success: '✓' }[state] || '';
+    $('#localModelFeedbackTitle').textContent = t(title);
+    $('#localModelError').textContent = message;
+    $('#localModelError').classList.toggle('local-status-error', Boolean(status?.error && !operationError));
+    $('#localModelFeedbackMetrics').textContent = metrics;
+    $('#localModelFeedbackMetrics').hidden = !metrics;
+    $('#localModelFeedbackNext').textContent = next;
+    $('#localModelFeedbackNext').hidden = !next;
+  }
   const stateNames = { not_installed: 'Not installed', installed: 'Installed and verified', downloading: 'Downloading', canceled: 'Canceled', failed: 'Failed', unloaded: 'Unloaded', loading: 'Loading model', ready: 'Ready', busy: 'In use', idle: 'Idle', unloading: 'Unloading', fault: 'Fault', unknown: 'Unknown', available: 'Ready', unavailable: 'Unavailable' };
   const label = value => t(stateNames[value] || 'Unknown');
   const dependencyNames = { not_required: 'Not required on this platform', missing: 'Runtime dependencies are missing.', preparing: 'Preparing runtime dependencies', ready: 'Installed and verified', canceled: 'Canceled', failed: 'Runtime dependency download failed.', download_failed: 'Runtime dependency download failed.', corrupt: 'Runtime dependencies are damaged.', architecture: 'Runtime dependency architecture does not match.', version: 'Runtime dependency version does not match.', layout: 'Runtime dependency layout is invalid.' };
@@ -194,6 +253,13 @@
   function statusErrorMessage(status) {
     const code = String(status?.error || '');
     if (!code) return '';
+    const runtimeError = {
+      local_runtime_timed_out: 'The local operation timed out. Check the runtime state, close resource-heavy apps and retry.',
+      local_model_busy: 'The local model is busy or its queue is full. Wait for current requests to finish, then retry.',
+      local_model_queue_full: 'The local model is busy or its queue is full. Wait for current requests to finish, then retry.',
+      local_model_process_fault: 'The local model process is unhealthy. Check process health above; if it remains faulty, turn the model off and on, then retry.',
+    }[code];
+    if (runtimeError) return t(runtimeError);
     if (code.endsWith('_disk_space') || status?.progress?.reason === 'disk_space') {
       return t('Insufficient local disk space: unable to write model or runtime files. Free up disk space for the selected model and runtime, then retry.');
     }
@@ -359,6 +425,7 @@
     return wrap;
   }
   function render() {
+    renderFeedback();
     const root = $('#localModelContent');
     root.replaceChildren();
     $('#localModelNote').textContent = t('Opening this page does not enable or download a model. Closing the page keeps 端云协同 running.');
@@ -432,7 +499,6 @@
       const button = el('button', 'text local-model-action', t(name)); button.type = 'button'; button.dataset.action = endpoint || 'refresh'; button.disabled = working || disabled; button.onclick = handler; buttons.append(button);
     }
     root.append(buttons);
-    if (status.error) root.append(el('p', 'editor-error local-status-error', statusErrorMessage(status)));
   }
   async function request(endpoint, body, signal) {
     const response = await managementFetch('/api/local-model' + (endpoint ? '/' + endpoint : ''), { method: endpoint ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + managementToken, ...(endpoint ? { 'Content-Type': 'application/json' } : {}) }, ...(endpoint ? { body: JSON.stringify(body || {}) } : {}), cache: 'no-store', credentials: 'omit', redirect: 'error', signal });
@@ -442,6 +508,7 @@
       if (result.device) { device = result.device; render(); }
       if (String(code || '').startsWith('local_model_dependency_')) throw new Error(dependencyMessage(code));
       if (String(code || '').startsWith('local_model_install_')) throw new Error(statusErrorMessage({ ...data?.status, installation: 'failed', error: code }));
+      if (['local_runtime_timed_out', 'local_model_busy', 'local_model_queue_full', 'local_model_process_fault'].includes(code)) throw new Error(statusErrorMessage({ error: code }));
       throw new Error(code === 'device_check_not_passed' ? 'Device check did not pass. Detect again and check memory, backend and free disk space.' : code === 'capability_model_unsupported' ? 'The selected model does not support this operation.' : code === 'capability_acceptance_suites_not_provided' ? 'Capability acceptance suites have not been provided.' : 'Local model operation failed. Refresh to inspect status.');
     }
     return result;
@@ -497,7 +564,7 @@
             if (value.schemaVersion !== 1 || !value.status) throw new Error('Connection unavailable');
             if (controller.signal.aborted || current !== connection || !canObserve()) return;
             retryDelay = 1000;
-            if ($('#localModelError').textContent === t('Connection unavailable')) $('#localModelError').textContent = '';
+            if (operationError === t('Connection unavailable')) setOperationError();
             if (working) continue; // The action's final refresh owns its result.
             if (!isChanging(value.status) || value.status.intent?.selected !== data?.status?.intent?.selected) {
               // Terminal transitions need one full read to update installed
@@ -511,7 +578,7 @@
         }
       } catch {
         if (!controller.signal.aborted && current === connection && canObserve()) {
-          $('#localModelError').textContent = t('Connection unavailable');
+          setOperationError(t('Connection unavailable'));
           retryObservation();
         }
       } finally {
@@ -529,7 +596,7 @@
       const result = await request('', undefined, controller.signal);
       if (current !== connection || generation !== readGeneration) return;
       data = result;
-      if ($('#localModelError').textContent === t('Connection unavailable')) $('#localModelError').textContent = '';
+      if (operationError === t('Connection unavailable')) setOperationError();
       if (!selectedModelId) selectedModelId = data?.status?.installingModel || data?.status?.intent?.selected || '';
       render();
       // One local probe per authenticated page session while no selected
@@ -544,7 +611,7 @@
     catch {
       if (current === connection && generation === readGeneration && !controller.signal.aborted) {
         if (!data) render();
-        $('#localModelError').textContent = t('Connection unavailable');
+        setOperationError(t('Connection unavailable'));
         retryObservation();
       }
     }
@@ -572,7 +639,8 @@
   async function selectModel(id) {
     if (working || currentChoiceModelId(data?.status) === id) return;
     selectedModelId = id;
-    $('#localModelError').textContent = '';
+    checkCompleted = false;
+    setOperationError();
     if (data?.status?.intent?.enabled) {
       render();
       return;
@@ -586,7 +654,7 @@
     try {
       await request('select', { model: id });
     } catch (error) {
-      if (current === connection) $('#localModelError').textContent = t(error.message);
+      if (current === connection) setOperationError(t(error.message));
     } finally {
       if (current === connection) { working = false; await open(); }
     }
@@ -595,7 +663,7 @@
     if (working) return;
     const current = connection;
     const choiceModelId = currentChoiceModelId(data?.status);
-    working = true; render(); $('#localModelError').textContent = '';
+    working = true; render(); setOperationError();
     try {
       const assessment = device?.advice?.assessments?.find(item => item.id === choiceModelId);
       if (assessment?.download && assessment.download !== 'failed' && assessment.manual === 'failed') {
@@ -616,7 +684,7 @@
         await request('install', { model: choiceModelId });
       }
     } catch (error) {
-      if (current === connection) $('#localModelError').textContent = t(error.message);
+      if (current === connection) setOperationError(t(error.message));
     } finally {
       if (current === connection) { working = false; await open(); }
     }
@@ -624,8 +692,8 @@
   async function toggleModel(modelId, currentlyOn) {
     if (working) return;
     const current = connection;
-    working = true; render(); $('#localModelError').textContent = '';
-    let capabilityError = '';
+    working = true; render(); setOperationError();
+    let capabilityError = '', capabilityCheckFailed = false;
     try {
       if (currentlyOn) {
         if (data?.status?.intent?.trial?.judgment || data?.status?.intent?.trial?.execution) {
@@ -648,25 +716,27 @@
         try {
           const checkRes = await request('check', {});
           const st = checkRes?.status || data?.status;
-          if (st?.performance && st.performance.state !== 'acceptable') {
-            capabilityError = t(st.performance.state === 'slow' ? 'Slow local responses; automatic hybrid use is not recommended' : 'Performance is not confirmed; automatic hybrid use stays off.');
-          } else if (st?.capabilities?.judgment?.trial && st?.capabilities?.judgment?.trialEvidence && st?.capabilities?.execution?.trial && st?.capabilities?.execution?.trialEvidence) {
-            await request('trial/enable', {}).catch(() => {});
-          } else if (st?.capabilities?.judgment?.state === 'unavailable' || st?.capabilities?.execution?.state === 'unavailable') {
-            capabilityError = t('Capability acceptance suites have not been provided.');
+          checkCompleted = true;
+          if (!st?.performance || st.performance.state === 'acceptable') {
+            if (st?.capabilities?.judgment?.trial && st?.capabilities?.judgment?.trialEvidence && st?.capabilities?.execution?.trial && st?.capabilities?.execution?.trialEvidence) {
+              await request('trial/enable', {}).catch(() => {});
+            } else if (st?.capabilities?.judgment?.state === 'unavailable' || st?.capabilities?.execution?.state === 'unavailable') {
+              capabilityError = t('Capability acceptance suites have not been provided.');
+            }
           }
         } catch (checkErr) {
           capabilityError = t(checkErr.message);
+          capabilityCheckFailed = true;
         }
       }
     } catch (error) {
-      if (current === connection) $('#localModelError').textContent = t(error.message);
+      if (current === connection) setOperationError(t(error.message));
     } finally {
       if (current === connection) {
         working = false;
         await open();
-        if (capabilityError && !$('#localModelError').textContent) {
-          $('#localModelError').textContent = capabilityError;
+        if (capabilityError && !operationError) {
+          setOperationError(capabilityError, capabilityCheckFailed);
         }
       }
     }
@@ -674,14 +744,19 @@
   async function action(endpoint, body) {
     if (working) return;
     const current = connection;
-    working = true; render(); $('#localModelError').textContent = '';
-    try { await request(endpoint, body); }
-    catch (error) { if (current === connection) $('#localModelError').textContent = t(error.message); }
-    finally { if (current === connection) { working = false; await open(); } }
+    working = true; checking = endpoint === 'check'; checkCompleted = false; setOperationError(); render();
+    try {
+      const result = await request(endpoint, body);
+      if (current !== connection) return;
+      if (result.status) data.status = result.status;
+      checkCompleted = checking;
+    }
+    catch (error) { if (current === connection) setOperationError(t(error.message), endpoint === 'check'); }
+    finally { if (current === connection) { working = false; checking = false; await open(); renderFeedback(); } }
   }
   window.routerLocalOpen = open;
   window.routerLocalRender = render;
-  window.routerLocalDisconnected = () => { stopObserving(); connection++; data = null; device = null; working = false; detectionAttempted = false; detecting = false; detectionFailed = false; selectedModelId = ''; redactionKey = ''; render(); };
+  window.routerLocalDisconnected = () => { stopObserving(); connection++; operationError = ''; checking = false; checkCompleted = false; failedCheck = false; data = null; device = null; working = false; detectionAttempted = false; detecting = false; detectionFailed = false; selectedModelId = ''; redactionKey = ''; render(); };
   document.addEventListener('visibilitychange', () => { if (document.hidden) stopObserving(); else if (canObserve()) void open(); });
   window.addEventListener('pagehide', stopObserving);
   window.addEventListener('pageshow', event => { if (event.persisted && canObserve()) void open(); });

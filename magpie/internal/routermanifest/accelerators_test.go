@@ -43,4 +43,10 @@ func TestAcceleratorCatalogPinsIndependentPayloadsAndAppleFallback(t *testing.T)
 	if metal.Artifact != cpu.Artifact || metal.ID == cpu.ID || metal.Backend == cpu.Backend {
 		t.Fatal("Apple fallback must reuse bytes, not backend identity")
 	}
+	// Observed expansion of the exact pinned official Intel archive, including
+	// regular copies of all 16 dylib aliases (not just tar payload sizes).
+	intel, _ := c.Runtime("darwin-amd64-cpu")
+	if intel.Artifact.ExpandedBytes < 57260670 {
+		t.Fatal("Intel archive alias copies exceed installation budget")
+	}
 }

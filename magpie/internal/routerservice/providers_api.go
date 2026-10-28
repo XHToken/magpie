@@ -194,7 +194,7 @@ func providerAPI(w http.ResponseWriter, r *http.Request, store *routerconfig.Sto
 				discovered = deduplicateModelIDs(resolved.Config.BaseURL, rawModels)
 			}
 			if persist && strings.TrimSpace(in.ID) != "" && len(discovered) > 0 {
-				if _, saveErr := store.SaveProviderDiscoveredModelsContext(r.Context(), in.ID, discovered); saveErr != nil {
+				if saveErr := store.SaveProviderModelDiscoveryContext(r.Context(), resolved, discovered, ""); saveErr != nil {
 					providerFailure(w, saveErr)
 					return
 				}
@@ -212,6 +212,20 @@ func providerAPI(w http.ResponseWriter, r *http.Request, store *routerconfig.Sto
 			})
 			return
 		}
+		failureCode := "model_list_empty"
+		if rawErr != nil {
+			failureCode = "model_list_failed"
+			var failure *modelListError
+			if errors.As(rawErr, &failure) {
+				failureCode = failure.Code
+			}
+		}
+		if persist && in.ID != "" && r.Context().Err() == nil {
+			if saveErr := store.SaveProviderModelDiscoveryContext(r.Context(), resolved, nil, failureCode); saveErr != nil {
+				providerFailure(w, saveErr)
+				return
+			}
+		}
 		if cached := deduplicateModelIDs(resolved.Config.BaseURL, resolved.Config.DiscoveredModels); len(cached) > 0 {
 			providerJSON(w, 200, providerModelListResult{
 				Models:           cached,
@@ -219,6 +233,7 @@ func providerAPI(w http.ResponseWriter, r *http.Request, store *routerconfig.Sto
 				Source:           "discovered",
 				DocsURL:          result.DocsURL,
 				Fallback:         true,
+				DiscoveryError:   failureCode,
 			})
 			return
 		}
@@ -230,6 +245,7 @@ func providerAPI(w http.ResponseWriter, r *http.Request, store *routerconfig.Sto
 				Source:           "preset",
 				DocsURL:          result.DocsURL,
 				Fallback:         true,
+				DiscoveryError:   failureCode,
 			})
 			return
 		}
@@ -239,6 +255,7 @@ func providerAPI(w http.ResponseWriter, r *http.Request, store *routerconfig.Sto
 			Source:           "none",
 			DocsURL:          result.DocsURL,
 			Fallback:         true,
+			DiscoveryError:   failureCode,
 		})
 		return
 	}

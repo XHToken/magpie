@@ -31,7 +31,8 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     config.appRevision = 2;
     for (const [index, id] of ['codex', 'dsh'].entries()) config.apps[id] = { schemaVersion: 1, id, revision: index + 1, name: id, cloud: { providerId: '', model: '' }, credentialMode: 'stored', localRuntime: 'shared', redactionEnabled: true, referencePrice: null };
     await fs.writeFile(configFile, JSON.stringify(config), { mode: 0o600 });
-    service = spawn(binary, ['serve'], { env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true }); exited = once(service, 'exit');
+    // This case intentionally exercises formal mode with recognition pending.
+    service = spawn(binary, ['serve', '--no-experimental-redaction'], { env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true }); exited = once(service, 'exit');
     let output = ''; service.stdout.on('data', chunk => { output += chunk; }); service.stderr.on('data', chunk => { output += chunk; });
     let token;
     for (let i = 0; i < 200; i++) {

@@ -66,6 +66,20 @@ displaying the PowerShell start command. Stop/restart confirmation acknowledges
 the page disconnect; recovery messages refer to the user's usual launcher.
 The service API still supplies `startCommand` for CLI lifecycle compatibility.
 
+The CLI enables experimental redaction admission by default for `serve` and for
+`service start` without saved options. Legacy unversioned options also adopt
+this default: the old file cannot distinguish its automatically saved false
+from a manual opt-out. New options use `schemaVersion: 1`; a versioned
+`experimentalRedaction: false` remains an opt-out, retained by start, restart
+and login autostart. Unknown option versions and malformed files block startup.
+Both foreground and managed startup accept `--no-experimental-redaction`;
+managed startup passes an explicit on/off flag to its child so the foreground
+default cannot override a saved opt-out. `--experimental-redaction` remains
+available to enable admission explicitly. The group/application redaction intent,
+model enablement and exact model binding remain independent requirements.
+Changing the CLI default grants no formal recognition quality acceptance and
+does not bypass invalid-result blocking.
+
 The embedded `tutorial.js` guide has nine chapters: introduction, providers,
 Agent model selection and connection, optional local-model selection and
 installation, first-request inspection, routing groups, redaction observations,

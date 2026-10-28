@@ -3,6 +3,7 @@ package routerconfig
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -22,6 +23,7 @@ func resolveEdit(f providerFiles, in ProviderEdit) (ResolvedProvider, map[string
 			return p, nil, ErrProviderConflict
 		}
 	}
+	previous := p
 	discoveredModels := p.Config.DiscoveredModels
 	if in.DiscoveredModels != nil {
 		discoveredModels, err = normalizeDiscoveredModels(*in.DiscoveredModels)
@@ -48,6 +50,7 @@ func resolveEdit(f providerFiles, in ProviderEdit) (ResolvedProvider, map[string
 		return p, nil, invalidProvider("unsupported proxy mode")
 	}
 	p.Config = CloudProvider{ID: in.ID, Revision: in.Revision, Name: strings.TrimSpace(in.Name), Preset: in.Preset, Protocol: in.Protocol, BaseURL: strings.TrimRight(in.BaseURL, "/"), DiscoveredModels: discoveredModels, ProxyMode: in.ProxyMode}
+	p.Config.ModelListError = previous.Config.ModelListError
 	if in.APIKey != nil && strings.TrimSpace(*in.APIKey) != "" {
 		p.APIKey = strings.TrimSpace(*in.APIKey)
 	}
@@ -101,7 +104,16 @@ func resolveEdit(f providerFiles, in ProviderEdit) (ResolvedProvider, map[string
 			return p, nil, invalidProvider("custom proxy requires an HTTP(S) or SOCKS5 URL")
 		}
 	}
+	if in.ID != "" && !sameProviderConnection(previous, p) {
+		p.Config.DiscoveredModels = nil
+		p.Config.ModelListError = ""
+	}
 	return p, fields, nil
+}
+
+func sameProviderConnection(a, b ResolvedProvider) bool {
+	return a.Config.BaseURL == b.Config.BaseURL && a.Config.Protocol == b.Config.Protocol &&
+		a.Config.ProxyMode == b.Config.ProxyMode && a.APIKey == b.APIKey && a.ProxyURL == b.ProxyURL && maps.Equal(a.Headers, b.Headers)
 }
 
 // ResolveCloudProvider merges a draft with the same provider's saved secrets.
@@ -183,6 +195,9 @@ func (s *Store) SaveCloudProviderContext(ctx context.Context, in ProviderEdit) (
 	if len(p.Config.DiscoveredModels) == 0 {
 		delete(fields, "discoveredModels")
 	}
+	if p.Config.ModelListError == "" {
+		delete(fields, "modelListError")
+	}
 	// Derived status and the retired provider model are never persisted.
 	// Unknown future config fields are kept; app model selections are untouched.
 	for _, key := range []string{"hasKey", "headerNames", "hasExtraBody", "hasProxyURL", "model"} {
@@ -240,6 +255,7 @@ func (s *Store) SaveProviderDiscoveredModelsContext(ctx context.Context, id stri
 			return CloudProvider{}, err
 		}
 	}
+	delete(fields, "modelListError")
 	f.providers[p.Config.ID], err = json.Marshal(fields)
 	if err != nil {
 		return CloudProvider{}, err

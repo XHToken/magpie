@@ -905,17 +905,8 @@ func TestGroupLocalRedactionExecution(t *testing.T) {
 		"localRedaction": true,
 		"members":        []string{p.ID + "/gpt-4.1"},
 	})
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 saving cloud-only group, got %d: %s", rec.Code, rec.Body.String())
-	}
-	var savedCloudOnly struct {
-		Group routerconfig.Group `json:"group"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &savedCloudOnly); err != nil {
-		t.Fatal(err)
-	}
-	if savedCloudOnly.Group.LocalRedaction {
-		t.Fatalf("expected cloud-only group localRedaction to be false, got true")
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "redaction_model_missing") {
+		t.Fatalf("expected explicit rejection instead of clearing redaction intent, got %d: %s", rec.Code, rec.Body.String())
 	}
 
 	// 2. Group with local/* model and localRedaction=true redacts before routing and restores response

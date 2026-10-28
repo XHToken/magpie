@@ -10,6 +10,11 @@
     ['Select available routing groups and models before reconnecting.', '请选择仍可用的路由组和模型后重新连接。', '請選擇仍可用的路由組和模型後重新連線。', '利用可能なグループとモデルを選択して再接続してください。', 'Verfügbare Gruppen und Modelle auswählen und erneut verbinden.'],
     ['Choose models', '选择路由组或模型', '選擇路由組或模型', 'グループまたはモデルを選択', 'Gruppen oder Modelle wählen'],
     ['Routing groups', '路由组', '路由組', 'ルーティンググループ', 'Routing-Gruppen'], ['Local models', '本地模型', '本機模型', 'ローカルモデル', 'Lokale Modelle'],
+    ['Discovered model list', '已获取的模型列表', '已取得的模型清單', '取得済みモデル一覧', 'Abgerufene Modellliste'],
+    ['Cached models; refresh failed', '缓存模型；列表更新失败', '快取模型；清單更新失敗', 'キャッシュモデル（更新失敗）', 'Gespeicherte Modelle; Aktualisierung fehlgeschlagen'],
+    ['Preset models; availability is not verified', '内置预设；模型可用性未验证', '內建預設；模型可用性未驗證', 'プリセット（利用可否未検証）', 'Standardmodelle; Verfügbarkeit ungeprüft'],
+    ['Provider models; source is unknown', '供应商模型；列表来源未知', '供應商模型；清單來源未知', 'プロバイダーモデル（取得元不明）', 'Anbietermodelle; Quelle unbekannt'],
+    ['Saved model selection; availability is not verified', '已保存的模型选择；可用性未验证', '已儲存的模型選擇；可用性未驗證', '保存済みの選択（利用可否未検証）', 'Gespeicherte Modellauswahl; Verfügbarkeit ungeprüft'],
     ['Custom models', '自定义模型', '自訂模型', 'カスタムモデル', 'Eigene Modelle'], ['Create in Routing', '前往路由页创建', '前往路由頁建立', 'ルーティングで作成', 'Unter Routing erstellen'],
     ['No routing groups yet.', '暂无可用路由组。', '暫無可用路由組。', 'ルーティンググループがありません。', 'Noch keine Routing-Gruppen.'],
     ['Filter models...', '搜索路由组或模型…', '搜尋路由組或模型…', 'グループやモデルを検索…', 'Modelle filtern…'],
@@ -107,9 +112,11 @@
       const extra = selected.filter((m) => m.startsWith(p.id + '/')).map((m) => m.slice(p.id.length + 1));
       const items = dedup([...raw, ...extra]).map((m) => {
         const fullId = m.startsWith(p.id + '/') ? m : `${p.id}/${m}`; covered.add(fullId);
-        return { id: fullId, label: shortModel(fullId), tag: p.id };
+        return { id: fullId, label: shortModel(fullId), tag: p.id, savedOnly: !raw.includes(m) };
       });
-      if (items.length) sections.push({ key: `provider-${p.id}`, title: p.name || p.id, items });
+      const source = p.modelSource || (p.discoveredModels?.length ? 'discovered' : 'unknown');
+      const sourceLabel = !raw.length ? 'Saved model selection; availability is not verified' : p.modelListError && source === 'discovered' ? 'Cached models; refresh failed' : source === 'discovered' ? 'Discovered model list' : source === 'preset' ? 'Preset models; availability is not verified' : 'Provider models; source is unknown';
+      if (items.length) sections.push({ key: `provider-${p.id}`, title: p.name || p.id, items, sourceLabel });
     }
     const localRaw = (localModels || []).filter((m) => m && (m.id || m.fullModelId)).map((m) => ({ id: m.fullModelId || `local/${m.id}`, label: m.name || m.id || shortModel(m.fullModelId), tag: 'local' }));
     for (const m of selected.filter((x) => x.startsWith('local/'))) if (!localRaw.some((r) => r.id === m)) localRaw.push({ id: m, label: shortModel(m), tag: 'local' });
@@ -176,7 +183,7 @@
         for (const it of filtered) {
           const idx = sel.indexOf(it.id), on = idx >= 0;
           const mr = el('div', 'am-mr' + (on ? ' on' : '')); mr.dataset.model = it.id; mr.setAttribute('role', 'option'); mr.setAttribute('aria-selected', String(on));
-          mr.title = it.id;
+          mr.title = it.id + (it.savedOnly ? '\n' + t('Saved model selection; availability is not verified') : '');
           mr.append(el('span', 'ck', on ? '✓' : ''), el('span', 'am-mn', it.label));
           if (it.tag) {
             const tag = el('span', 'am-tag' + (idx === 0 ? ' is-primary' : ''), idx === 0 ? `#1 · ${it.tag}` : (on ? `#${idx + 1} · ${it.tag}` : it.tag));
@@ -193,7 +200,9 @@
           mr.onclick = () => commit(on ? sel.filter((m) => m !== it.id) : [...sel, it.id]);
           rows.append(mr);
         }
-        gEl.append(gh, rows); listEl.append(gEl);
+        gEl.append(gh);
+        if (sec.sourceLabel) { const source = el('div', 'am-source', t(sec.sourceLabel)); source.dataset.modelSource = sec.sourceLabel; gEl.append(source); }
+        gEl.append(rows); listEl.append(gEl);
       }
     };
     searchInput.oninput = () => { query = searchInput.value; clearSearch.hidden = !query; paint(); };

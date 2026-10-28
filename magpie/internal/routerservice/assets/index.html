@@ -78,8 +78,16 @@
   <div class="row-head"><span class="label" data-t>Local model</span></div>
   <p class="usage-note router-note" id="localModelNote"></p>
   <div id="localModelContent"></div>
+  <section class="local-feedback" id="localModelFeedback" role="status" aria-live="polite" aria-atomic="true" aria-labelledby="localModelFeedbackTitle" hidden>
+    <span class="local-feedback-icon" id="localModelFeedbackIcon" aria-hidden="true"></span>
+    <div class="local-feedback-body">
+      <h3 id="localModelFeedbackTitle"></h3>
+      <p id="localModelError"></p>
+      <p class="local-feedback-metrics" id="localModelFeedbackMetrics" hidden></p>
+      <p class="local-feedback-next" id="localModelFeedbackNext" hidden></p>
+    </div>
+  </section>
   <p class="usage-note router-note" id="localModelLifecycle"></p>
-  <p class="editor-error" id="localModelError" role="status" aria-live="polite"></p>
   <p class="usage-note router-note" id="redactionSetup" hidden></p>
   <section id="redactionPanel" aria-labelledby="redactionTitle" hidden>
     <div class="row-head"><span class="label" id="redactionTitle" data-t>Redaction intent</span></div>

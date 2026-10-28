@@ -117,6 +117,13 @@ parameter matching `group/<id>` or a group name), `resolveRuntimeGroupRoute` and
 The `#view-agents` view is dedicated to connecting the two supported desktop
 coding agents (`loomy` and `workbuddy`):
 
+The model picker labels provider sections by catalogue provenance: discovered
+models, cached models after a failed refresh, or unverified preset models.
+Previously saved selections outside the current catalogue remain visible with
+an unverified-selection tooltip. Catalogue/cache state is defined in
+[providers](wefto-providers.md); it neither changes application selections
+nor proves generation access.
+
 - Renders two `.row.agent.conn` rows (`data-agent-id="loomy"` and
   `data-agent-id="workbuddy"`).
 - Each row provides a multi-select dropdown (`.field.solo.ag-menu` +
