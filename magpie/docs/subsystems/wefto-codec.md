@@ -73,7 +73,8 @@ callers receive fresh name lists and cannot mutate the contract.
 The native option subset is `frequency_penalty`, `presence_penalty`, signed
 64-bit integer `seed`, string `user`, low/medium/high `verbosity`, `store:false`,
 `prompt_cache_retention` (`in-memory`/`24h`), and Loomy's source-emitted
-`promptCacheKey`/`reasoningSummary`. Camel-case controls are preserved literally;
+`promptCacheKey`/`reasoningSummary`, plus WorkBuddy's positive numeric
+`max_thinking_tokens` and object `extra_vars`. Camel-case controls are preserved literally;
 their upstream meaning is not rewritten or inferred. Conversion returns
 `capability_request_options`. Remote storage opt-in and arbitrary provider
 extension fields remain outside this contract.
@@ -87,6 +88,28 @@ objects and typed refusal history are retained natively; conversion refuses
 Empty assistant annotations remain supported; media and unverified annotations
 are still rejected. The installed-source matrix and two sanitized literal
 Loomy CLI tool-turn captures are in `routercloud/testdata/host-fields/`.
+
+The WorkBuddy 5.8.3 source audit also covers current user-prompt
+`conversationRequestId`, per-turn `rootRequestId`, boolean
+`startsNewUserRequest`, queued/aborted/scheduled user messages, assistant
+summary flags, hook blocking-detail arrays, runtime security, approval display
+metadata and subsequent tool-result flags. `itemsToMessages` spreads these
+`providerData` values into protocol messages. The shared registry accepts their
+evidenced roles and JSON types, including fractional `createdAt` numbers retained
+by the installed producer, instead of rejecting ordinary host bookkeeping.
+They are preserved in native Chat and excluded from routing instructions.
+Conversion still explicitly refuses metadata it cannot retain, and privacy
+scans protected strings and keys inside objects and arrays. Unknown fields,
+invalid types, duplicate keys, media and remote history remain separate
+unsupported contracts. The fixture README records source hashes and the
+distinction between serializer executions with synthetic inputs and wire captures.
+
+User command-output `goalStatus` objects and typed user-text `acpResourceLink`
+objects are included as well. Attachment references remain text plus opaque
+metadata; accepting them does not fetch files or add media support. Part metadata
+uses `ChatContentMetadataFieldNames` for conversion and privacy. Input validation
+passes the actual role, so accepting user attachment metadata cannot also admit
+it in system, developer, assistant or tool content.
 
 The package does no network, filesystem, subprocess or background work. It uses
 `http.ResponseWriter` and `io.Reader` supplied by the executor. The executor

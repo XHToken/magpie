@@ -85,6 +85,61 @@ func TestModelAdviceUnknownFactsManualChoicesAndHealthyReuse(t *testing.T) {
 	}
 }
 
+func TestModelAdviceUnknownSystemStillChecksKnownShortages(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		change func(*Snapshot, []ModelOption)
+	}{
+		{"memory", func(s *Snapshot, _ []ModelOption) { s.AvailableMemoryBytes = Known(2 * GiB) }},
+		{"total memory", func(s *Snapshot, _ []ModelOption) { s.MemoryBytes = Known(4 * GiB) }},
+		{"disk", func(_ *Snapshot, options []ModelOption) { options[0].Disks[0].Available = Known(uint64(0)) }},
+		{"disk with unknown volume", func(_ *Snapshot, options []ModelOption) {
+			options[0].Disks[0].Volume = Unknown[string]("volume probe failed")
+			options[0].Disks[0].Available = Known(uint64(0))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, options := adviceSnapshot(32*GiB, 16*GiB, 8), adviceOptions()
+			s.System = Unknown[System]("system probe failed")
+			tc.change(&s, options)
+			assessment, _ := AdviseModels(s, options, RunningModel{}).Model("q4")
+			if assessment.Manual != CheckFailed {
+				t.Fatalf("unknown system hid known %s shortage: %+v", tc.name, assessment)
+			}
+		})
+	}
+}
+
+func TestModelAdviceMissingFactsAllowManualButNotAutomaticUse(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		change func(*Snapshot, []ModelOption)
+	}{
+		{"system", func(s *Snapshot, _ []ModelOption) { s.System = Unknown[System]("read failed") }},
+		{"OS version", func(s *Snapshot, _ []ModelOption) { s.System.Value.Version = Unknown[string]("read failed") }},
+		{"threads", func(s *Snapshot, _ []ModelOption) { s.System.Value.LogicalCPUs = Unknown[int]("read failed") }},
+		{"memory", func(s *Snapshot, _ []ModelOption) { s.MemoryBytes = Unknown[uint64]("read failed") }},
+		{"available memory", func(s *Snapshot, _ []ModelOption) { s.AvailableMemoryBytes = Unknown[uint64]("read failed") }},
+		{"backends", func(s *Snapshot, _ []ModelOption) { s.Backends = Unknown[[]Backend]("read failed") }},
+		{"disk", func(_ *Snapshot, options []ModelOption) {
+			for i := range options {
+				options[i].Disks[0].Available = Unknown[uint64]("read failed")
+			}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, options := adviceSnapshot(32*GiB, 16*GiB, 8), adviceOptions()
+			tc.change(&s, options)
+			a := AdviseModels(s, options, RunningModel{})
+			for _, c := range a.Assessments {
+				if c.Manual != CheckUnknown || !c.AllowsManual() || c.Automatic == CheckPassed {
+					t.Fatalf("missing %s blocked manual use or authorized automatic use: %+v", tc.name, c)
+				}
+			}
+		})
+	}
+}
+
 func TestModelAdviceDistinguishesBusyGPUFromWeakHardware(t *testing.T) {
 	s := adviceSnapshot(16*GiB, 9*GiB, 4)
 	addAdviceGPU(&s, 12*GiB, 2*GiB)
@@ -133,5 +188,60 @@ func TestModelAdviceUnifiedMemoryIsNotDiscreteVRAM(t *testing.T) {
 	(*s.Adapters.Value)[0].Discrete = Unavailable
 	if a := AdviseModels(s, adviceOptions(), RunningModel{}); a.ModelID != "q4" {
 		t.Fatal("shared memory was counted as dedicated VRAM", a)
+	}
+}
+
+func TestMacQ4With4Point7GiBAllowsManualTrial(t *testing.T) {
+	s := fixture("darwin", 16*GiB)
+	s.AvailableMemoryBytes = Known(47 * GiB / 10)
+	a := AdviseModels(s, adviceOptions(), RunningModel{})
+	q4, _ := a.Model("q4")
+	q8, _ := a.Model("q8")
+	if !q4.AllowsManual() || q4.Automatic == CheckPassed || a.State == "recommended" {
+		t.Fatalf("4.7 GiB should allow an explicit Mac Q4 trial without automatic recommendation: %+v", a)
+	}
+	if q8.AllowsManual() {
+		t.Fatal("Q4 trial relaxed Q8's memory budget", q8)
+	}
+}
+
+func TestMacDownloadAndTrialBoundaries(t *testing.T) {
+	for _, arch := range []string{"arm64", "amd64"} {
+		for _, available := range []uint64{0, 4*GiB - 1, 4 * GiB, 47 * GiB / 10, 8*GiB - 1, 8 * GiB} {
+			s := fixture("darwin", 16*GiB)
+			s.System.Value.Architecture = Known(arch)
+			s.AvailableMemoryBytes = Known(available)
+			a := AdviseModels(s, adviceOptions(), RunningModel{})
+			q4, _ := a.Model("q4")
+			if !q4.AllowsDownload() || q4.AllowsManual() != (available >= 4*GiB) || (q4.Automatic == CheckPassed) != (available >= 8*GiB) {
+				t.Fatalf("Mac %s/%d headroom: %+v", arch, available, q4)
+			}
+		}
+	}
+	for _, osName := range []string{"windows", "linux"} {
+		s := fixture(osName, 16*GiB)
+		s.AvailableMemoryBytes = Known(47 * GiB / 10)
+		q4, _ := AdviseModels(s, adviceOptions(), RunningModel{}).Model("q4")
+		if q4.AllowsManual() || q4.AllowsDownload() {
+			t.Fatalf("Mac trial changed %s admission: %+v", osName, q4)
+		}
+	}
+	for _, issue := range []string{"disk", "runtime", "platform", "version"} {
+		s, options := fixture("darwin", 16*GiB), adviceOptions()
+		s.AvailableMemoryBytes = Known(47 * GiB / 10)
+		switch issue {
+		case "disk":
+			options[0].Disks[0].Available = Known(uint64(0))
+		case "runtime":
+			options[0].RuntimeAvailable = false
+		case "platform":
+			s.System.Value.Architecture = Known("386")
+		case "version":
+			s.System.Value.Version = Known("13.0")
+		}
+		q4, _ := AdviseModels(s, options, RunningModel{}).Model("q4")
+		if q4.AllowsDownload() || q4.AllowsManual() {
+			t.Fatalf("Mac trial bypassed %s: %+v", issue, q4)
+		}
 	}
 }

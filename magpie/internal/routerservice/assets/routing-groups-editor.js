@@ -65,7 +65,7 @@
       alias: g.family || g.alias || '',
       enabled: g.enabled !== false && !g.disabled,
       members: members,
-      patterns: rawPatterns.slice(),
+      patterns: isNew ? [] : rawPatterns.slice(),
       hideMembers: !!(g.unlists || g.hideMembers),
       routing: rg.normalizeStrategy(g.routing || 'smart_hybrid'),
       localRedaction: !!(hasLocal && g.localRedaction),
@@ -210,14 +210,6 @@
       return '<button type="button" class="opt' + (on ? ' on' : '') + '" data-rg-strategy="' + rg.esc(s.id) + '">' + rg.esc(rg.tr(s.label)) + '</button>';
     }).join('');
 
-    var patternsHtml = draft.patterns.map(function (pat, idx) {
-      return '<div class="fbrow">' +
-        '<span class="i">' + (idx + 1) + '</span>' +
-        '<input type="text" data-pattern-idx="' + idx + '" value="' + rg.esc(pat) + '" placeholder="' + rg.esc(rg.tr('e.g. openrouter/*:free or re:^claude-')) + '" autocomplete="off" style="flex:1;min-width:0">' +
-        '<button type="button" class="text danger" data-pattern-remove="' + idx + '">×</button>' +
-      '</div>';
-    }).join('');
-
     var ftPreset = [0, 30, 60, 120].indexOf(draft.firstToken) >= 0 ? draft.firstToken : -1;
     var ftCustomVal = ftPreset < 0 && draft.firstToken > 0 ? draft.firstToken : '';
 
@@ -297,17 +289,6 @@
         '<div class="fbl" id="rgMembersList"></div>' +
         '<button type="button" class="rt-gadd" id="rgAddModelBtn">' + PLUS_SVG + '<span>' + rg.esc(rg.tr('Add model')) + '</span></button>' +
         '<div class="hint">' + rg.esc(rg.tr('First model defines the group\'s capabilities; tried top-to-bottom in In-order mode.')) + '</div>' +
-      '</div>' +
-
-      // 4. Patterns
-      '<label>' + rg.esc(rg.tr('Patterns')) + '</label>' +
-      '<div class="fallback rt-pats">' +
-        '<div class="fbl" id="rgPatternsList">' + patternsHtml + '</div>' +
-        '<div class="rt-patadd">' +
-          '<input type="text" id="rgPatternNewInput" placeholder="' + rg.esc(rg.tr('e.g. openrouter/*:free or re:^claude-')) + '" autocomplete="off">' +
-          '<button type="button" class="rt-gadd" id="rgAddPatternBtn">' + PLUS_SVG + '<span>' + rg.esc(rg.tr('Add pattern')) + '</span></button>' +
-        '</div>' +
-        '<div class="hint">' + rg.esc(rg.tr('e.g. openrouter/*:free or re:…. Newly discovered matching models auto-join after manual picks.')) + '</div>' +
       '</div>' +
 
       // 5. Model list
@@ -717,13 +698,9 @@
       setEditorError(rg.tr('Group name is required.'));
       return;
     }
-    var pendingPatEl = document.getElementById('rgPatternNewInput');
-    var pendingPat = pendingPatEl ? pendingPatEl.value.trim() : '';
-    var allPatterns = (draft.patterns || []).slice();
-    if (pendingPat) allPatterns.push(pendingPat);
-    var cleanPatterns = allPatterns.map(function (p) { return String(p || '').trim(); }).filter(Boolean);
+    var cleanPatterns = (draft.patterns || []).map(function (p) { return String(p || '').trim(); }).filter(Boolean);
     if (!draft.members.length && !cleanPatterns.length) {
-      setEditorError(rg.tr('Please add at least one member model or pattern.'));
+      setEditorError(rg.tr('Please add at least one member model.'));
       return;
     }
 
@@ -856,11 +833,6 @@
           draft.weights[mRef] = Math.max(1, Math.min(100, parseInt(t.value, 10) || 50));
           return;
         }
-        if (t.hasAttribute('data-pattern-idx')) {
-          var pIdx = parseInt(t.getAttribute('data-pattern-idx'), 10);
-          draft.patterns[pIdx] = t.value;
-          return;
-        }
         if (t.id === 'rgFirstTokenInput') {
           var vFt = parseInt(t.value, 10);
           draft.firstToken = vFt > 0 ? vFt : 0;
@@ -940,23 +912,6 @@
           if (nextEff) draft.memberEfforts[effRef] = nextEff;
           else delete draft.memberEfforts[effRef];
           renderMembersSection();
-          return;
-        }
-
-        var addPatBtn = ev.target.closest('#rgAddPatternBtn');
-        if (addPatBtn) {
-          var newPatIn = document.getElementById('rgPatternNewInput');
-          var val = newPatIn ? newPatIn.value.trim() : '';
-          draft.patterns.push(val);
-          renderEditorBody();
-          return;
-        }
-
-        var remPatBtn = ev.target.closest('[data-pattern-remove]');
-        if (remPatBtn) {
-          var remIdx = parseInt(remPatBtn.getAttribute('data-pattern-remove'), 10);
-          draft.patterns.splice(remIdx, 1);
-          renderEditorBody();
           return;
         }
 

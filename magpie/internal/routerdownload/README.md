@@ -31,7 +31,9 @@ Every writer holds an OS file lock at `<destination>.lock`; competing calls,
 including other processes, return `ErrBusy`. The OS releases ownership on exit;
 the empty lock file remains deliberately. No stale lock is guessed or removed.
 Disk checks reserve remaining download bytes plus the artifact's expanded bound.
-An unavailable disk probe fails closed. Actual write/flush errors also propagate.
+An unavailable disk probe permits the write attempt; only a confirmed space
+shortfall blocks download, extraction or assembly. Actual write/flush errors
+still propagate, and size/hash/expansion verification remains required.
 Callbacks run synchronously, so callers should publish progress without blocking.
 
 `Extract` first verifies a ZIP or tar.gz against the pinned artifact. It applies

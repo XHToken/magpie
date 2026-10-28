@@ -220,10 +220,7 @@ func (d *Downloader) downloadSource(ctx context.Context, a routermanifest.Artifa
 		space = freeBytes
 	}
 	available, err := space(filepath.Dir(destination))
-	if err != nil {
-		return fmt.Errorf("check disk space: %w", err)
-	}
-	if a.ExpandedBytes < 0 || uint64(a.Size-offset) > available || uint64(a.ExpandedBytes) > available-uint64(a.Size-offset) {
+	if a.ExpandedBytes < 0 || (err == nil && (uint64(a.Size-offset) > available || uint64(a.ExpandedBytes) > available-uint64(a.Size-offset))) {
 		return ErrDiskSpace
 	}
 	if offset == a.Size {

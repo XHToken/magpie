@@ -208,8 +208,8 @@ func TestDownloadTruncationCorruptionAndUnexpectedStatus(t *testing.T) {
 	}
 }
 
-func TestDownloadDiskErrorsAndUnknownManifestMakeNoRequest(t *testing.T) {
-	for _, kind := range []string{"insufficient", "disk-unknown", "unknown-hash", "unknown-size"} {
+func TestDownloadInsufficientDiskAndUnknownManifestMakeNoRequest(t *testing.T) {
+	for _, kind := range []string{"insufficient", "unknown-hash", "unknown-size"} {
 		t.Run(kind, func(t *testing.T) {
 			var calls atomic.Int32
 			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.Write([]byte("data")) }))
@@ -224,9 +224,6 @@ func TestDownloadDiskErrorsAndUnknownManifestMakeNoRequest(t *testing.T) {
 				a.Size = 0
 			}
 			d := Downloader{Client: s.Client(), FreeBytes: func(string) (uint64, error) {
-				if kind == "disk-unknown" {
-					return 0, errors.New("disk probe failed")
-				}
 				return 13, nil
 			}}
 			dest := filepath.Join(t.TempDir(), "model")
@@ -238,6 +235,22 @@ func TestDownloadDiskErrorsAndUnknownManifestMakeNoRequest(t *testing.T) {
 			}
 			requireMissing(t, dest)
 		})
+	}
+}
+
+func TestDownloadContinuesWhenDiskProbeFails(t *testing.T) {
+	data := []byte("fixed model bytes")
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(data) }))
+	defer s.Close()
+	a := artifact(data)
+	a.URL = s.URL
+	d := Downloader{Client: s.Client(), FreeBytes: func(string) (uint64, error) { return 0, errors.New("disk probe failed") }}
+	dest := filepath.Join(t.TempDir(), "model")
+	if err := d.Download(context.Background(), a, dest, nil); err != nil {
+		t.Fatalf("unknown disk space blocked download: %v", err)
+	}
+	if err := Verify(context.Background(), a, dest); err != nil {
+		t.Fatal(err)
 	}
 }
 

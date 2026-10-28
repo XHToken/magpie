@@ -33,7 +33,7 @@ func chatMessage(v any) bool {
 	role, _ := message["role"].(string)
 	fields := map[string]inputCheck{
 		"role":       inputEnum("system", "developer", "user", "assistant", "tool"),
-		"content":    func(v any) bool { return v == nil || chatText(v, role == "assistant") },
+		"content":    func(v any) bool { return v == nil || cloudcodec.ValidChatContent(role, v) },
 		"tool_calls": inputArray(chatCall, true), "tool_call_id": inputName,
 		"reasoning_content": inputString,
 	}
@@ -56,13 +56,6 @@ func chatMessage(v any) bool {
 	return (exists && content != nil) || (role == "assistant" && calls)
 }
 
-func chatText(value any, assistant bool) bool {
-	role := "user"
-	if assistant {
-		role = "assistant"
-	}
-	return cloudcodec.ValidChatContent(role, value)
-}
 func chatCall(v any) bool {
 	return inputObject(v, map[string]inputCheck{
 		"id": inputName, "type": inputEnum("function"),

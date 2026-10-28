@@ -46,7 +46,7 @@ test(`quantized model advice and conservative resource messages (${process.env.B
   const baseReport = () => ({
     device: { availableMemoryBytes: { value: 12 * 2 ** 30 } },
     recommendation: { tier: '4B', maxTier: '4B' }, detection: { state: 'passed', reasons: [] },
-    advice: { policy: 'spark26-64k-v1', state: 'recommended', modelID: id8, modelName: name8, quantization: 'Q8_0', reason: 'resources_suitable', assessments: [
+    advice: { policy: 'spark26-64k-v2', state: 'recommended', modelID: id8, modelName: name8, quantization: 'Q8_0', reason: 'resources_suitable', assessments: [
       { id: id4, name: name4, quantization: 'Q4_K_M', automatic: 'passed', manual: 'passed', issues: [], disks: [{ path: layout.models, volume: { value: 'same' }, available: { value: 100 * 2 ** 30 }, required: 10 * 2 ** 30 }] },
       { id: id8, name: name8, quantization: 'Q8_0', automatic: 'passed', manual: 'passed', issues: [], disks: [{ path: layout.models, volume: { value: 'same' }, available: { value: 100 * 2 ** 30 }, required: 12 * 2 ** 30 }] },
     ] },
@@ -63,7 +63,7 @@ test(`quantized model advice and conservative resource messages (${process.env.B
       const actions = [];
       let report = baseReport();
       page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname.startsWith('/api/local-model/')) actions.push(new URL(request.url()).pathname); });
-      await page.route('**/api/local-model/detect', async route => route.fulfill({ json: { schemaVersion: 1, device: report } }));
+      await page.route('**/api/local-model/detect', async route => report === null ? route.abort('failed') : route.fulfill({ json: { schemaVersion: 1, device: report } }));
       await skipTutorial(page);
       await page.goto(`${base}/?locale=${language}&view=local-model`);
       try { await page.waitForFunction(name => document.querySelector('#localDeviceMessage')?.textContent.includes(name), name8, { timeout: 10000 }); } catch (error) { t.diagnostic(JSON.stringify({ language, width, errors, startup, refreshError: await page.evaluate(async () => { try { await refreshService(); return null } catch (e) { return { message: e.message, stack: e.stack } } }), health: await fetch(base + '/healthz').then(r => r.status).catch(e => e.message), state: await page.evaluate(() => ({ message: document.querySelector('#localDeviceMessage')?.textContent, error: document.querySelector('#localModelError')?.textContent, content: document.querySelector('#localModelContent')?.textContent, service: document.querySelector('#service')?.textContent })) })); throw error; }
@@ -102,10 +102,54 @@ test(`quantized model advice and conservative resource messages (${process.env.B
       report.advice.state = 'deferred'; report.advice.reason = 'available_memory_unknown';
       report.advice.assessments[0].manual = 'unknown'; report.advice.assessments[0].issues = [{ code: 'available_memory_unknown' }];
       await check();
-      assert.equal(await page.locator('#localDeviceMessage').textContent(), deferred);
-      const unavailableMemory = await page.evaluate(() => t('Available memory could not be read. Detect again before downloading.'));
+      const unknown = await page.evaluate(() => t('Some device or disk information is unavailable. You can still download and try loading a model.'));
+      assert.equal(await page.locator('#localDeviceMessage').textContent(), unknown);
+      const unavailableMemory = await page.evaluate(() => t('Available memory could not be read. You can still download and try loading a model.'));
       assert.ok((await page.locator('#localDeviceGuide').textContent()).includes(unavailableMemory), 'missing available memory is identified separately from disk space');
-      assert.equal(await page.locator('#localModelContent [data-action=install]').isDisabled(), true);
+      assert.equal(await page.locator('#localModelContent [data-action=install]').isEnabled(), true, 'unknown resources allow explicit installation');
+      report.advice.assessments[0].manual = 'failed'; report.advice.assessments[0].issues.push({ code: 'disk_insufficient', available: 0, required: 10 * 2 ** 30 });
+      await check();
+      assert.equal(await page.locator('#localModelContent [data-action=install]').isDisabled(), true, 'known disk shortage still blocks when memory is unknown');
+      report = baseReport();
+      report.device.system = { value: { os: 'darwin', architecture: { value: 'arm64' } } };
+      report.device.availableMemoryBytes.value = 4.7 * 2 ** 30;
+      report.advice.state = 'deferred'; report.advice.modelID = ''; report.advice.modelName = '';
+      report.advice.reason = 'available_memory_below_recommended';
+      const macQ4 = report.advice.assessments[0];
+      macQ4.download = 'passed'; macQ4.automatic = 'failed';
+      macQ4.issues = [{ code: 'available_memory_below_recommended', available: 4.7 * 2 ** 30, required: 8 * 2 ** 30 }];
+      await check();
+      const macTrial = await page.evaluate(() => t('Q4 can be downloaded and tried manually on this Mac. Available memory is below the automatic recommendation.'));
+      assert.equal(await page.locator('#localDeviceMessage').textContent(), macTrial);
+      const macGuide = await page.locator('#localDeviceGuide').textContent();
+      assert.ok(macGuide.includes('4.7') && macGuide.includes('8.0'), 'Mac trial shows headroom and recommendation separately');
+      assert.equal(await page.locator('#localModelContent [data-action=install]').isEnabled(), true, '4.7 GiB Mac can download Q4');
+      // Lower headroom still permits downloading without enabling inference.
+      macQ4.manual = 'failed';
+      macQ4.issues = [{ code: 'available_memory_insufficient', available: 3 * 2 ** 30, required: 4 * 2 ** 30 }];
+      await check();
+      const downloadOnly = await page.evaluate(() => t('You can download this model now. Check the resource details before loading it.'));
+      assert.equal(await page.locator('#localDeviceMessage').textContent(), downloadOnly);
+      assert.equal(await page.locator('#localModelContent [data-action=install]').isEnabled(), true);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${language}/${width}: Mac details fit the viewport`);
+      const beforeDownload = actions.length;
+      const downloads = [];
+      await page.route('**/api/local-model/install', async route => {
+        downloads.push(route.request().postDataJSON());
+        await route.fulfill({ json: { schemaVersion: 1, status: await status() } });
+      });
+      await page.locator('#localModelContent [data-action=install]').click();
+      await page.waitForFunction(() => !document.querySelector('#localModelContent [data-action=install]').disabled);
+      assert.deepEqual(actions.splice(beforeDownload), ['/api/local-model/install'], 'download-only path never enables or loads a model');
+      assert.deepEqual(downloads, [{ model: id4 }]);
+      macQ4.download = 'failed'; macQ4.issues.push({ code: 'disk_insufficient', available: 0, required: 10 * 2 ** 30 });
+      await check();
+      assert.equal(await page.locator('#localModelContent [data-action=install]').isDisabled(), true, 'Mac downloads still require disk space');
+      report = null;
+      await check();
+      const failed = await page.evaluate(() => t('Device detection failed. You can still download and try loading a model.'));
+      assert.equal(await page.locator('#localDeviceMessage').textContent(), failed);
+      assert.equal(await page.locator('#localModelContent [data-action=install]').isEnabled(), true, 'failed detection allows explicit installation and backend rechecks resources');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${language}/${width}: resource details fit the viewport`);
       assert.ok(actions.every(action => ['/api/local-model/detect', '/api/local-model/select'].includes(action)), 'advice never installs, enables or unloads a model');
       const current = await status();
@@ -113,6 +157,38 @@ test(`quantized model advice and conservative resource messages (${process.env.B
       await page.evaluate(() => window.routerLocalDisconnected());
       await page.unrouteAll({ behavior: 'wait' }); await page.close(); firstPage = false;
     }
+  }
+  // A fresh low-headroom Mac has no automatic recommendation or saved choice.
+  // Offer Q4 as a page choice without saving intent or starting a download.
+  for (const width of [1600, 375]) {
+    const page = await browser.newPage({ viewport: { width, height: 950 } });
+    page.on('pageerror', error => errors.push(error.message));
+    const actions = [];
+    page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname.startsWith('/api/local-model/')) actions.push(new URL(request.url()).pathname); });
+    const report = baseReport();
+    report.device.system = { value: { os: 'darwin', architecture: { value: 'arm64' } } };
+    report.device.availableMemoryBytes.value = 4.7 * 2 ** 30;
+    report.advice.state = 'deferred'; report.advice.modelID = ''; report.advice.modelName = '';
+    report.advice.reason = 'available_memory_below_recommended';
+    report.advice.assessments[0].download = 'passed'; report.advice.assessments[0].automatic = 'failed';
+    report.advice.assessments[0].issues = [{ code: 'available_memory_below_recommended', available: 4.7 * 2 ** 30, required: 8 * 2 ** 30 }];
+    await page.route('**/api/local-model/detect', route => route.fulfill({ json: { schemaVersion: 1, device: report } }));
+    await page.route('**/api/local-model', async route => {
+      const response = await route.fetch();
+      const value = await response.json();
+      value.status.intent = { ...value.status.intent, selected: '', enabled: false };
+      value.status.installation = 'not_installed';
+      await route.fulfill({ json: value });
+    });
+    await skipTutorial(page);
+    await page.goto(`${base}/?locale=zh&view=local-model`);
+    await page.waitForFunction(() => document.querySelector('#localDeviceMessage')?.textContent.includes('Q4'));
+    assert.equal(await page.locator('#localModelChoices button').first().getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.locator('#localModelContent [data-action=install]').isEnabled(), true);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+    assert.deepEqual(actions, ['/api/local-model/detect'], 'fresh Mac Q4 default is only a local page choice');
+    await page.evaluate(() => window.routerLocalDisconnected());
+    await page.unrouteAll({ behavior: 'wait' }); await page.close();
   }
   assert.deepEqual(errors, []);
 });

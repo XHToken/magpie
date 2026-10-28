@@ -1101,6 +1101,950 @@
           }
         ]
       }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-startsNewUserRequest",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; convertUserMessage / createErrorRecoveryInput",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "startsNewUserRequest": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-conversationRequestId",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; prepareSteerMessages / subagent input",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "conversationRequestId": "request-fixture"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-rootRequestId",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; prepareSteerMessages / subagent input",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "rootRequestId": "root-fixture"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-rootRequestId",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; model history identity propagation",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "rootRequestId": "root-fixture"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-tool-rootRequestId",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; tool result request-owner propagation",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "tool",
+            "tool_call_id": "call-fixture",
+            "content": "fixture result",
+            "rootRequestId": "root-fixture"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-turnAborted",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; createTurnAbortedMarker",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "turnAborted": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-scheduledTaskTrigger",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; scheduled task enqueuePrompt",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "scheduledTaskTrigger": {
+              "taskId": "task-fixture",
+              "schedule": "daily",
+              "prompt": "fixture task",
+              "executionId": "execution-fixture",
+              "firedAt": 1793145600000
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-queueItemId",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; ensureFollowupItemId",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "queueItemId": "queue-fixture"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-createdAt",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; ensureFollowupItemId (number, not necessarily integer)",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "createdAt": 1793145600000
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-codebuddy.ai/turnCarrierCandidate",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; inbound turn carrier",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "codebuddy.ai/turnCarrierCandidate": {
+              "traceparent": "00-fixture",
+              "baggage": "fixture"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-codebuddy.ai/teamResumeIntent",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; markHumanTeamResumeIntent",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "codebuddy.ai/teamResumeIntent": "human-fixture"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-isCompactInternal",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; model-input summary normalization",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "isCompactInternal": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-isCompacted",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; model-input summary normalization",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "isCompacted": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-isSummary",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; model-input summary normalization",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "isSummary": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-contentFilterNotice",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; createContentFilterNoticeMessage",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "contentFilterNotice": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-strippedUserMessageId",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; createContentFilterNoticeMessage",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "strippedUserMessageId": "message-fixture"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-terminalStopReason",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; command permission rejection message",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "terminalStopReason": "end_turn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-blockingDetails",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; recordHookBlockedMessage / createHookMessage",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "blockingDetails": [
+              {
+                "reason": "fixture hook denial",
+                "exitCode": 2,
+                "truncated": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-runtimeSecurity",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; createHookMessage",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "runtimeSecurity": {
+              "scene": "prompt",
+              "decision": "deny"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-tool-runtimeSecurity",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; tool result runtime security",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "tool",
+            "tool_call_id": "call-fixture",
+            "content": "fixture result",
+            "runtimeSecurity": {
+              "scene": "toolResult",
+              "decision": "allow"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-replParentCallId",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; hook streaming callback",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "replParentCallId": "call-fixture"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-modLog",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; emitModLogMessage",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "modLog": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-modPlugin",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; emitModLogMessage",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "modPlugin": "fixture-plugin"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-discard",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; discardAssistantMessagesFromModelInput",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "discard": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-discard-false",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; discardAssistantMessagesFromModelInput",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "discard": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-workflowSourceText",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; maybePreloadWorkflowSource",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "workflowSourceText": "fixture workflow source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-_isLastResponseItem",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; model final history item",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "_isLastResponseItem": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-tool-injectedHistory",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; convertInjectHistoryItems",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "tool",
+            "tool_call_id": "call-fixture",
+            "content": "fixture result",
+            "injectedHistory": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-tool-isStreaming",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; streaming function result",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "tool",
+            "tool_call_id": "call-fixture",
+            "content": "fixture result",
+            "isStreaming": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-tool-isReferenceRead",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; sendReadNotification",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "tool",
+            "tool_call_id": "call-fixture",
+            "content": "fixture result",
+            "isReferenceRead": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-tool-stopped",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; stopped tool result",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "tool",
+            "tool_call_id": "call-fixture",
+            "content": "fixture result",
+            "stopped": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-_toolRiskAutomaticDecision",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; recordToolRiskApprovalDecision",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "_toolRiskAutomaticDecision": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-_toolRiskReviewCancelled",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; tool risk approval cancellation",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "_toolRiskReviewCancelled": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-_sandboxApprovalReuseKey",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; sandbox approval synthetic tool call",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "_sandboxApprovalReuseKey": "approval-fixture"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-system-separatorExtra",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; handleClearSession",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "fixture text",
+            "separatorExtra": {
+              "reason": "fixture clear"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-goalStatus",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; GoalService.emit / CommandMessageUtils.buildOutput creates a user message",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "goalStatus": {
+              "kind": "set",
+              "text": "fixture goal"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-modsPromptSubmitted",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; FollowupQueue.enqueue modsPromptSubmitted",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "modsPromptSubmitted": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-createdAt-fractional",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; ensureFollowupItemId preserves number",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "createdAt": 1793145600000.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-blockingDetails-empty",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; createHookMessage empty blocking details",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "blockingDetails": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/description",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; synthetic approval tool providerData",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/description": "fixture approval description"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/interceptType",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; loop interaction providerData",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/interceptType": "loop"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/loopOccurrences",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; ToolCallLoopDetector consecutiveCount",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/loopOccurrences": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/loopPatternLength",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; ToolCallLoopDetector patternLength",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/loopPatternLength": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/loopTriggerType",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; ToolCallLoopDetector triggerType",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/loopTriggerType": "consecutive_same_tool"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/mcpUiIntercept",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; MCP App tools/call providerData",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/mcpUiIntercept": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/operation",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; synthetic approval tool providerData",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/operation": "mcp-ui reverse tools/call"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/sandboxIntercept",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; sandbox synthetic approval tool providerData",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/sandboxIntercept": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/sandboxRuleContext",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; sandbox synthetic approval tool providerData",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/sandboxRuleContext": {
+              "causes": [
+                {
+                  "kind": "policy",
+                  "code": "fixture"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/sensitiveProtectionApproval",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; sensitive protection approval providerData",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/sensitiveProtectionApproval": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/target",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; synthetic approval tool providerData",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/target": "fixture-target"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-assistant-codebuddy.ai/skillApprovalDecision",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; bindResolvedSkillApprovalDecision / getBoundSkillApprovalDecision",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "fixture text",
+            "codebuddy.ai/skillApprovalDecision": {
+              "policyId": "policy-fixture",
+              "mandatory": true,
+              "presentation": {
+                "category": "fixture",
+                "kind": "fixture"
+              },
+              "authorization": {
+                "scope": "once"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-startsNewUserRequest-false",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; prepareSteerMessages",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "agent": "cli",
+            "startsNewUserRequest": false,
+            "conversationRequestId": "",
+            "rootRequestId": ""
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-conversation-and-tool-continuation",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 itemsToMessages; combined source-derived text/tool turn (synthetic values)",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text",
+            "agent": "cli",
+            "startsNewUserRequest": true,
+            "conversationRequestId": "request-fixture",
+            "rootRequestId": "root-fixture"
+          },
+          {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call-fixture",
+                "type": "function",
+                "function": {
+                  "name": "Read",
+                  "arguments": "{\"path\":\"fixture.txt\"}"
+                }
+              }
+            ],
+            "agent": "cli",
+            "conversationRequestId": "request-fixture",
+            "rootRequestId": "root-fixture",
+            "_isLastResponseItem": true
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call-fixture",
+            "content": "fixture result",
+            "agent": "cli",
+            "conversationRequestId": "request-fixture",
+            "rootRequestId": "root-fixture",
+            "injectedHistory": true
+          },
+          {
+            "role": "user",
+            "content": "fixture text",
+            "agent": "cli",
+            "startsNewUserRequest": false,
+            "conversationRequestId": "request-fixture",
+            "rootRequestId": "root-fixture",
+            "turnAborted": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-option-max_thinking_tokens",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 model builder providerData; configureThinkingSettings MAX_THINKING_TOKENS",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text"
+          }
+        ],
+        "max_thinking_tokens": 1024
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-option-extra_vars",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 model builder providerData; ACP prompt requestOptions.providerData growth event",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "fixture text"
+          }
+        ],
+        "extra_vars": {
+          "growthEvent": "fixture-growth-event"
+        }
+      }
+    },
+    {
+      "id": "workbuddy-5.8.3-user-content-acpResourceLink",
+      "host": "workbuddy",
+      "source": "Installed 5.8.3 extractAllUserContent; convertAttachmentReference providerData",
+      "body": {
+        "model": "fixture-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "@file:///fixture/file.txt",
+                "acpResourceLink": {
+                  "uri": "file:///fixture/file.txt",
+                  "name": "file.txt",
+                  "codebuddy_meta": {
+                    "kind": "fixture"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

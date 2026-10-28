@@ -10,7 +10,7 @@ selection; this package itself owns no lifecycle.
 ## Product quantization advice
 
 The product service uses [`AdviseModels`](../../internal/routerdevice/model_advice.go),
-policy `spark26-64k-v1`. The older tier evaluator below remains available for
+policy `spark26-64k-v2`. The older tier evaluator below remains available for
 trusted diagnostic callers; it no longer chooses the product's quantization.
 The service's detection response includes `advice` alongside the legacy
 `recommendation` and `detection` summary.
@@ -19,10 +19,13 @@ The service's detection response includes `advice` alongside the legacy
 hardware), or `deferred` (temporary pressure, missing information or slow
 performance). A recommendation contains the exact catalog `modelID`, display
 name, quantization, reason and `reuse` flag. `assessments` separates each model's
-automatic suitability, explicit manual admission, safe resource issues and
+automatic suitability, explicit manual inference admission, download admission,
+safe resource issues and
 per-volume installation budgets. A manual pass can coexist with a declined
 automatic recommendation. Clients must use `advice`, not infer quantization or
-manual admission from the legacy tier/check fields.
+manual admission from the legacy tier/check fields. `download` is consumed by
+the install button and install API; `manual` governs enable/load and restoring
+previously enabled selections.
 
 Automatic Q4 needs 16 GiB total / 8 GiB available RAM and either eight CPU
 threads with CPU support, four threads plus a confirmed discrete accelerator
@@ -33,8 +36,22 @@ threads, or confirmed Metal with 32/12 GiB unified RAM and eight threads. VRAM
 reserve is at least 1 GiB or 15% of that single GPU's total. Shared memory and
 multiple GPUs are never added. Pure CPU machines default to Q4; explicit Q8
 CPU use needs 16 GiB total / 12 GiB available RAM and eight threads. Q4 manual admission
-retains four threads and 8 GiB available RAM, without claiming automatic
-suitability. Unknown required observations cannot authorize a download.
+retains four threads and 8 GiB available RAM on Windows/Linux. On supported Macs
+(Apple Silicon or Intel), Q4 manual trials accept 8 GiB total / 4 GiB available
+RAM and four threads with a compatible backend. Between 4 and 8 GiB available,
+`available_memory_below_recommended` declines automatic advice but permits the
+trial; 4 GiB is a trial policy floor, not a measured 64K minimum. Q8 thresholds
+are unchanged. Mac downloads check compatible platform/runtime/model and disk
+budgets independently of CPU threads and memory; Windows/Linux retain their
+existing manual resource admission for downloads. Unknown observations remain
+`unknown` and do not authorize an automatic recommendation. Explicit actions
+accept `unknown` as well as `passed` in their respective assessment field;
+`AllowsDownload` and `AllowsManual` reject `failed`. A Mac can download with
+insufficient inference headroom without enabling a model; loading rechecks
+manual admission and still needs actual runtime health/performance verification.
+An unknown system or volume observation does not hide other known resource
+shortages. Previously enabled installed selections use the same admission rule
+when restored at startup; unknown data does not select a new model automatically.
 These are conservative 64K policy estimates, not measured minimums or quality
 acceptance. The [approved design](../../../docs/local-model-recommendation-proposal.md)
 records rationale and calibration limits.
@@ -186,7 +203,13 @@ No Linux GPU release work is included.
 
 The local-model page identifies `available_memory_unknown` as an unreadable
 available-memory observation instead of showing only the generic device/disk
-warning. Missing observations still block installation and load admission.
+warning. Missing observations allow explicit installation and load attempts;
+the page explains that detection is incomplete rather than claiming a pass.
+Known shortages block the corresponding action, with Mac download and manual
+inference checks separated as described above. Actual download, file
+verification, process startup and health errors continue to propagate.
+`memoryRequired` is the automatic headroom estimate; clients must not reuse it
+as a hard download or manual trial minimum. The assessment states are authoritative.
 
 ## Verification
 

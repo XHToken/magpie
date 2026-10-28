@@ -2,7 +2,7 @@ package routerdevice
 
 import "strings"
 
-const ModelAdvicePolicy = "spark26-64k-v1"
+const ModelAdvicePolicy = "spark26-64k-v2"
 
 // ResourceIssue contains only safe, structured resource observations.
 type ResourceIssue struct {
@@ -33,10 +33,23 @@ type ModelAssessment struct {
 	Hardware       CheckState      `json:"hardware"`
 	Automatic      CheckState      `json:"automatic"`
 	Manual         CheckState      `json:"manual"`
+	Download       CheckState      `json:"download"`
 	Issues         []ResourceIssue `json:"issues"`
-	MemoryRequired uint64          `json:"memoryRequired"`
+	MemoryRequired uint64          `json:"memoryRequired"` // Automatic headroom estimate, not a manual trial floor.
 	Reuse          bool            `json:"reuse"`
 	weak           bool
+}
+
+// AllowsManual permits explicit enablement and loading with incomplete
+// observations. Known shortages and unsupported runtimes still block.
+func (c ModelAssessment) AllowsManual() bool {
+	return c.Manual == CheckPassed || c.Manual == CheckUnknown
+}
+
+// AllowsDownload separates Mac installation from current inference headroom.
+// Other platforms retain their existing manual resource admission policy.
+func (c ModelAssessment) AllowsDownload() bool {
+	return c.Download == CheckPassed || c.Download == CheckUnknown
 }
 
 type ModelAdvice struct {
@@ -73,7 +86,7 @@ func AdviseModels(s Snapshot, options []ModelOption, running RunningModel) Model
 	for _, option := range options {
 		c := assessModel(s, option)
 		if running.Healthy && !running.Slow && strings.EqualFold(option.ID, running.ID) && option.RuntimeAvailable {
-			c.Automatic, c.Manual, c.Reuse = CheckPassed, CheckPassed, true
+			c.Automatic, c.Manual, c.Download, c.Reuse = CheckPassed, CheckPassed, CheckPassed, true
 			c.Issues = []ResourceIssue{}
 		}
 		a.Assessments = append(a.Assessments, c)
@@ -141,7 +154,8 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 		option.Disks[i].Volume = cloneFact(option.Disks[i].Volume)
 		option.Disks[i].Available = cloneFact(option.Disks[i].Available)
 	}
-	c := ModelAssessment{ModelOption: option, Automatic: CheckPassed, Manual: CheckPassed, Issues: []ResourceIssue{}, MemoryRequired: 8 * GiB}
+	isMac := s.System.Value != nil && s.System.Value.OS == "darwin"
+	c := ModelAssessment{ModelOption: option, Automatic: CheckPassed, Manual: CheckPassed, Download: CheckPassed, Issues: []ResourceIssue{}, MemoryRequired: 8 * GiB}
 	add := func(code string, state CheckState, available *uint64, required uint64, manual bool) {
 		c.Issues = append(c.Issues, ResourceIssue{Code: code, Available: available, Required: required})
 		if state == CheckFailed || c.Automatic == CheckPassed {
@@ -149,6 +163,20 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 		}
 		if manual && (state == CheckFailed || c.Manual == CheckPassed) {
 			c.Manual = state
+		}
+		// A Mac download consumes disk, not the inference memory budget. Keep
+		// platform/runtime/model and disk checks, including unknown facts.
+		download := manual
+		if isMac {
+			switch code {
+			case "runtime_unavailable", "model_unsupported", "system_unknown", "architecture_unknown", "platform_unsupported", "os_version_unknown", "os_version_unsupported", "disk_unknown", "disk_insufficient":
+				download = true
+			default:
+				download = false
+			}
+		}
+		if download && (state == CheckFailed || c.Download == CheckPassed) {
+			c.Download = state
 		}
 	}
 	if !option.RuntimeAvailable {
@@ -159,9 +187,11 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 	}
 	if state, reason := checkSystem(s.System); state != CheckPassed {
 		add(reason, state, nil, 0, true)
-		c.Hardware = c.Automatic
-		c.weak = state == CheckFailed
-		return c
+		if state == CheckFailed {
+			c.Hardware = c.Automatic
+			c.weak = true
+			return c
+		}
 	}
 	if option.Quantization != "Q4_K_M" && option.Quantization != "Q8_0" {
 		add("model_unsupported", CheckFailed, nil, 0, true)
@@ -176,7 +206,10 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 		c.weak = true
 	}
 	cpu, metal, gpu4, gpu8, gpuUnknown, gpuBusy := adviceBackends(s)
-	threads := s.System.Value.LogicalCPUs.Value
+	var threads *int
+	if s.System.Value != nil {
+		threads = s.System.Value.LogicalCPUs.Value
+	}
 	if threads == nil {
 		add("cpu_threads_unknown", CheckUnknown, nil, 8, true)
 	} else if *threads < 4 {
@@ -203,7 +236,7 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 			add(code, state, nil, 8, false)
 		}
 	}
-	strongUnified := metal && s.System.Value.OS == "darwin" && s.System.Value.Architecture.Value != nil && *s.System.Value.Architecture.Value == "arm64" && s.MemoryBytes.Value != nil && *s.MemoryBytes.Value >= 32*GiB && threads != nil && *threads >= 8
+	strongUnified := metal && s.System.Value != nil && s.System.Value.OS == "darwin" && s.System.Value.Architecture.Value != nil && *s.System.Value.Architecture.Value == "arm64" && s.MemoryBytes.Value != nil && *s.MemoryBytes.Value >= 32*GiB && threads != nil && *threads >= 8
 	if option.Quantization == "Q8_0" {
 		if strongUnified || !gpu8 {
 			c.MemoryRequired = 12 * GiB
@@ -212,13 +245,26 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 			add("q8_acceleration_required", CheckFailed, nil, 0, false)
 		}
 		if !gpu8 && !(cpu && threads != nil && *threads >= 8) && !strongUnified {
-			add("q8_cpu_threads_or_backend", CheckFailed, nil, 8, true)
+			state := CheckFailed
+			if gpuUnknown || threads == nil {
+				state = CheckUnknown
+			}
+			add("q8_cpu_threads_or_backend", state, nil, 8, true)
 		}
+	}
+	manualMemory := c.MemoryRequired
+	if isMac && option.Quantization == "Q4_K_M" {
+		// This is a trial floor, not a measured 64K working-set guarantee.
+		// Keep automatic advice conservative and let actual loading/health
+		// checks decide whether the explicitly requested model can run.
+		manualMemory = 4 * GiB
 	}
 	if s.AvailableMemoryBytes.Value == nil {
 		add("available_memory_unknown", CheckUnknown, nil, c.MemoryRequired, true)
+	} else if *s.AvailableMemoryBytes.Value < manualMemory {
+		add("available_memory_insufficient", CheckFailed, s.AvailableMemoryBytes.Value, manualMemory, true)
 	} else if *s.AvailableMemoryBytes.Value < c.MemoryRequired {
-		add("available_memory_insufficient", CheckFailed, s.AvailableMemoryBytes.Value, c.MemoryRequired, true)
+		add("available_memory_below_recommended", CheckFailed, s.AvailableMemoryBytes.Value, c.MemoryRequired, false)
 	}
 	c.Hardware = c.Automatic
 	if !option.Installed {
@@ -228,7 +274,8 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 		for _, disk := range option.Disks {
 			if disk.Volume.Value == nil || disk.Available.Value == nil {
 				add("disk_unknown", CheckUnknown, nil, disk.Required, true)
-			} else if *disk.Available.Value < disk.Required {
+			}
+			if disk.Available.Value != nil && *disk.Available.Value < disk.Required {
 				add("disk_insufficient", CheckFailed, disk.Available.Value, disk.Required, true)
 			}
 		}

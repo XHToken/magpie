@@ -24,7 +24,8 @@ var chatHostFields = map[string]hostField{
 	"requestModelId":           {"assistant|tool", "string"},
 	"requestModelName":         {"assistant|tool", "string"},
 	"traceId":                  {"assistant|tool", "string"},
-	"conversationRequestId":    {"assistant|tool", "string"},
+	"conversationRequestId":    {"user|assistant|tool", "string"},
+	"rootRequestId":            {"user|assistant|tool", "string"},
 	"reasoning":                {"assistant", "text"},
 	"reasoning_details":        {"assistant", "text"},
 	"argumentsDisplayText":     {"assistant", "text"},
@@ -36,9 +37,9 @@ var chatHostFields = map[string]hostField{
 	"truncated":                {"system|user|assistant|tool", "bool"},
 	"isMeta":                   {"user", "bool"},
 	"queueHold":                {"user", "bool"},
-	"isCompactInternal":        {"user", "bool"},
-	"isCompacted":              {"user", "bool"},
-	"isSummary":                {"user", "bool"},
+	"isCompactInternal":        {"user|assistant", "bool"},
+	"isCompacted":              {"user|assistant", "bool"},
+	"isSummary":                {"user|assistant", "bool"},
 	"compactType":              {"user", "string"},
 	"isPtlRecovery":            {"user", "bool"},
 	"isMediaBodyRecovery":      {"user", "bool"},
@@ -62,6 +63,48 @@ var chatHostFields = map[string]hostField{
 	"isSessionSeparator":       {"system", "bool"},
 	"separatorMessageId":       {"system", "string"},
 	"separatorExtra":           {"system", "object"},
+	// WorkBuddy 5.8.3 spreads providerData directly into Chat messages, including
+	// new prompts, queued/aborted turns, hooks and subsequent tool history.
+	// These are opaque host values, not Router execution or permission controls.
+	"startsNewUserRequest":                     {"user", "bool"},
+	"turnAborted":                              {"user", "bool"},
+	"scheduledTaskTrigger":                     {"user", "object"},
+	"queueItemId":                              {"user", "string"},
+	"modsPromptSubmitted":                      {"user", "bool"},
+	"goalStatus":                               {"user", "object"},
+	"createdAt":                                {"user", "number"},
+	"codebuddy.ai/turnCarrierCandidate":        {"user", "object"},
+	"codebuddy.ai/teamResumeIntent":            {"user", "string"},
+	"contentFilterNotice":                      {"assistant", "bool"},
+	"strippedUserMessageId":                    {"assistant", "string"},
+	"terminalStopReason":                       {"assistant", "string"},
+	"blockingDetails":                          {"assistant", "array"},
+	"runtimeSecurity":                          {"assistant|tool", "object"},
+	"replParentCallId":                         {"assistant", "string"},
+	"modLog":                                   {"assistant", "bool"},
+	"modPlugin":                                {"assistant", "string"},
+	"discard":                                  {"assistant", "bool"},
+	"workflowSourceText":                       {"assistant", "string"},
+	"_isLastResponseItem":                      {"assistant", "bool"},
+	"injectedHistory":                          {"tool", "bool"},
+	"isStreaming":                              {"tool", "bool"},
+	"isReferenceRead":                          {"tool", "bool"},
+	"stopped":                                  {"tool", "bool"},
+	"_toolRiskAutomaticDecision":               {"assistant", "bool"},
+	"_toolRiskReviewCancelled":                 {"assistant", "bool"},
+	"_sandboxApprovalReuseKey":                 {"assistant", "string"},
+	"codebuddy.ai/description":                 {"assistant", "string"},
+	"codebuddy.ai/interceptType":               {"assistant", "string"},
+	"codebuddy.ai/loopOccurrences":             {"assistant", "count"},
+	"codebuddy.ai/loopPatternLength":           {"assistant", "count"},
+	"codebuddy.ai/loopTriggerType":             {"assistant", "string"},
+	"codebuddy.ai/mcpUiIntercept":              {"assistant", "bool"},
+	"codebuddy.ai/operation":                   {"assistant", "string"},
+	"codebuddy.ai/sandboxIntercept":            {"assistant", "bool"},
+	"codebuddy.ai/sandboxRuleContext":          {"assistant", "object"},
+	"codebuddy.ai/sensitiveProtectionApproval": {"assistant", "bool"},
+	"codebuddy.ai/target":                      {"assistant", "string"},
+	"codebuddy.ai/skillApprovalDecision":       {"assistant", "object"},
 }
 
 func ChatHostFieldNames() []string {
@@ -76,6 +119,10 @@ func ChatHostFieldNames() []string {
 func IsChatHostField(name string) bool { _, ok := chatHostFields[name]; return ok }
 
 func ChatHostTextField(name string) bool { return chatHostFields[name].kind == "text" }
+
+// These objects are attached to typed text parts rather than message envelopes.
+// Native forwarding, conversion and privacy must agree on their locations.
+func ChatContentMetadataFieldNames() []string { return []string{"extra_fields", "acpResourceLink"} }
 
 // Chat text is shared with the routing parser as well. Assistant refusal parts
 // and opaque vendor text metadata are retained natively; media remains outside
@@ -115,6 +162,10 @@ func ValidChatContent(role string, value any) bool {
 				if _, ok := value.(map[string]any); role != "assistant" || kind != "text" || !ok {
 					return false
 				}
+			case "acpResourceLink":
+				if _, ok := value.(map[string]any); role != "user" || kind != "text" || !ok {
+					return false
+				}
 			default:
 				return false
 			}
@@ -138,6 +189,10 @@ func ValidChatHostField(role, name string, value any) bool {
 		_, ok = value.(bool)
 	case "object":
 		_, ok = value.(map[string]any)
+	case "array":
+		_, ok = value.([]any)
+	case "number":
+		ok = hostNumber(value)
 	case "integer", "count":
 		n, numberOK := value.(json.Number)
 		i, err := strconv.ParseInt(string(n), 10, 64)
@@ -152,7 +207,7 @@ func ValidChatHostField(role, name string, value any) bool {
 // store:false is supported; opting into remote completion storage stays outside
 // the stateless input contract. Nothing here selects a model or credential.
 func ChatNativeOptionNames() []string {
-	return []string{"frequency_penalty", "presence_penalty", "seed", "user", "verbosity", "store", "prompt_cache_retention", "promptCacheKey", "reasoningSummary"}
+	return []string{"frequency_penalty", "presence_penalty", "seed", "user", "verbosity", "store", "prompt_cache_retention", "promptCacheKey", "reasoningSummary", "max_thinking_tokens", "extra_vars"}
 }
 
 func ValidChatNativeOption(name string, value any) bool {
@@ -174,6 +229,15 @@ func ValidChatNativeOption(name string, value any) bool {
 		return value == "in-memory" || value == "24h"
 	case "reasoningSummary":
 		return value == "auto" || value == "concise" || value == "detailed"
+	case "max_thinking_tokens":
+		if !hostNumber(value) {
+			return false
+		}
+		n, _ := value.(json.Number).Float64()
+		return n > 0
+	case "extra_vars":
+		_, ok := value.(map[string]any)
+		return ok
 	}
 	return false
 }

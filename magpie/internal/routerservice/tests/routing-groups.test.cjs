@@ -142,6 +142,7 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   // 2. 新建端云混合路由组 + 智能默认策略 + 本地模型脱敏选项测试
   await page.locator('#newRoutingGroupBtn').click();
   await page.locator('#routingGroupModal').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#rgPatternsList, #rgPatternNewInput, #rgAddPatternBtn, .rt-pats').count(), 0);
   assert.equal(await page.locator('#routingGroupModal [data-rg-strategy="smart_hybrid"]').evaluate(node => node.classList.contains('on')), true);
   assert.equal(await page.locator('#rgLocalRedactionLabel').isHidden(), true);
   assert.equal(await page.locator('#rgLocalRedactionSection').isHidden(), true);
@@ -186,6 +187,8 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   assert.equal(createCall.body.routing, 'smart_hybrid');
   assert.equal(createCall.body.localRedaction, true);
   assert.deepEqual(createCall.body.members, ['openai/gpt-4o', 'local/spark-x2.6-4b']);
+  assert.deepEqual(createCall.body.match, []);
+  assert.deepEqual(createCall.body.patterns, []);
 
   const hybridCard = page.locator('#customRoutingGroupsList .rt-group-card[data-group-id="hybrid-coding"]');
   await hybridCard.waitFor({ state: 'visible' });
@@ -231,17 +234,21 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   assert.equal(manualSwitchCall.body.active, 'openai/gpt-4o');
 
   // 5. Editor timing, affinity, context and matching options persist exactly.
+  const existingPatterns = ['gpt-4*', 'claude-*'];
+  await page.evaluate(async ({ id, patterns }) => {
+    const rg = window.__weftoRoutingGroups;
+    const group = rg.state.groups.find(g => g.id === id);
+    await rg.apiRequest('/api/routing-groups', { method: 'POST', body: { ...group, match: patterns, patterns } });
+    await rg.loadRoutingGroups(true);
+  }, { id: 'hybrid-coding', patterns: existingPatterns });
   await hybridCard.locator('[data-rg-edit="hybrid-coding"]').click();
   await page.locator('#routingGroupModal').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#rgPatternsList, #rgPatternNewInput, #rgAddPatternBtn, .rt-pats').count(), 0);
   await page.locator('#rgFirstTokenInput').fill('15');
   await page.locator('#rgPatienceInput').fill('2');
   await page.locator('[data-rg-aff="session"]').click();
   await page.locator('#rgStickinessInput').fill('10');
   await page.locator('#rgContextInput').fill('32k');
-  for (const pattern of ['gpt-4*', 'claude-*']) {
-    await page.locator('#rgPatternNewInput').fill(pattern);
-    await page.locator('#rgAddPatternBtn').click();
-  }
 
   apiCalls.length = 0;
   await page.locator('#rgSaveBtn').click();
@@ -253,7 +260,8 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   assert.equal(advSaveCall.body.affinity, 'session');
   assert.equal(advSaveCall.body.stickiness, 10);
   assert.equal(advSaveCall.body.context, 32000);
-  assert.deepEqual(advSaveCall.body.patterns, ['gpt-4*', 'claude-*']);
+  assert.deepEqual(advSaveCall.body.match, existingPatterns);
+  assert.deepEqual(advSaveCall.body.patterns, existingPatterns);
 
   apiCalls.length = 0;
   page.once('dialog', dialog => dialog.accept());

@@ -138,8 +138,10 @@ func (c *CloudCodec) translationCapability() error {
 				if Str(part, "type") == "refusal" {
 					return capabilityError("content_refusal")
 				}
-				if _, present := part["extra_fields"]; present {
-					return capabilityError("content_metadata")
+				for _, field := range ChatContentMetadataFieldNames() {
+					if _, present := part[field]; present {
+						return capabilityError("content_metadata")
+					}
 				}
 				if _, present := part["annotations"]; present {
 					return capabilityError("content_annotations")

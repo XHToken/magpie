@@ -209,15 +209,12 @@ func (a Assembly) Install(ctx context.Context, destination string) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	available, err := freeBytes(filepath.Dir(destination))
-	if err != nil {
-		return err
-	}
 	budget, err := a.budget()
 	if err != nil {
 		return err
 	}
-	if uint64(budget) > available {
+	available, spaceErr := freeBytes(filepath.Dir(destination))
+	if spaceErr == nil && uint64(budget) > available {
 		return ErrDiskSpace
 	}
 	stage, err := os.MkdirTemp(filepath.Dir(destination), "."+filepath.Base(destination)+".assemble-")

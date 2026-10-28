@@ -32,7 +32,7 @@
       'Routing group deleted.': '路由组已删除。',
       'Delete routing group "{1}"?': '确定删除路由组“{1}”吗？',
       'Group name is required.': '请填写路由组名称。',
-      'Please add at least one member model or pattern.': '请至少添加一个成员模型或匹配模式。',
+      'Please add at least one member model.': '请至少添加一个成员模型。',
       'Active model switched to ': '当前生效模型已切换为 ',
       'Click to set as active model in manual mode': '手动模式下点击切换为当前生效模型',
       'Click to copy model ID': '点击复制调用标识',
@@ -154,6 +154,15 @@
       'routing rule target is required': '请选择路由规则的目标模型',
       'routing group cycle detected': '检测到路由组循环引用',
       'routing group not found': '未找到该路由组'
+    },
+    'zh-TW': {
+      'Please add at least one member model.': '請至少新增一個成員模型。'
+    },
+    ja: {
+      'Please add at least one member model.': 'メンバーモデルを少なくとも1つ追加してください。'
+    },
+    de: {
+      'Please add at least one member model.': 'Bitte mindestens ein Mitgliedsmodell hinzufügen.'
     },
     en: {
       'Local model redaction': 'Local model redaction',

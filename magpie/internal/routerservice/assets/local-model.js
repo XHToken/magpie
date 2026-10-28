@@ -1,6 +1,10 @@
 'use strict';
 (() => {
   for (const [key, zh, tw, ja, de] of [
+    ['Q4 can be downloaded and tried manually on this Mac. Available memory is below the automatic recommendation.', '这台 Mac 可下载并手动试运行 Q4；当前可用内存低于自动推荐值。', '這台 Mac 可下載並手動試執行 Q4；目前可用記憶體低於自動推薦值。', 'この Mac では Q4 をダウンロードして手動で試せます。利用可能メモリは自動推奨値を下回っています。', 'Auf diesem Mac können Sie Q4 herunterladen und manuell testen. Der verfügbare Speicher liegt unter dem Wert für automatische Empfehlungen.'],
+    ['You can download this model now. Check the resource details before loading it.', '当前可下载此模型；加载前请检查资源详情。', '目前可下載此模型；載入前請檢查資源詳情。', 'このモデルはダウンロードできます。読み込み前にリソースの詳細を確認してください。', 'Sie können dieses Modell jetzt herunterladen. Prüfen Sie vor dem Laden die Ressourcen.'],
+    ['Available memory: {available} GiB; {required} GiB is recommended for automatic use.', '当前可用内存 {available} GiB，自动推荐参考值为 {required} GiB。', '目前可用記憶體 {available} GiB，自動推薦參考值為 {required} GiB。', '利用可能メモリは {available} GiB、自動利用の推奨値は {required} GiB です。', 'Verfügbarer Speicher: {available} GiB; für automatische Nutzung werden {required} GiB empfohlen.'],
+    ['macOS memory includes free and reclaimable inactive pages. Unified memory is counted once.', 'macOS 可用内存已包含空闲与可回收内存，统一内存不重复计入显存。', 'macOS 可用記憶體已包含閒置與可回收記憶體，統一記憶體不重複計入顯示記憶體。', 'macOS の利用可能メモリには空き領域と回収可能な領域を含みます。ユニファイドメモリは一度だけ計上します。', 'Der verfügbare macOS-Speicher umfasst freie und rückgewinnbare inaktive Seiten. Unified Memory wird nur einmal gezählt.'],
     ["Inference backend", "推理后端", "推理後端", "推論バックエンド", "Inferenz-Backend"],
     ["GPU acceleration", "GPU 加速", "GPU 加速", "GPU アクセラレーション", "GPU-Beschleunigung"],
     ["Hybrid CPU and GPU", "CPU/GPU 混合推理", "CPU/GPU 混合推理", "CPU/GPU ハイブリッド推論", "Hybride CPU-/GPU-Inferenz"],
@@ -18,8 +22,8 @@
     ["No compatible local runtime is available for this system or architecture.", "当前系统或架构没有兼容的本地推理运行时。", "目前系統或架構沒有相容的本機推論執行階段。", "このシステムまたはアーキテクチャに対応するローカルランタイムはありません。", "Für dieses System oder diese Architektur ist keine kompatible lokale Laufzeit verfügbar."],
     ["Close some apps and detect again, or continue using cloud models.", "可关闭部分应用后重新检测，或继续使用云端模型。", "可關閉部分應用後重新偵測，或繼續使用雲端模型。", "アプリを閉じて再検出するか、クラウドモデルを使ってください。", "Schließen Sie einige Anwendungen und prüfen Sie erneut oder nutzen Sie Cloud-Modelle."],
     ["Installation space for {model}: {required} GiB required, {available} GiB available.", "{model} 安装空间：需要 {required} GiB，可用 {available} GiB。", "{model} 安裝空間：需要 {required} GiB，可用 {available} GiB。", "{model} の導入領域: 必要 {required} GiB、空き {available} GiB。", "Installationsplatz für {model}: {required} GiB benötigt, {available} GiB verfügbar."],
-    ["Some required device or disk information is unavailable. Detect again before downloading.", "暂时无法确认必要的设备或磁盘信息，请重新检测后再下载。", "暫時無法確認必要的裝置或磁碟資訊，請重新偵測後再下載。", "必要な端末情報またはディスク情報が不明です。再検出してからダウンロードしてください。", "Erforderliche Geräte- oder Datenträgerinformationen fehlen. Prüfen Sie vor dem Download erneut."],
-    ["Available memory could not be read. Detect again before downloading.", "无法读取当前可用内存，请重新检测后再下载。", "無法讀取目前可用記憶體，請重新偵測後再下載。", "現在の利用可能なメモリを取得できません。再検出してからダウンロードしてください。", "Der verfügbare Arbeitsspeicher konnte nicht gelesen werden. Prüfen Sie vor dem Download erneut."],
+    ["Some device or disk information is unavailable. You can still download and try loading a model.", "部分设备或磁盘信息无法读取，仍可下载并尝试加载模型。", "部分裝置或磁碟資訊無法讀取，仍可下載並嘗試載入模型。", "端末やディスクの情報を一部取得できません。モデルのダウンロードと読み込みを試せます。", "Einige Geräte- oder Datenträgerinformationen fehlen. Sie können ein Modell dennoch herunterladen und das Laden versuchen."],
+    ["Available memory could not be read. You can still download and try loading a model.", "无法读取当前可用内存，仍可下载并尝试加载模型。", "無法讀取目前可用記憶體，仍可下載並嘗試載入模型。", "現在の利用可能なメモリを取得できません。モデルのダウンロードと読み込みを試せます。", "Der verfügbare Arbeitsspeicher konnte nicht gelesen werden. Sie können ein Modell dennoch herunterladen und das Laden versuchen."],
     ["An existing healthy model is being reused.", "优先复用当前已健康运行的模型。", "優先重用目前正常執行的模型。", "正常に稼働している既存モデルを再利用します。", "Das bereits laufende, gesunde Modell wird wiederverwendet."],
     ["Q8_0 may respond more slowly on CPU.", "Q8_0 在 CPU 上响应可能更慢。", "Q8_0 在 CPU 上的回應可能較慢。", "CPU では Q8_0 の応答が遅くなる場合があります。", "Q8_0 kann auf der CPU langsamer antworten."],
     ["You can manually try this model, but automatic installation is not recommended.", "可手动试用此模型，但不建议自动安装。", "可手動試用此模型，但不建議自動安裝。", "手動で試用できますが、自動導入は推奨しません。", "Sie können dieses Modell manuell testen; eine automatische Installation wird jedoch nicht empfohlen."],
@@ -83,7 +87,7 @@
     ['Hardware recommendation: {model}. Complete the device checks before downloading.', '硬件推荐：{model}。请先完成设备检查，再下载模型。', '硬體建議：{model}。請先完成裝置檢查，再下載模型。', 'ハードウェアの推奨：{model}。ダウンロード前に端末の検査を完了してください。', 'Hardwareempfehlung: {model}. Schließen Sie vor dem Download die Geräteprüfung ab.'],
     ['Your computer does not meet the requirements for these local models.', '您的电脑配置暂不满足这些本地模型的运行要求。', '您的電腦配置暫不符合這些本機模型的執行需求。', 'このコンピューターは、これらのローカルモデルの動作要件を満たしていません。', 'Ihr Computer erfüllt die Anforderungen dieser lokalen Modelle nicht.'],
     ['Your computer configuration could not be fully detected. Please try again.', '暂时无法完整检测您的电脑配置，请重新检测。', '暫時無法完整偵測您的電腦配置，請重新偵測。', 'コンピューターの構成を完全に確認できませんでした。再度お試しください。', 'Die Computerkonfiguration konnte nicht vollständig ermittelt werden. Bitte erneut prüfen.'],
-    ['Device detection failed. Please try again.', '设备检测失败，请重新检测。', '裝置偵測失敗，請重新偵測。', '端末の検出に失敗しました。再度お試しください。', 'Die Geräteerkennung ist fehlgeschlagen. Bitte erneut prüfen.'],
+    ['Device detection failed. You can still download and try loading a model.', '设备检测失败，仍可下载并尝试加载模型。', '裝置偵測失敗，仍可下載並嘗試載入模型。', '端末の検出に失敗しました。モデルのダウンロードと読み込みを試せます。', 'Die Geräteerkennung ist fehlgeschlagen. Sie können ein Modell dennoch herunterladen und das Laden versuchen.'],
     ['You can also choose {model} to use fewer resources.', '也可选择 {model}，减少资源占用。', '也可選擇 {model}，減少資源用量。', 'リソース使用量を抑えるには {model} も選べます。', 'Für einen geringeren Ressourcenverbrauch können Sie auch {model} wählen.'],
     ['You can also try {model}, which uses more memory and runs more slowly on 16 GB devices.', '也可手动尝试 {model}，但在 16 GB 设备上内存占用更高、推理更慢。', '也可手動嘗試 {model}，但在 16 GB 裝置上記憶體用量更高、推理較慢。', '手動で {model} も試せますが、16 GB 端末ではメモリ使用量が増え、動作が遅くなります。', 'Sie können auch {model} testen; auf 16-GB-Geräten benötigt es mehr Speicher und läuft langsamer.'],
     ['Available memory or CPU threads are limited, so only {model} is enabled.', '当前可用内存或 CPU 线程受限，仅支持启用 {model}。', '目前可用記憶體或 CPU 執行緒受限，僅支援啟用 {model}。', '利用可能なメモリまたは CPU スレッドが限られているため、{model} のみ有効化できます。', 'Verfügbarer Speicher oder CPU-Threads sind begrenzt; daher ist nur {model} aktivierbar.'],
@@ -242,12 +246,18 @@
     button.disabled = working; button.onclick = detectDevice;
     heading.append(title, button); guide.append(heading);
     const advice = device?.advice;
+    const chosenAssessment = advice?.assessments?.find(item => item.id === currentChoiceModelId(data?.status));
     const recommended = advice?.modelName || (!advice ? modelName(device?.recommendation?.tier) : undefined);
     let message = 'Check your computer configuration to choose a local model.';
     if (detecting) message = 'Checking your computer configuration…';
-    else if (detectionFailed) message = 'Device detection failed. Please try again.';
+    else if (detectionFailed) message = 'Device detection failed. You can still download and try loading a model.';
+    else if (chosenAssessment?.manual === 'passed' && chosenAssessment.issues?.some(item => item.code === 'available_memory_below_recommended')) message = 'Q4 can be downloaded and tried manually on this Mac. Available memory is below the automatic recommendation.';
+    else if (chosenAssessment?.download && chosenAssessment.download !== 'failed' && chosenAssessment.manual === 'failed') message = 'You can download this model now. Check the resource details before loading it.';
     else if (advice?.state === 'not_recommended') message = 'Local models are not recommended for this computer. You can use cloud models without downloading one.';
-    else if (advice?.state === 'deferred') message = 'Local download is not recommended right now. Check the resource details and detect again.';
+    else if (advice?.state === 'deferred') {
+      const assessment = advice.assessments?.find(item => item.id === currentChoiceModelId(data?.status));
+      message = assessment?.manual === 'unknown' ? 'Some device or disk information is unavailable. You can still download and try loading a model.' : 'Local download is not recommended right now. Check the resource details and detect again.';
+    }
     else if (device?.recommendation?.tier === 'none') message = 'Your computer does not meet the requirements for these local models.';
     else if (recommended) message = device.detection?.state === 'passed' ? 'Based on the check, your computer is suitable for {model}.' : 'Hardware recommendation: {model}. Complete the device checks before downloading.';
     else if (device) message = 'Your computer configuration could not be fully detected. Please try again.';
@@ -274,9 +284,12 @@
         guide.append(el('p', 'hint router-note', t('Available memory: {available} GiB; at least {required} GiB is needed.', { available: (issue.available / 2 ** 30).toFixed(1), required: (issue.required / 2 ** 30).toFixed(1) })));
         guide.append(el('p', 'hint router-note', t('Close some apps and detect again, or continue using cloud models.')));
       }
+      const memoryWarning = assessment?.issues?.find(item => item.code === 'available_memory_below_recommended');
+      if (memoryWarning) guide.append(el('p', 'hint router-note', t('Available memory: {available} GiB; {required} GiB is recommended for automatic use.', { available: (memoryWarning.available / 2 ** 30).toFixed(1), required: (memoryWarning.required / 2 ** 30).toFixed(1) })));
+      if (device.device?.system?.value?.os === 'darwin') guide.append(el('p', 'hint router-note', t('macOS memory includes free and reclaimable inactive pages. Unified memory is counted once.')));
       if (assessment?.issues?.some(item => item.code === 'gpu_memory_insufficient')) guide.append(el('p', 'hint router-note', t('Available GPU memory is low. Close GPU-intensive apps and detect again.')));
-      if (assessment?.issues?.some(item => item.code === 'available_memory_unknown')) guide.append(el('p', 'hint router-note', t('Available memory could not be read. Detect again before downloading.')));
-      if (assessment?.issues?.some(item => (item.code.endsWith('_unknown') && item.code !== 'available_memory_unknown') || item.code === 'backend_unconfirmed')) guide.append(el('p', 'hint router-note', t('Some required device or disk information is unavailable. Detect again before downloading.')));
+      if (assessment?.issues?.some(item => item.code === 'available_memory_unknown') && assessment.manual !== 'failed') guide.append(el('p', 'hint router-note', t('Available memory could not be read. You can still download and try loading a model.')));
+      if (assessment?.issues?.some(item => (item.code.endsWith('_unknown') && item.code !== 'available_memory_unknown') || item.code === 'backend_unconfirmed') && assessment.manual !== 'failed') guide.append(el('p', 'hint router-note', t('Some device or disk information is unavailable. You can still download and try loading a model.')));
       if (advice.state !== 'recommended' && assessment?.manual === 'passed') guide.append(el('p', 'hint router-note', t('You can manually try this model, but automatic installation is not recommended.')));
       if (assessment?.quantization === 'Q8_0' && assessment?.issues?.some(item => item.code === 'q8_acceleration_required')) guide.append(el('p', 'hint router-note', t('Q8_0 may respond more slowly on CPU.')));
       for (const candidate of advice.assessments || []) {
@@ -407,7 +420,7 @@
     if (['missing', 'failed', 'corrupt', 'architecture', 'version', 'layout'].includes(dependencies.state)) root.append(el('p', 'hint router-note', t('Enable the local model, then use Download and install to repair runtime dependencies.')));
     const buttons = el('div', 'request-choices local-model-actions');
     const assessment = device?.advice?.assessments?.find(item => item.id === choiceModelId);
-    const resourceBlocked = assessment && assessment.manual !== 'passed';
+    const resourceBlocked = (assessment?.download || assessment?.manual) === 'failed';
     const installDisabled = resourceBlocked || !choiceModelId || status.installation === 'downloading' || (choiceInstallation === 'installed' && ['ready', 'not_required'].includes(dependencies.state) && !['accelerator_install_failed', 'accelerator_not_installed'].includes(status.backend?.fallbackReason));
     for (const [name, endpoint, disabled, handler] of [
       ['Download and install', 'install', installDisabled, installModel],
@@ -546,7 +559,13 @@
       if (current !== connection) return;
       if (!result.device) throw new Error('missing_device_report');
       device = result.device;
-      if (!selectedModelId && !data?.status?.intent?.selected && device.advice?.state === 'recommended') selectedModelId = device.advice.modelID;
+      if (!selectedModelId && !data?.status?.intent?.selected) {
+        if (device.advice?.state === 'recommended') selectedModelId = device.advice.modelID;
+        else if (device.device?.system?.value?.os === 'darwin') {
+          const q4 = device.advice?.assessments?.find(item => item.quantization === 'Q4_K_M' && ['passed', 'unknown'].includes(item.download));
+          if (q4) selectedModelId = q4.id;
+        }
+      }
     } catch { if (current === connection) detectionFailed = true; }
     finally { if (current === connection) { working = false; detecting = false; render(); } }
   }
@@ -578,6 +597,11 @@
     const choiceModelId = currentChoiceModelId(data?.status);
     working = true; render(); $('#localModelError').textContent = '';
     try {
+      const assessment = device?.advice?.assessments?.find(item => item.id === choiceModelId);
+      if (assessment?.download && assessment.download !== 'failed' && assessment.manual === 'failed') {
+        await request('install', { model: choiceModelId });
+        return;
+      }
       if (choiceModelId && !data?.status?.intent?.enabled && choiceModelId !== data?.status?.intent?.selected) {
         const selected = await request('select', { model: choiceModelId });
         if (selected?.status) data.status = selected.status;

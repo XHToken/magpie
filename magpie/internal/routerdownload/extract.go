@@ -66,11 +66,8 @@ func Extract(ctx context.Context, a routermanifest.Artifact, archivePath, destin
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	available, err := freeBytes(filepath.Dir(destinationDir))
-	if err != nil {
-		return fmt.Errorf("check extraction space: %w", err)
-	}
-	if uint64(a.ExpandedBytes) > available {
+	available, spaceErr := freeBytes(filepath.Dir(destinationDir))
+	if spaceErr == nil && uint64(a.ExpandedBytes) > available {
 		return ErrDiskSpace
 	}
 	stage, err := os.MkdirTemp(filepath.Dir(destinationDir), "."+filepath.Base(destinationDir)+".extract-")

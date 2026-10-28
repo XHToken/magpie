@@ -212,7 +212,7 @@ func TestDownloadCancellationPreservesPrimaryPartialWithoutFailover(t *testing.T
 }
 
 func TestDownloadDoesNotFailOverForLocalFailuresOrCancellation(t *testing.T) {
-	for _, failure := range []string{"disk-space", "disk-probe", "metadata", "cancel"} {
+	for _, failure := range []string{"disk-space", "metadata", "cancel"} {
 		t.Run(failure, func(t *testing.T) {
 			a := modelArtifact([]byte("fixed model"))
 			var calls atomic.Int32
@@ -224,8 +224,6 @@ func TestDownloadDoesNotFailOverForLocalFailuresOrCancellation(t *testing.T) {
 			switch failure {
 			case "disk-space":
 				d.FreeBytes = func(string) (uint64, error) { return 0, nil }
-			case "disk-probe":
-				d.FreeBytes = func(string) (uint64, error) { return 0, errors.New("disk probe failed") }
 			case "metadata":
 				if err := os.WriteFile(dest+".part.json", []byte("invalid JSON"), 0o600); err != nil {
 					t.Fatal(err)

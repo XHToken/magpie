@@ -60,7 +60,10 @@ from either source, must pass the original size and SHA256 checks.
 
 Remote transfer or integrity failures advance to the next source under the
 same download lock. User cancellation and local filesystem/disk failures stop
-the job. Source switches restart that artifact from byte zero and clear its
+the job. An unreadable free-space probe is advisory and allows download,
+extraction and assembly to proceed; a confirmed space shortfall still blocks,
+and actual write/flush failures still stop the job. Source switches restart
+that artifact from byte zero and clear its
 validators; a later explicit retry first resumes the persisted source if it
 still belongs to the compiled source list with matching size/hash pins.
 Installation progress reports the actual source hostname. See the
@@ -69,11 +72,21 @@ Installation progress reports the actual source hostname. See the
 Model labels use `Model.DisplayName`, independently of the shared `4B` hardware
 tier. The service consumes per-quantization advice described in the
 [device reference](wefto-device.md#product-quantization-advice), including
-safe manual overrides and separate resource/volume checks. Installation plans
+safe manual overrides and separate resource/volume checks. Explicit actions
+accept unknown observations for explicit download/enable/load attempts while
+retaining confirmed shortage and unsupported-runtime rejections. Automatic
+recommendations still require known passing observations. Installation plans
 credit only verified model/template/runtime caches and deduplicate shared
 component artifacts. Each destination volume gets its own peak requirement
 plus `max(2 GiB, 10%)` margin; Q4 never inherits Q8's larger weight reservation.
 Complete installed models can be reused without requiring fresh-download space.
+On macOS, explicit installation uses the device assessment's `download` state,
+independent of inference memory/CPU headroom. A download-only request does not
+enable the model. Enable/load and restored enabled intent use `manual` instead:
+Q4 may be explicitly tried from 4 GiB available memory, while automatic advice
+still uses 8 GiB. Q8 budgets and the 64K runtime context remain unchanged. These
+policy estimates do not guarantee that a Mac can allocate the actual working
+set; runtime loading, health and performance checks remain authoritative.
 Selection, loading, CPU/GPU choice, queueing and capability gates are shared;
 Native X2.6 inference
 and purpose-specific quality still require actual model acceptance.

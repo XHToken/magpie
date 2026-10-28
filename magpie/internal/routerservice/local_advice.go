@@ -182,8 +182,15 @@ func (l *LocalModels) admitModel(ctx context.Context, id, operation string, cpuO
 		return errors.New("device_check_not_passed")
 	}
 	assessment, ok := report.Advice.Model(id)
-	if !ok || assessment.Manual != routerdevice.CheckPassed {
+	if !ok || !allowsModelOperation(assessment, operation) {
 		return errors.New("device_check_not_passed")
 	}
 	return ctx.Err()
+}
+
+func allowsModelOperation(assessment routerdevice.ModelAssessment, operation string) bool {
+	if operation == "install" {
+		return assessment.AllowsDownload()
+	}
+	return assessment.AllowsManual()
 }

@@ -32,7 +32,14 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     for (const key of ['XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'APPDATA', 'LOCALAPPDATA']) {
       env[key] = path.join(home, key);
     }
-    const loomyRoot = path.join(home, 'loomy-config');
+    // Exercise Loomy's native default discovery, including macOS's actual
+    // ~/.config/loomy-opencode layout, rather than hiding it behind an override.
+    env.PUBLIC = path.join(home, 'Public');
+    delete env.LOOMY_CONFIG_DIR;
+    delete env.LOOMY_OPENCODE_DIR;
+    const loomyRoot = process.platform === 'win32'
+      ? path.join(env.PUBLIC, 'Loomy', 'fixture-identity', 'opencode')
+      : path.join(home, '.config', 'loomy-opencode');
     const workBuddyRoot = path.join(home, 'workbuddy-config');
     await fs.mkdir(loomyRoot, { recursive: true });
     await fs.mkdir(workBuddyRoot, { recursive: true });
@@ -40,7 +47,6 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     const initialWbSettings = JSON.stringify({ model: 'original-wb-model', theme: 'dark' }, null, 2);
     await fs.writeFile(path.join(loomyRoot, 'opencode.json'), initialLoomyJson, 'utf8');
     await fs.writeFile(path.join(workBuddyRoot, 'settings.json'), initialWbSettings, 'utf8');
-    env.LOOMY_CONFIG_DIR = loomyRoot;
     env.WORKBUDDY_CONFIG_DIR = workBuddyRoot;
 
     const layout = JSON.parse(execFileSync(binary, ['dirs'], { env, encoding: 'utf8' }));

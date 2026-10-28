@@ -163,8 +163,35 @@ func autoHostConfigRoot(host string) (string, error) {
 }
 
 func discoverLoomyConfigRoot() (string, error) {
+	return discoverLoomyConfigRootForOS(runtime.GOOS)
+}
+
+func discoverLoomyConfigRootForOS(goos string) (string, error) {
+	if goos != "windows" {
+		// Loomy's getOpenCodeDir uses this fixed home-relative directory on
+		// macOS/Linux, independently of Electron userData and XDG_CONFIG_HOME.
+		home, err := os.UserHomeDir()
+		if err != nil || strings.TrimSpace(home) == "" {
+			return "", errors.New("Loomy configuration directory cannot be determined; set LOOMY_CONFIG_DIR")
+		}
+		root, err := cleanAutoRoot(filepath.Join(home, ".config", "loomy-opencode"))
+		if err != nil {
+			return "", err
+		}
+		st, err := os.Stat(filepath.Join(root, "opencode.json"))
+		if err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				return "", errors.New("Loomy configuration directory cannot be inspected; set LOOMY_CONFIG_DIR")
+			}
+			return "", errors.New("Loomy configuration directory was not found; set LOOMY_CONFIG_DIR to its opencode directory")
+		}
+		if !st.Mode().IsRegular() {
+			return "", errors.New("Loomy configuration directory does not contain opencode.json; set LOOMY_CONFIG_DIR to the installed Loomy directory")
+		}
+		return root, nil
+	}
 	public := strings.TrimSpace(os.Getenv("PUBLIC"))
-	if public == "" && runtime.GOOS == "windows" {
+	if public == "" {
 		if home, err := os.UserHomeDir(); err == nil {
 			public = filepath.Join(filepath.Dir(home), "Public")
 		}

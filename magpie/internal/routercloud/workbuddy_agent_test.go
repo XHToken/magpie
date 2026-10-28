@@ -151,6 +151,9 @@ func TestWorkBuddyHistoryMetadataInputStaysRoleAwareAndStrict(t *testing.T) {
 	}
 	for _, role := range []string{"system", "user", "developer"} {
 		for _, field := range append(shared, "reasoning", "argumentsDisplayText") {
+			if role == "user" && field == "conversationRequestId" {
+				continue // WorkBuddy also stamps the current user prompt.
+			}
 			body, _ := json.Marshal(map[string]any{"messages": []any{map[string]any{"role": role, "content": "hello", field: "unverified-role"}}})
 			workBuddyAssertInvalidMetadataZeroOutbound(t, body)
 		}

@@ -21,9 +21,16 @@ A model appearing in the menu does not establish a usable Router binding.
   managed OpenCode extension; [`loomy_title.go`](../../internal/routerservice/loomy_title.go)
   owns the title request policy at the Router entry.
 
-Automatic discovery uses `LOOMY_CONFIG_DIR`/`LOOMY_OPENCODE_DIR`, or exactly one
-`%PUBLIC%/Loomy/<identity>/opencode` directory containing `opencode.json`.
-Multiple candidates require an explicit directory. `POST /api/hosts/loomy`
+Automatic discovery uses `LOOMY_CONFIG_DIR`/`LOOMY_OPENCODE_DIR` first. Otherwise,
+macOS and Linux use `~/.config/loomy-opencode`, matching Loomy's
+`electron/config-path.js:getOpenCodeDir` (verified against client revision
+`63b5ff24a`). This path is independent of `XDG_CONFIG_HOME` and Electron's
+`userData` directory. Windows uses exactly one
+`%PUBLIC%/Loomy/<identity>/opencode` directory. Discovery requires an existing
+`opencode.json`; it never creates a missing installation or adopts standalone
+OpenCode's `~/.config/opencode`. Multiple Windows candidates require an explicit
+directory. The same discovery supplies connect, status, disconnect and startup
+port synchronization. `POST /api/hosts/loomy`
 remains a separate explicit-directory preview/apply/restore API with matching
 preview digests; it does not edit the Profile automatically.
 
@@ -153,6 +160,13 @@ to request records.
 Run Go suites for `internal/routerhost`, `internal/routerconfig`,
 `internal/routerrequest` and `internal/routerservice`, and
 `internal/routerservice/tests/agents.test.cjs` with Chromium and WebKit.
+`loomy_discovery_test.go` covers macOS/Linux/Windows discovery, Unicode and spaces
+in home paths, explicit overrides, missing files and ambiguous Windows identities.
+`TestLoomyAutoHostDefaultRootLifecycle` exercises the native platform's default
+directory with no explicit override: group/model connect, reconnect, read-only
+status, startup target discovery and exact disconnect restoration. Run it on
+macOS for native verification; forcing the discovery branch on Windows does not
+replace that check.
 Consistency tests reproduce orphaned menus, nonexistent groups and Profile-write
 rollback. Host tests cover retirement, exact backups and failed disconnects.
 Browser tests check failed clears and stale Profiles in all five UI languages.

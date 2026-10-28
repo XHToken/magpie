@@ -3,6 +3,7 @@ package routerredact
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/yetone/magpie/internal/cloudcodec"
 	"io"
 	"sort"
 	"strconv"
@@ -90,7 +91,9 @@ func (d *textDocument) content(o map[string]any, key string, p Protocol) error {
 			return fail("wire_unsupported")
 		}
 		if p == Chat {
-			d.protectField(block, "extra_fields", "host:content")
+			for _, field := range cloudcodec.ChatContentMetadataFieldNames() {
+				d.protectField(block, field, "host:content")
+			}
 		}
 		switch block["type"] {
 		case "text", "input_text", "output_text", "summary_text", "reasoning_text":

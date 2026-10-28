@@ -131,7 +131,7 @@ func (l *LocalModels) autoLoadInstalled(ctx context.Context) {
 	var target routermanifest.Model
 	for _, model := range installed {
 		assessment, ok := report.Advice.Model(model.ID)
-		if ok && strings.EqualFold(model.ID, status.Intent.Selected) && status.Intent.Enabled && assessment.Manual == routerdevice.CheckPassed {
+		if ok && strings.EqualFold(model.ID, status.Intent.Selected) && status.Intent.Enabled && assessment.AllowsManual() {
 			target = model
 			break
 		}
@@ -249,7 +249,7 @@ func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
 	admit := func(id, operation string) bool {
 		report := l.modelAdvice(ctx, operation, false)
 		if report.Advice != nil {
-			if candidate, ok := report.Advice.Model(id); ok && candidate.Manual == routerdevice.CheckPassed {
+			if candidate, ok := report.Advice.Model(id); ok && allowsModelOperation(candidate, operation) && ctx.Err() == nil {
 				return true
 			}
 		}
@@ -288,8 +288,8 @@ func localModelAPI(w http.ResponseWriter, r *http.Request, l *LocalModels) {
 			return
 		}
 
-		if input.Model != "" {
-			err = l.Manager.InstallModel(input.Model)
+		if input.Model != "" || !status.Intent.Enabled {
+			err = l.Manager.InstallModel(targetModelID)
 		} else {
 			err = l.Manager.Install()
 		}

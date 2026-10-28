@@ -46,6 +46,18 @@ func TestInstalledHostFieldContractPrivacyPreservesEveryField(t *testing.T) {
 
 func TestInstalledHostMetadataNeverBypassesPrivacyScan(t *testing.T) {
 	for _, field := range []string{
+		`"messages":[{"role":"user","content":"safe","goalStatus":{"kind":"set","text":"SyntheticHostSecret"}}]`,
+		`"messages":[{"role":"user","content":[{"type":"text","text":"safe","acpResourceLink":{"uri":"file:///fixture","name":"SyntheticHostSecret"}}]}]`,
+		`"extra_vars":{"growthEvent":"SyntheticHostSecret"},"messages":[{"role":"user","content":"safe"}]`,
+		`"messages":[{"role":"user","content":"safe","conversationRequestId":"SyntheticHostSecret"}]`,
+		`"messages":[{"role":"user","content":"safe","rootRequestId":"SyntheticHostSecret"}]`,
+		`"messages":[{"role":"user","content":"safe","queueItemId":"SyntheticHostSecret"}]`,
+		`"messages":[{"role":"user","content":"safe","scheduledTaskTrigger":{"prompt":"SyntheticHostSecret"}}]`,
+		`"messages":[{"role":"user","content":"safe","codebuddy.ai/turnCarrierCandidate":{"baggage":"SyntheticHostSecret"}}]`,
+		`"messages":[{"role":"assistant","content":"safe","blockingDetails":[{"reason":"SyntheticHostSecret"}]}]`,
+		`"messages":[{"role":"assistant","content":"safe","workflowSourceText":"SyntheticHostSecret"}]`,
+		`"messages":[{"role":"assistant","content":"safe","codebuddy.ai/sandboxRuleContext":{"causes":[{"SyntheticHostSecret":"fixture"}]}}]`,
+		`"messages":[{"role":"assistant","content":"safe","codebuddy.ai/skillApprovalDecision":{"policyId":"SyntheticHostSecret"}}]`,
 		`"user":"SyntheticHostSecret","messages":[{"role":"user","content":"safe"}]`,
 		`"promptCacheKey":"SyntheticHostSecret","messages":[{"role":"user","content":"safe"}]`,
 		`"messages":[{"role":"user","content":"safe","teammateMessage":{"nested":[{"SyntheticHostSecret":1}]}}]`,
