@@ -63,7 +63,7 @@
   </div>
   <h3>打开管理页面</h3>
   <ol class="steps">
-   <li><h4>从你安装的位置启动 Router</h4><p>仓库用户：在项目根目录双击 <code>start.cmd</code>，或运行下面的 PowerShell 命令。发布包用户：使用安装目录中的 <code>api-router.exe service start</code>。</p>
+   <li><h4>从你安装的位置启动 Router</h4><p>仓库用户：在项目根目录双击 <code>start.cmd</code>，或运行下面的 PowerShell 命令。发布包用户：使用安装目录中的 <code>wefto.exe service start</code>。</p>
     <pre><code>powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-project.ps1 -NoBrowser</code><button type="button" data-copy>复制</button></pre>
    </li>
    <li><h4>打开启动结果中的实际管理地址</h4><p>使用输出中的管理 URL / <code>managementURL</code>。服务默认尝试 <code>127.0.0.1:13145</code>，端口占用时会自动选择其他回环端口；以本次启动结果为准。</p></li>
@@ -182,7 +182,7 @@
   <ol class="steps">
    <li><h4>检查服务是否带实验性脱敏授权启动</h4><p>在“设置 → 服务管理”查看“启动时实验性脱敏”。如果未开启，先结束任务，在服务管理停止 Router，再用<b>同一安装位置、同一配置目录</b>的 EXE 重新启动，添加实验参数：</p>
     <pre><code># 将路径替换为“服务管理”中显示的当前运行程序完整路径
-&amp; 'C:\实际安装目录\api-router.exe' service start --experimental-redaction</code><button type="button" data-copy>复制</button></pre>
+&amp; 'C:\实际安装目录\wefto.exe' service start --experimental-redaction</code><button type="button" data-copy>复制</button></pre>
     <p>这是一条需替换路径的命令模板。页面停止后会断开，请使用重新启动返回的管理 URL。不要临时改用另一份测试 EXE 或其他配置目录。</p>
    </li>
    <li><h4>开启本地模型，在目标组打开“本地模型脱敏”</h4><p>组内应包含本地与云端成员，<b>第一个本地成员必须与当前开启模型一致</b>。编辑组，把“本地模型脱敏”设为“开”并保存；确保 Agent 和应用实际选择的是这个组。</p></li>
@@ -220,7 +220,7 @@
   <div class="note">修改或删除供应商、模型和组之后，重新检查 Agent 中的已选项。无效引用可能需要重新选择并连接；不要以为删掉组只影响路由页。</div>
  </section>
  <section class="end-card"><div class="eyebrow">READY FOR EVERYDAY USE</div><h2>先跑通，再组合，最后用记录验证。</h2><p>日常使用只需要：启动 Router → 打开应用 → 选择端云协同的模型或路由组。需要调整策略时再回管理页，遇到问题优先看请求详情。</p><p style="margin-top:12px"><a href="#provider">重看供应商配置</a>　·　<a href="#hybrid">重看端云协同</a>　·　<a href="#verify">重看核验方法</a></p></section>
- <footer class="footer"><div>端云协同新用户使用教程 · 按当前仓库界面与行为编写 · 更新于 2026-10-26</div><div>图示均为教学示意。独立文件不读取服务、账号或密钥；勾选记录仅用于自查，不代表系统自动验收。</div><details><summary>内容核对来源（随仓库阅读时可打开）</summary><ul><li><a href="../README.md">项目 README：启动与功能范围</a></li><li><a href="../magpie/internal/routerservice/assets/tutorial.js">内置教学：操作路径与功能边界</a></li><li><a href="../magpie/internal/routerservice/assets/provider.js">供应商页面与保存行为</a></li><li><a href="../magpie/internal/routerservice/assets/profiles.js">Agent 模型选择与接入</a></li><li><a href="../magpie/internal/routerservice/assets/routing-groups-editor.js">路由组编辑与端云策略显示条件</a></li><li><a href="../magpie/docs/subsystems/api-router-runtime.md">本地模型运行说明</a> · <a href="../magpie/docs/subsystems/api-router-redaction.md">脱敏说明</a> · <a href="../magpie/docs/windows-delivery.md">Windows 安装与恢复</a></li></ul></details></footer>
+ <footer class="footer"><div>端云协同新用户使用教程 · 按当前仓库界面与行为编写 · 更新于 2026-10-28</div><div>图示均为教学示意。独立文件不读取服务、账号或密钥；勾选记录仅用于自查，不代表系统自动验收。</div><details><summary>内容核对来源（随仓库阅读时可打开）</summary><ul><li><a href="../README.md">项目 README：启动与功能范围</a></li><li><a href="../magpie/internal/routerservice/assets/tutorial.js">内置教学：操作路径与功能边界</a></li><li><a href="../magpie/internal/routerservice/assets/provider.js">供应商页面与保存行为</a></li><li><a href="../magpie/internal/routerservice/assets/profiles.js">Agent 模型选择与接入</a></li><li><a href="../magpie/internal/routerservice/assets/routing-groups-editor.js">路由组编辑与端云策略显示条件</a></li><li><a href="../magpie/docs/subsystems/wefto-runtime.md">本地模型运行说明</a> · <a href="../magpie/docs/subsystems/wefto-redaction.md">脱敏说明</a> · <a href="../magpie/docs/windows-delivery.md">Windows 安装与恢复</a></li></ul></details></footer>
 </main>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <script>
