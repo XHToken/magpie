@@ -38,6 +38,11 @@ throwing during authenticated refresh and marking a healthy service offline.
 The routing-group editor omits model-match pattern controls. New groups submit
 empty `match`/`patterns` lists; editing an existing group preserves its stored
 patterns. Backend pattern support remains available through the API.
+Model-list visibility is displayed as a fixed "Group only" value without a
+toggle. Creating, pinning or editing a group through the editor saves
+`unlists: true` (`hideMembers: true` for API compatibility), so members are not
+listed individually in agent model pickers. Existing groups adopt this setting
+when saved through the editor.
 
 Usage destinations, cloud savings, internal calls, diagnostics and retention use
 the same responsive cards and detailed usage tables. Missing usage remains

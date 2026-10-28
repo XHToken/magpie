@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="端云协同新用户操作教程：供应商、Agent 接入、路由组、本地模型、端云协同、脱敏与请求核验。">
+<title>端云协同 · 从第一次连接到端云协同</title>
+<style>
+:root{--bg:#f5f7fa;--paper:#fff;--ink:#172a3a;--muted:#617385;--line:#dfe6ed;--blue:#245edb;--pale:#edf3ff;--green:#147c65;--greenbg:#edf8f3;--amber:#895a14;--amberbg:#fff7e8;--radius:18px}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:28px}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.85 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}a{color:var(--blue);text-underline-offset:4px}button,input,select{font:inherit}button,a,input,select,summary{-webkit-tap-highlight-color:transparent}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #7ea9ff;outline-offset:4px}button{border:1px solid var(--line);background:white;color:var(--ink);border-radius:10px;padding:8px 15px}button:hover{border-color:#8aa9e9}button.primary,.cta{background:var(--blue);color:#fff;border-color:var(--blue)}.cta{display:inline-block;text-decoration:none;border-radius:10px;padding:10px 20px;font-weight:650}.small{font-size:12px;color:var(--muted)}.muted{color:var(--muted)}.eyebrow{font-size:11px;letter-spacing:2px;font-weight:750;color:var(--blue);text-transform:uppercase}.brand{display:flex;align-items:center;gap:12px;font-size:19px;font-weight:750;letter-spacing:-.5px}.logo{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:var(--ink);color:white;font-size:23px}.sidebar{position:fixed;inset:0 auto 0 0;width:252px;background:#fff;padding:30px 22px;z-index:5;display:flex;flex-direction:column;border-right:1px solid var(--line)}.sidebar .small{margin:9px 0 28px}.nav-title{font-size:11px;letter-spacing:1.6px;color:var(--muted);margin-bottom:12px}.sidebar nav{overflow:auto}.sidebar nav a{display:flex;align-items:center;gap:13px;padding:9px 11px;margin:3px 0;border-radius:9px;text-decoration:none;color:var(--muted);font-size:13px}.sidebar nav a span{font:11px/1.5 ui-monospace,monospace;color:#8e9bac}.sidebar nav a:hover,.sidebar nav a.active{background:var(--pale);color:var(--blue)}.side-footer{margin-top:auto;padding-top:24px;font-size:12px;color:var(--muted)}.side-footer progress{display:block;width:100%;height:6px;margin:12px 0;accent-color:var(--green)}.side-footer button{padding:4px 0;background:none;border:0;color:var(--muted);font-size:12px}.main{margin-left:252px;padding:34px 52px 70px;max-width:1410px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:30px;font-size:12px;color:var(--muted)}.topbar button{padding:5px 13px;font-size:12px}.pill{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:30px;padding:3px 10px;background:white;font-size:11px;color:var(--muted);line-height:1.7}.hero{background:#eaf0fc;border:1px solid #dce6fa;border-radius:24px;position:relative;overflow:hidden;padding:44px 40px}.hero:after{content:"R";position:absolute;right:15px;top:5px;font-weight:900;font-size:240px;line-height:1;color:#245edb08;pointer-events:none}.hero h1{font-size:clamp(30px,3.2vw,46px);letter-spacing:-1.8px;line-height:1.35;margin:14px 0 16px;position:relative;z-index:1}.hero p{max-width:660px;color:#4c607a;margin:0 0 22px}.hero-actions{display:flex;align-items:center;gap:15px;flex-wrap:wrap}.hero .pill{background:#ffffff9c}.roadmap{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0 24px}.roadmap a{text-decoration:none;background:white;border:1px solid var(--line);padding:16px;border-radius:12px;color:var(--ink)}.roadmap b{display:block;font-size:13px}.roadmap span{display:block;font-size:11px;color:var(--muted)}.roadmap em{font-style:normal;color:var(--blue);font-size:11px}.intro{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:44px}.tile{background:white;border:1px solid var(--line);border-radius:13px;padding:20px}.tile h3{margin:0 0 7px;font-size:15px}.tile p{margin:0;color:var(--muted);font-size:13px}.section{margin:0 0 26px;padding:32px 34px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);scroll-margin-top:24px}.section-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:17px}.number{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:13px;background:var(--pale);color:var(--blue);font-size:18px;font-weight:700;letter-spacing:-1px}.section h2{font-size:25px;line-height:1.4;letter-spacing:-.6px;margin:0 0 4px}.section-head p{font-size:12px;margin:0;color:var(--muted)}h3{font-size:17px;line-height:1.5;margin:26px 0 10px}h4{font-size:14px;margin:0 0 5px}p{margin:10px 0 15px}.path{display:inline-block;font-size:12px;font-weight:650;color:var(--blue);background:var(--pale);padding:3px 10px;border-radius:7px;margin-bottom:7px}.steps{list-style:none;counter-reset:step;padding:0;margin:20px 0}.steps>li{counter-increment:step;position:relative;padding:0 0 20px 39px}.steps>li:last-child{padding-bottom:0}.steps>li:before{content:counter(step);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#f0f3f7;color:#506379;font-size:12px;font-weight:700}.steps>li p{font-size:14px;color:#526477;margin:3px 0 0}.note{padding:13px 17px;border-radius:10px;font-size:13px;background:var(--pale);border-left:3px solid #6994eb;margin:17px 0}.note.good{background:var(--greenbg);border-color:#4caa88;color:#225d4e}.note.warn{background:var(--amberbg);border-color:#dfae57;color:var(--amber)}.note b{color:inherit}.complete{display:flex;align-items:flex-start;gap:10px;background:#f7faf9;border:1px solid #dbece5;border-radius:11px;padding:12px 15px;font-size:13px;margin-top:22px;cursor:pointer}.complete input{margin:6px 0 0;flex:none;width:16px;height:16px;accent-color:var(--green)}.complete:has(input:checked){background:var(--greenbg)}code{font:12.5px/1.7 Consolas,"SFMono-Regular",monospace;background:#edf1f6;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{position:relative;background:#182938;color:#e4edf6;padding:22px 76px 22px 20px;border-radius:11px;margin:12px 0 15px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}pre code{color:inherit;background:none;padding:0;font-size:12px}pre button{position:absolute;right:10px;top:10px;font-size:11px;padding:2px 9px;background:#2a3d4e;color:#e4edf6;border-color:#3b5061}.table-wrap{overflow:auto;margin:14px 0}table{width:100%;border-collapse:collapse;min-width:530px;font-size:13px}th{text-align:left;color:#526477;background:#f6f8fb;font-size:12px}td,th{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}td:first-child{font-weight:650;white-space:nowrap}td p{margin:0}td code{font-size:11px}.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{padding:20px;border:1px solid var(--line);border-radius:13px;background:#fbfcfe}.panel h3{margin:0 0 12px;font-size:15px}.panel ul{padding-left:18px;font-size:13px;margin:8px 0}.panel p{font-size:13px}.mock{border:1px solid #cfdbea;border-radius:14px;overflow:hidden;background:#fbfcfe;margin:18px 0}.mock-title{display:flex;align-items:center;justify-content:space-between;padding:10px 17px;background:#eef3fa;border-bottom:1px solid #dce5f0;font-size:12px;font-weight:650}.mock-body{padding:20px}.mock-row{display:grid;grid-template-columns:120px 1fr;gap:16px;align-items:center;font-size:12px;margin:11px 0}.mock-value{border:1px solid #dbe3ed;background:white;padding:7px 12px;border-radius:7px;overflow-wrap:anywhere}.chip{display:inline-block;font-size:11px;background:#e8effd;color:var(--blue);padding:2px 9px;border-radius:6px;margin:2px 3px 2px 0}.chip.local{background:#e5f4ed;color:var(--green)}.chip.selected{background:var(--blue);color:white}.mock-caption{font-size:11px;color:var(--muted);padding:0 20px 13px}.flow{display:flex;align-items:center;justify-content:center;gap:12px;padding:21px 10px;flex-wrap:wrap}.flow-node{background:#f0f4fb;border:1px solid #dce5f1;border-radius:12px;padding:13px 20px;font-size:13px;text-align:center}.flow-node b,.flow-node small{display:block}.flow-node small{font-size:11px;color:var(--muted)}.flow-arrow{color:#7d91a7;font-size:22px}.flow-branches{display:flex;flex-direction:column;gap:8px}.flow-branches .flow-node{padding:8px 20px}.flow-branches .local{background:var(--greenbg);border-color:#cde8dc}.lab{background:#172d43;border-radius:17px;color:#eaf2fb;padding:24px;margin:22px 0}.lab h3{margin:0 0 4px;color:#fff;font-size:18px}.lab .small{color:#aac0d6}.lab-controls{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin:18px 0}.lab label{font-size:12px}.lab select{display:block;max-width:100%;width:100%;background:#233e57;color:#fff;border:1px solid #45617b;border-radius:8px;padding:9px;margin-top:6px}.lab-output{padding:18px;border:1px solid #45617b;border-radius:11px;background:#203b53}.lab-output b{display:block;color:#a5e7d1;font-size:17px;margin-bottom:4px}.lab-output p{font-size:13px;color:#c4d5e7;margin:0}.lab-result-route{display:flex;align-items:center;flex-wrap:wrap;gap:7px;font-size:12px;margin-bottom:12px;color:#aac0d6}.lab-result-route span{padding:4px 9px;border:1px solid #45617b;border-radius:6px}.lab-result-route .on{background:#2b6b5b;border-color:#65b89c;color:#d9fff2}.lab-result-route .cloud-on{background:#2e5583;border-color:#7dacec;color:white}.faq details{border-bottom:1px solid var(--line);padding:14px 0}.faq summary{font-weight:650;font-size:14px;cursor:pointer;list-style-position:outside;margin-left:17px}.faq details p{font-size:13px;color:#526477;margin:10px 0 3px 17px}.faq details[open] summary{color:var(--blue)}.end-card{padding:28px 32px;border:1px solid #cfe4dc;background:var(--greenbg);border-radius:18px}.end-card h2{font-size:23px;margin:0 0 10px}.end-card p{font-size:13px;color:#3c6c5c;margin:0}.footer{padding:27px 4px 0;font-size:11px;color:var(--muted)}.footer details{margin-top:14px}.footer li{margin:4px 0}.footer a{color:#607694}.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#172a3a;color:white;border-radius:10px;padding:10px 20px;z-index:10;font-size:13px;box-shadow:0 5px 25px #172a3a25}.skip{position:fixed;top:-100px;left:270px;z-index:20;background:#fff;padding:10px}.skip:focus{top:10px}[hidden]{display:none!important}.mobile-index{display:none}ul{padding-left:22px}.scenario{border-left:3px solid #9bb7ed;padding:2px 0 2px 17px;margin:15px 0;font-size:13px;color:#526477}.scenario b{display:block;color:var(--ink)}.nowrap{white-space:nowrap}
+@media(min-width:1450px){.main{margin-left:max(252px,calc((100vw - 1400px)/2 + 252px))}.sidebar{width:max(252px,calc((100vw - 1400px)/2 + 252px));padding-left:max(22px,calc((100vw - 1400px)/2 + 22px))}}
+@media(max-width:1100px){.main{padding:28px 28px 50px}.sidebar{width:218px;padding:26px 16px}.main{margin-left:218px}.roadmap{grid-template-columns:1fr 1fr}.section{padding:27px}.hero{padding:32px}.two-col{grid-template-columns:1fr}}
+@media(max-width:760px){html{scroll-padding-top:16px}.sidebar{display:none}.main{margin-left:0;padding:18px 16px 40px}.topbar{margin-bottom:17px;align-items:flex-start}.topbar>span{max-width:62%}.hero{padding:28px 24px;border-radius:18px}.hero h1{font-size:32px;letter-spacing:-1px}.hero p{font-size:13px}.hero:after{font-size:190px;right:-10px;top:30px}.section{padding:23px 20px}.section h2{font-size:22px}.intro,.two-col{grid-template-columns:1fr}.intro{gap:10px;margin-bottom:24px}.roadmap{gap:9px}.roadmap a{padding:13px}.section-head{gap:12px}.number{width:37px;height:37px;font-size:16px}.mock-body{padding:12px 16px}.mock-row{grid-template-columns:90px 1fr;gap:8px}.mock-row code{font-size:10px}.mock-title .pill{display:none}.lab{padding:19px}.lab-controls{grid-template-columns:1fr}.mobile-index{display:block;background:white;border:1px solid var(--line);border-radius:12px;padding:13px 16px;margin-bottom:18px}.mobile-index summary{font-size:13px;font-weight:650;cursor:pointer}.mobile-index nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:12px}.mobile-index a{font-size:12px;text-decoration:none}.skip{left:15px}.flow{gap:7px;padding:17px 0}.flow-node{padding:10px 12px;font-size:12px}.flow-branches .flow-node{padding:7px 10px}pre{padding-top:43px}.end-card{padding:24px}.toast{width:max-content;max-width:90vw}.hero-actions .small{font-size:11px}}
+@media(max-width:760px){html{scroll-behavior:auto}.hero h1{font-size:clamp(23px,7vw,30px)}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11px;color:#111}.sidebar,.topbar button,.mobile-index,.hero-actions,.complete,pre button,.toast,.skip,.lab-controls{display:none!important}.main{margin:0;max-width:none;padding:0}.hero{padding:20px;background:#f1f4f9}.hero h1{font-size:28px}.section{padding:20px;margin-bottom:15px;border-color:#ddd;break-inside:auto}.section h2{font-size:20px}.number{width:32px;height:32px}.section-head,h3,.note,.mock,.lab,.complete,.panel,.roadmap a{break-inside:avoid}h2,h3,h4{break-after:avoid}table{min-width:0;font-size:10px}.table-wrap{overflow:visible}a{color:#173a6b}.lab{background:#f2f5f8;color:#17304b;border:1px solid #ccd6df}.lab h3{color:#17304b}.lab-output{background:white;border-color:#bbc8d4}.lab-output b,.lab-output p,.lab .small{color:#17304b}.lab-result-route{display:none}.roadmap{margin:14px 0}.intro{margin-bottom:20px}.footer{font-size:9px}pre{background:#f1f4f7;color:#162a3c;border:1px solid #d5dce4}details>*{display:block}summary{list-style:none}.end-card{background:#f2f7f4}*{box-shadow:none!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">跳到教程正文</a>
+<aside class="sidebar" aria-label="教学目录">
+ <div class="brand"><span class="logo" aria-hidden="true">R</span>端云协同</div>
+ <p class="small">新用户操作手册 / 中文版</p>
+ <div class="nav-title">LEARN BY DOING · 跟着做</div>
+ <nav id="chapterNav">
+  <a href="#start"><span>01</span>启动与准备</a>
+  <a href="#provider"><span>02</span>配置供应商</a>
+  <a href="#agent"><span>03</span>接入你的应用</a>
+  <a href="#group"><span>04</span>配置路由组</a>
+  <a href="#local"><span>05</span>安装本地模型</a>
+  <a href="#hybrid"><span>06</span>开启端云协同</a>
+  <a href="#redaction"><span>07</span>试用本地脱敏</a>
+  <a href="#verify"><span>08</span>查看请求与用量</a>
+  <a href="#help"><span>09</span>排错、停用与还原</a>
+ </nav>
+ <div class="side-footer"><b id="progressText">已核验 0 / 8 项</b><progress id="progress" max="8" value="0" aria-label="操作核验进度"></progress><div>完成每章操作后手动勾选。<br>进度只保存在当前浏览器。</div><button id="resetProgress" type="button">重置勾选记录</button></div>
+</aside>
+<main class="main" id="main">
+ <div class="topbar"><span>使用教程 <span aria-hidden="true">/</span> 端云协同入门到实践</span><button id="printGuide" type="button">打印 / 保存为 PDF</button></div>
+ <details class="mobile-index"><summary>展开教学目录</summary><nav id="mobileNav"></nav><p class="small" id="mobileProgress">已核验 0 / 8 项</p></details>
+ <header class="hero">
+  <div class="eyebrow">THE PRACTICAL GUIDE</div>
+  <h1>让第一条 AI 请求跑通，<br>再学会端云协同。</h1>
+  <p>从添加供应商到连接 WorkBuddy / Loomy，再把云端和本地模型组合成路由组。每一章都告诉你：去哪里、填什么、做完怎样确认。</p>
+  <div class="hero-actions"><a class="cta" href="#start">开始配置 <span aria-hidden="true">↗</span></a><a href="#hybrid">直达端云协同</a><span class="pill">离线可读 · 单文件 HTML</span></div>
+ <p class="small">项目统一名称为“端云协同”。命令、发布包和配置路径沿用兼容的技术标识；旧版程序请升级后使用新名称。</p></header>
+ <div class="roadmap" aria-label="学习路线">
+  <a href="#provider"><em>STEP 01</em><b>连上云端</b><span>准备 API Key，保存供应商</span></a>
+  <a href="#agent"><em>STEP 02</em><b>跑通应用</b><span>选择模型，完成第一条请求</span></a>
+  <a href="#group"><em>STEP 03</em><b>组合路由</b><span>添加主备模型，选分配策略</span></a>
+  <a href="#hybrid"><em>STEP 04</em><b>升级端云协同</b><span>安装本地模型，验证分流</span></a>
+ </div>
+ <div class="intro">
+  <article class="tile"><h3>第一次使用怎么读？</h3><p>先完成第 1–3 章，确认一个云端模型能回答；再做第 4–6 章。只需要云端服务时，可以跳过本地安装与脱敏。</p></article>
+  <article class="tile"><h3>准备好这三样</h3><p>已安装或已构建的端云协同、供应商签发的 API Key 与基础地址，以及已启动过一次的 WorkBuddy 或 Loomy。</p></article>
+ </div>
+
+ <section class="section" id="start" aria-labelledby="startTitle">
+  <div class="section-head"><span class="number">01</span><div><h2 id="startTitle">启动与准备</h2><p>目标：打开正确的管理页面，认识配置顺序。</p></div></div>
+  <p>端云协同运行在本机。你在管理页保存供应商和路由规则，应用再通过它调用实际模型。</p>
+  <div class="flow" aria-label="请求路径：应用经过端云协同，分流到本地或云端模型">
+   <div class="flow-node"><b>你的应用</b><small>WorkBuddy / Loomy</small></div><span class="flow-arrow" aria-hidden="true">→</span><div class="flow-node"><b>端云协同</b><small>供应商 · 模型 · 路由组</small></div><span class="flow-arrow" aria-hidden="true">→</span><div class="flow-branches"><div class="flow-node local">本地端侧模型</div><div class="flow-node">云端供应商模型</div></div>
+  </div>
+  <h3>打开管理页面</h3>
+  <ol class="steps">
+   <li><h4>从你安装的位置启动 Router</h4><p>仓库用户：在项目根目录双击 <code>start.cmd</code>，或运行下面的 PowerShell 命令。发布包用户：使用安装目录中的 <code>api-router.exe service start</code>。</p>
+    <pre><code>powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-project.ps1 -NoBrowser</code><button type="button" data-copy>复制</button></pre>
+   </li>
+   <li><h4>打开启动结果中的实际管理地址</h4><p>使用输出中的管理 URL / <code>managementURL</code>。服务默认尝试 <code>127.0.0.1:13145</code>，端口占用时会自动选择其他回环端口；以本次启动结果为准。</p></li>
+   <li><h4>确认页面已连接本机服务</h4><p>页面会自动连接管理接口。若显示断开，先确认服务运行，再点击“立即刷新”。在“网关 / Gateway”中可查看服务与监听地址。需要中文时，到“设置 → 语言”切换。</p></li>
+  </ol>
+  <div class="table-wrap"><table><thead><tr><th>你会看到的词</th><th>它负责什么</th><th>接下来怎么用</th></tr></thead><tbody>
+   <tr><td>供应商 Providers</td><td>提供云端模型的 API 平台</td><td>保存 Key、地址与协议</td></tr><tr><td>模型 Model</td><td>实际回答请求的模型</td><td>选供应商账号有权限使用的准确模型 ID</td></tr><tr><td>路由组 Routing group</td><td>把多个模型包装成一个调用入口</td><td>按主备、权重或端云策略分配请求</td></tr><tr><td>Agent / 应用</td><td>你实际聊天、写代码的宿主</td><td>选模型或组，打开接入开关</td></tr>
+  </tbody></table></div>
+  <div class="note">本教程是独立教学页面。请在另一个窗口打开真实管理页操作；示意卡片和分流演示不会连接服务。管理令牌与供应商 API Key 用途不同。</div>
+  <label class="complete"><input type="checkbox" data-check="start"><span>我已打开启动结果中的管理地址，并确认页面连接正常。</span></label>
+ </section>
+
+ <section class="section" id="provider" aria-labelledby="providerTitle">
+  <div class="section-head"><span class="number">02</span><div><h2 id="providerTitle">配置第一个供应商</h2><p>目标：把你有权限使用的云端模型加入候选列表。</p></div></div>
+  <div class="path">供应商 → ＋ 添加供应商 → 选择平台 / 自定义供应商</div>
+  <ol class="steps">
+   <li><h4>选择已开通 API 服务的平台</h4><p>优先选择对应预设；列表中没有的平台可选“自定义供应商”。确认密钥所属平台和地区，例如不同千问平台、地域的 Key 不能混用。聊天产品的会员账号不等于 API 凭证。</p></li>
+   <li><h4>填写名称、基础地址、协议与 API Key</h4><p>名称取一个方便识别的，例如“工作主用”。预设已给出的地址和协议，先核对再保留；自定义配置按供应商控制台或接口文档填写。</p></li>
+   <li><h4>点击“保存”，查看模型列表</h4><p>保存后会尝试获取并缓存模型；也可能显示内置预设或缓存列表。获取模型失败不会撤销已保存的供应商。列表只是候选项，下一章用真实请求验证生成权限。</p></li>
+  </ol>
+  <div class="mock" role="img" aria-label="供应商填写示意：工作主用，自定义供应商，基础地址为占位地址，协议为 OpenAI Chat Completions，密钥为掩码">
+   <div class="mock-title">供应商配置 · 填写示意<span class="pill">仅示意，不可提交</span></div>
+   <div class="mock-body"><div class="mock-row"><span>名称</span><div class="mock-value">工作主用</div></div><div class="mock-row"><span>API 地址</span><div class="mock-value"><code>https://api.example.com/v1</code></div></div><div class="mock-row"><span>协议</span><div class="mock-value">OpenAI Chat Completions</div></div><div class="mock-row"><span>API Key</span><div class="mock-value">••••••••••••••••••••</div></div></div>
+   <div class="mock-caption">example.com 是占位地址，请替换为你实际供应商的基础地址。密钥只在真实管理页中填写。</div>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th>字段</th><th>如何填写</th><th>容易填错的地方</th></tr></thead><tbody>
+   <tr><td>API 地址</td><td>填供应商给出的基础地址，保留要求的版本或平台路径</td><td>不要把末尾的 <code>/chat/completions</code>、<code>/messages</code> 当成基础地址一起粘贴</td></tr>
+   <tr><td>协议</td><td>在 Chat Completions、Responses、Anthropic Messages 中选对上游支持的类型</td><td>模型名称不能证明协议兼容；接口地址与协议要配套</td></tr>
+   <tr><td>API Key</td><td>填这个 API 平台签发且有模型权限的密钥</td><td>不要填本机管理令牌；编辑时留空会保留原密钥</td></tr>
+   <tr><td>高级设置</td><td>供应商明确要求时才填请求头、额外请求体或代理</td><td>请求头和额外请求体需为 JSON 对象；留空保留，<code>{}</code> 清空</td></tr>
+  </tbody></table></div>
+  <details><summary>什么时候需要改代理和高级设置？</summary><p class="small">只有网络环境或上游接口要求时再改。系统代理使用运行环境的代理设置；“直连”绕过该代理；自定义代理需填写真实代理地址。请求头值必须为字符串，额外请求体不能覆盖模型、流式开关、对话或工具字段。不要在不清楚作用时复制其他平台的设置。</p></details>
+  <div class="note warn"><b>看到“已保存”还不算完成连接验证。</b>模型列表能获取，也不代表每个模型都有生成权限。先接入应用发一条请求，再确认记录。</div>
+  <label class="complete"><input type="checkbox" data-check="provider"><span>我已保存供应商，并确认候选模型或准备好准确的模型 ID。</span></label>
+ </section>
+
+ <section class="section" id="agent" aria-labelledby="agentTitle">
+  <div class="section-head"><span class="number">03</span><div><h2 id="agentTitle">接入 WorkBuddy 或 Loomy</h2><p>目标：让第一条云端请求成功返回。</p></div></div>
+  <div class="path">Agent / Agents → 找到应用 → 选择路由组或模型 → 开启连接</div>
+  <ol class="steps">
+   <li><h4>先让应用生成配置，再完全退出</h4><p>如果从未启动过 WorkBuddy / Loomy，先打开一次，再结束任务并完全退出。这样 Router 才能检测配置目录，修改时也可避免应用同时覆盖配置。</p></li>
+   <li><h4>在 Agent 页选择一个云端模型</h4><p>打开“选择路由组或模型”，按供应商或模型名搜索并勾选。第一次建议只选一个已开通模型。需要设为新会话默认时，用 ↑ / ↓ 把它移到 <code>#1</code>；改动自动保存。</p></li>
+   <li><h4>打开该应用行右侧的连接开关</h4><p>等待“已连接”。Router 会把所选模型列表写入检测到的宿主配置；可以展开“详情”，核对模型列表与“新会话默认”。</p></li>
+   <li><h4>重新打开应用，选择端云协同，再新建会话</h4><p>在应用自己的模型菜单选择端云协同供应商和刚才勾选的模型。发送下面这条简单请求，然后回 Router 的“用量 → 请求”刷新查看。</p>
+    <pre><code>请用一句话介绍你能帮我做什么。</code><button type="button" data-copy>复制</button></pre>
+   </li>
+  </ol>
+  <div class="two-col"><div class="panel"><h3>WorkBuddy 操作重点</h3><p>先结束正在运行的任务。接入后完全退出并重开 WorkBuddy，在新会话里切到端云协同的模型。旧会话可能仍使用此前选择。</p></div><div class="panel"><h3>Loomy 操作重点</h3><p>同样重开并新建会话。若模型仍不对，检查项目级 <code>.opencode</code> 设置；出现扩展冲突提示时，先处理提示中的冲突再重新接入。</p></div></div>
+  <div class="note"><b>列表中没有想用的模型？</b>在模型选择器里用 <code>provider/model</code> 添加自定义模型。其中 <code>provider</code> 是已保存的供应商 ID，<code>model</code> 是准确的上游模型 ID；不要用供应商显示名称猜 ID。</div>
+  <div class="note good"><b>成功标准：</b>应用收到正常回答，并且“用量 → 请求”出现对应的成功记录，实际模型与供应商符合预期。只有“已连接”不能证明上游调用成功。</div>
+  <label class="complete"><input type="checkbox" data-check="agent"><span>我已在应用新会话里收到回答，并在请求记录中确认成功。</span></label>
+ </section>
+
+ <section class="section" id="group" aria-labelledby="groupTitle">
+  <div class="section-head"><span class="number">04</span><div><h2 id="groupTitle">配置路由组：先做一个主备组合</h2><p>目标：让应用使用一个组入口，由 Router 决定实际模型。</p></div></div>
+  <p>路由组会对外提供一个 <code>group/&lt;id&gt;</code> 虚拟模型。应用选这个组，就可以按组内策略调度多个成员。先用两个已验证的云端模型练习，便于定位问题。</p>
+  <div class="path">路由 / Routing → ＋ 新建路由组</div>
+  <ol class="steps">
+   <li><h4>填写名称并添加模型</h4><p>例如命名“日常助手 · 主备”，点击“添加模型”，选择主用云端模型与备用模型。可来自不同供应商，但都要有相应权限。</p></li>
+   <li><h4>调整成员顺序，选择“按顺序”</h4><p>拖动或用上移 / 下移把主用模型排第一。发生可回退的失败或限流时再尝试后续成员。排第一的成员还决定本组对外报告的能力，请让主备能力与应用需求相匹配。</p></li>
+   <li><h4>保存，记住组的真实调用标识</h4><p>保存后可在编辑器或组卡片查看、复制 <code>group/&lt;id&gt;</code>。中文显示名称和实际 ID 可能不同，请复制页面生成的标识。</p></li>
+   <li><h4>回到 Agent 页，把应用改为选择这个组</h4><p>勾选新组，需要作为默认时移到 <code>#1</code>。确认连接有效，完全退出并重开应用，在新会话选择该组后再发送请求。</p></li>
+  </ol>
+  <div class="mock" role="img" aria-label="主备路由组示意：主用模型第一、备用第二、策略按顺序，然后在 Agent 中选中组">
+   <div class="mock-title">日常助手 · 主备<span class="pill">路由组配置示意</span></div><div class="mock-body"><div class="mock-row"><span>成员 #1</span><div class="mock-value"><span class="chip">云端</span> 主用供应商 / 已验证模型</div></div><div class="mock-row"><span>成员 #2</span><div class="mock-value"><span class="chip">云端</span> 备用供应商 / 已验证模型</div></div><div class="mock-row"><span>策略</span><div><span class="chip selected">按顺序</span><span class="chip">轮流</span><span class="chip">按权重</span></div></div><div class="mock-row"><span>应用选择</span><div class="mock-value">Agent 勾选此组 → 重开应用 → 新会话选此组</div></div></div>
+  </div>
+  <h3>常用策略怎么选？</h3>
+  <div class="table-wrap"><table><thead><tr><th>策略</th><th>适合什么情况</th><th>你需要做什么</th></tr></thead><tbody>
+   <tr><td>按顺序</td><td>有明确主用和备用</td><td>把优先成员排前面；先保留默认超时与会话设置</td></tr><tr><td>轮流</td><td>在多个健康成员之间分配请求</td><td>加入可互相替代的模型，实际分配仍受健康与会话设置影响</td></tr><tr><td>按权重</td><td>希望某些成员承担更多流量</td><td>为成员设 1–100 的权重，例如 3 和 1 表示相对比例；短期未必恰好 3:1</td></tr><tr><td>手动</td><td>暂时固定使用指定模型</td><td>选择“当前生效”成员；需要切换时手动更改</td></tr><tr><td>智能 · 本地+云端</td><td>根据请求与成员状态选择</td><td>准备适合任务的成员；本地使用还需安装、开启与能力检查</td></tr><tr><td>端云协同</td><td>本地处理适合的简单请求，云端处理更复杂请求</td><td>先添加本地成员，再选此策略；详见第 6 章</td></tr>
+  </tbody></table></div>
+  <details><summary>进阶设置可以先不改，熟悉后再看</summary><div class="table-wrap"><table><thead><tr><th>设置</th><th>使用建议</th></tr></thead><tbody><tr><td>模型列表</td><td>固定为“只列出本组”。通过编辑器保存后，成员模型不再单独列出；在 Agent 中选择路由组即可使用组内模型。</td></tr><tr><td>上下文</td><td>主备上下文差异大时，可选“最小模型的”以减少回退超长；对外报告更大窗口不会扩大成员的实际能力。</td></tr><tr><td>会话保持</td><td>可能让后续请求继续使用同一成员。不要期待每一条消息都重新平均分配。</td></tr><tr><td>迟迟不出字 / 全都忙</td><td>熟悉默认行为后再调。等待太长会增加延迟，太短可能打断慢速模型。</td></tr><tr><td>规则与模式</td><td>规则按从上往下匹配，第一条命中生效。模式可自动加入匹配模型；嵌套组不能循环引用。</td></tr><tr><td>自动同名组</td><td>跨供应商同名模型可能自动成组。点“固定为自定义”后再长期编辑策略。</td></tr></tbody></table></div></details>
+  <div class="note warn"><b>最容易漏的一步：</b>创建组后，一定回 Agent 选择该组。应用继续直连某个云端模型时，该组策略不会作用于它。回退也不保证每一种错误、每一种输出阶段都能重试成功。</div>
+  <label class="complete"><input type="checkbox" data-check="group"><span>我已保存路由组、在 Agent 和应用中选中它，并核对实际执行成员。</span></label>
+ </section>
+
+ <section class="section" id="local" aria-labelledby="localTitle">
+  <div class="section-head"><span class="number">05</span><div><h2 id="localTitle">安装并开启本地模型</h2><p>目标：让一个本地模型真正处于可用状态。</p></div></div>
+  <div class="path">本地模型 / Local model → 设备检测 → 选择模型 → 下载并安装 → 开启</div>
+  <p>本地模型是端云协同的前提。当前提供 Spark-X2.5 的 <b>1.7B / 4B</b> 两个档位；两者安装流程一致。按页面设备推荐和可用资源选择，不要只凭档位大小判断是否适合。</p>
+  <ol class="steps">
+   <li><h4>完成设备检测</h4><p>检查内存、磁盘与受支持的推理后端。检测结果是硬件建议；如果提示条件不足，先继续使用云端，或释放资源后重新检测。</p></li>
+   <li><h4>选择 1.7B 或 4B，点击“下载并安装”</h4><p>等待模型、运行时依赖和文件校验全部完成。下载中断可按页面提示重试；支持继续下载时会复用已保存进度。</p></li>
+   <li><h4>在“已配置的端侧模型”中打开模型开关</h4><p>开启后会选择并加载模型，执行本地能力检查；检查通过时尝试开启实验性判断与执行。等待加载结束，确认当前状态与提示，不能停在“已安装”就开始配置分流。</p></li>
+   <li><h4>检查进程健康与实际推理后端</h4><p>查看“推理后端”，点击“检测进程健康”。检测到显卡不等于已使用 GPU；以实际后端和卸载层数为准。若页面显示能力检测或实验开关尚未通过，先按提示处理。</p></li>
+   <li><h4>按需单独验证本地回答</h4><p>在 Agent 选择页面提供的 <code>local/&lt;model-id&gt;</code>，重开应用，在新会话发一条简短纯文本。到“用量 → 请求”确认本地执行成功，再把它加入路由组。</p></li>
+  </ol>
+  <div class="note warn"><b>本地判断与执行目前属于实验性能力。</b>功能检查通过不等于回答质量已正式验收。以真实任务的回答和请求记录判断可用性；本地慢或失败时，先查资源、健康与后端。</div>
+  <div class="note"><b>如何释放资源：</b>关闭已安装模型的开关。模型开启后会保持加载，空闲时不自动卸载，下次启动会记住开关选择；只关闭网页不会停止 Router 或本地模型。</div>
+  <label class="complete"><input type="checkbox" data-check="local"><span>我已安装、开启本地模型，并检查运行健康和能力状态。</span></label>
+ </section>
+
+ <section class="section" id="hybrid" aria-labelledby="hybridTitle">
+  <div class="section-head"><span class="number">06</span><div><h2 id="hybridTitle">开启端云协同</h2><p>目标：让适合的简单请求走本地，需要时走云端。</p></div></div>
+  <p>端云协同通过<b>路由组策略</b>启用。先确保一个云端模型已能正常回答、本地模型已就绪，再把两者放进同一组。</p>
+  <ol class="steps">
+   <li><h4>创建或编辑“端云助手”路由组</h4><p>到“路由 → ＋ 新建路由组”，添加一个已开启的本地模型，以及至少一个已验证的云端模型。新用户先用一个本地、一个云端即可。</p></li>
+   <li><h4>加入本地成员后，选择“端云协同”</h4><p><b>只有组中有本地成员时才显示此策略。</b>看不到按钮时，先检查是否真的添加了 <code>local/…</code> 成员。它与只把云端成员排顺序是不同的配置。</p></li>
+   <li><h4>先将“本地模型脱敏”保留为“关”，保存组</h4><p>这样便于先验证分流是否正常。脱敏需要额外启动授权和单独核验，第 7 章再开启。</p></li>
+   <li><h4>在 Agent 勾选“端云助手”，应用内也选它</h4><p>需要作为默认时移到 <code>#1</code>。确认连接，完全重开应用，新建会话，选择这个路由组。直接选择云端模型会绕过该组的分流。</p></li>
+   <li><h4>分两种任务验证实际去向</h4><p>先试一句简短问候，再试复杂分析任务；如果应用支持，也可试带图片或工具的请求。每次都到“用量 → 请求”看实际模型、内部调用与失败阶段，不能根据答案风格猜去向。</p></li>
+  </ol>
+  <div class="scenario"><b>练习 A · 简单纯文本</b>“你好，请用一句话说明什么是 API。”<br>在本地可用且判断适合时，有机会由本地回答；宿主附带的系统提示、工具和历史也会影响最终分流。</div>
+  <div class="scenario"><b>练习 B · 复杂任务</b>“请从可靠性、成本和性能三个角度分析一个多区域系统方案，说明取舍。”<br>这类任务更可能交由云端；请以实际请求记录确认。</div>
+  <div class="lab" aria-labelledby="labTitle">
+   <h3 id="labTitle">动手理解：这条请求可能去哪？</h3><p class="small">教学模拟 · 不调用模型，不代表实际调度结果。修改条件，观察常见分流路径。</p>
+   <div class="lab-controls"><label for="requestKind">请求类型<select id="requestKind"><option value="simple">简短、简单、纯文本</option><option value="complex">复杂分析 / 推理</option><option value="image">包含图片</option><option value="tools">带工具调用</option><option value="long">长上下文（超过 2048 tokens）</option></select></label><label for="localState">本地模型状态<select id="localState"><option value="ready">已就绪、空闲、检查通过</option><option value="busy">正在忙 / 有排队</option><option value="off">未开启 / 不健康</option></select></label></div>
+   <div class="lab-output" role="status" aria-live="polite"><div class="lab-result-route" aria-hidden="true"><span>应用</span> → <span>端云路由组</span> → <span id="localBranch">本地</span><span id="cloudBranch">云端</span></div><b id="labResult">本地优先尝试 → 云端兜底</b><p id="labReason">短小简单纯文本且本地就绪时，可先尝试本地；判断不适合或遇到可回退的失败时转云。最终结果以请求详情为准。</p></div>
+  </div>
+  <div class="note"><b>记住实际边界：</b>本地繁忙或不可用，以及图片、工具、长上下文、复杂任务等情况可能直接转云。端云协同不会自动对云端内容脱敏；本地判断也可能带来额外延迟。</div>
+  <label class="complete"><input type="checkbox" data-check="hybrid"><span>我已选“端云协同”、让应用使用该组，并通过请求详情核对分流。</span></label>
+ </section>
+
+ <section class="section" id="redaction" aria-labelledby="redactionTitle">
+  <div class="section-head"><span class="number">07</span><div><h2 id="redactionTitle">按需试用本地脱敏</h2><p>可选进阶：在符合条件的转云请求前准备脱敏内容。</p></div></div>
+  <p>本地脱敏会尝试识别并替换敏感信息，云端回答后再还原占位符。它与“让本地模型回答”是两项能力，需要单独开启。</p>
+  <ol class="steps">
+   <li><h4>检查服务是否带实验性脱敏授权启动</h4><p>在“设置 → 服务管理”查看“启动时实验性脱敏”。如果未开启，先结束任务，在服务管理停止 Router，再用<b>同一安装位置、同一配置目录</b>的 EXE 重新启动，添加实验参数：</p>
+    <pre><code># 将路径替换为“服务管理”中显示的当前运行程序完整路径
+&amp; 'C:\实际安装目录\api-router.exe' service start --experimental-redaction</code><button type="button" data-copy>复制</button></pre>
+    <p>这是一条需替换路径的命令模板。页面停止后会断开，请使用重新启动返回的管理 URL。不要临时改用另一份测试 EXE 或其他配置目录。</p>
+   </li>
+   <li><h4>开启本地模型，在目标组打开“本地模型脱敏”</h4><p>组内应包含本地与云端成员，<b>第一个本地成员必须与当前开启模型一致</b>。编辑组，把“本地模型脱敏”设为“开”并保存；确保 Agent 和应用实际选择的是这个组。</p></li>
+   <li><h4>用虚构信息测试并查看脱敏记录</h4><p>例如“请把这条虚构联系人信息整理成一句话：姓名张小例，手机号 13800000000。”到“用量 → 脱敏”刷新、展开记录，比较原始输入、脱敏后输入和替换映射，并核对请求是否成功。</p></li>
+  </ol>
+  <div class="note warn"><b>使用前了解这几项：</b>识别质量尚未正式验收，可能漏检或误报。准备失败或超过共享的 30 秒预算会阻断转云；开启开关不能作为敏感信息绝不外发的保证。</div>
+  <p class="small">对比面板展示最新一轮用户输入，不是完整出站报文或全部会话历史。本地观测记录包含原文和替换值，默认最多保留七天、500 个请求标识；需要清理时，在脱敏页点击“清空记录”并确认。关闭组内脱敏后，后续适用请求将不再经过此组的脱敏处理。</p>
+  <label class="complete"><input type="checkbox" data-check="redaction"><span>如需脱敏，我已核对启动授权，用虚构信息测试并检查了记录。</span></label>
+ </section>
+
+ <section class="section" id="verify" aria-labelledby="verifyTitle">
+  <div class="section-head"><span class="number">08</span><div><h2 id="verifyTitle">查看请求，确认配置真的生效</h2><p>目标：分清“配置好了”和“请求成功了”。</p></div></div>
+  <div class="path">用量 / Usage → 请求 / Requests → 刷新 → 点击一条记录</div>
+  <div class="table-wrap"><table><thead><tr><th>看哪里</th><th>你要确认什么</th></tr></thead><tbody><tr><td>状态与错误码</td><td>是否完成请求；失败发生在鉴权、判断、本地执行、脱敏还是云端调用。</td></tr><tr><td>实际去向与模型</td><td>最终是本地还是云端，具体使用哪个成员。显示路由组名本身不足以确认执行者。</td></tr><tr><td>尝试记录 / 内部调用</td><td>主用是否失败、是否回退；本地参与了判断、执行还是脱敏。出现本地内部调用不等于最终由本地回答。</td></tr><tr><td>Token 与耗时</td><td>上游实际报告的用量及请求耗时；未报告 Token 应视为未知，而不是零消耗。</td></tr></tbody></table></div>
+  <h3>一次完整核验怎么做？</h3>
+  <ol class="steps"><li><h4>记下本次选择的模型或组，发送一条容易识别的请求</h4><p>比如“请回答：这是一条端云测试。”避免在排错时混入太多并行任务。</p></li><li><h4>刷新请求列表，按应用和时间找到记录</h4><p>展开记录，确认状态、去向与模型。若有多次尝试，查看最终结果，不要只看第一次候选。</p></li><li><h4>到“用量 → 概览”看汇总</h4><p>这里只统计经过 Router 且处于保留窗口内的请求。参考价格与节省金额是估算，实际账单以供应商为准。真实云端测试可能产生 API 费用。</p></li></ol>
+  <label class="complete"><input type="checkbox" data-check="verify"><span>我会通过请求详情判断实际执行路径，理解用量统计的范围。</span></label>
+ </section>
+
+ <section class="section" id="help" aria-labelledby="helpTitle">
+  <div class="section-head"><span class="number">09</span><div><h2 id="helpTitle">遇到问题，按现象排查</h2><p>改一项、试一条新请求，再看一次记录。</p></div></div>
+  <div class="faq">
+   <details><summary>供应商保存成功，为什么还是不能回答？</summary><p>保存只代表本机配置写入成功。检查密钥所属平台 / 地区、API 地址与协议是否匹配、账号额度与模型权限，然后在应用新会话中重试。获取到模型列表也不能证明有生成权限。去“用量 → 请求”看具体错误。</p></details>
+   <details><summary>Agent 提示没有模型，或检测不到宿主目录</summary><p>先保存供应商，再在该 Agent 中至少勾选一个可用模型或组。宿主目录不存在时，启动一次应用生成配置，完全退出后重试；仍检测不出时，按接入配置命令帮助显式指定目录。</p></details>
+   <details><summary>已经“连接”，应用仍用原来的模型</summary><p>完全退出并重开应用，选择端云协同供应商与目标模型 / 路由组，再新建会话。Loomy 还需检查项目级 .opencode 设置。连接中修改了模型列表也要重开；显示“需要重新连接”时重新选可用模型并连接。</p></details>
+   <details><summary>为什么找不到“端云协同”策略？</summary><p>先把一个真实本地成员加入组，策略才会出现。若本地模型尚未安装或未就绪，先回“本地模型”页完成安装、开启和检查，再返回路由编辑器添加。</p></details>
+   <details><summary>开了端云协同，为什么一直走云端？</summary><p>先确认应用选的是该组。检查本地是否开启、健康、能力检查通过，有无忙或排队；宿主是否附带工具、图片、长历史或复杂系统提示。简单的可见消息不等于整个请求简单。查看请求详情中的实际去向、判断与内部调用。</p></details>
+   <details><summary>本地模型下载失败，或运行特别慢</summary><p>先按页面提示定位下载阶段，检查网络、代理、磁盘与校验结果，再点“下载并安装”重试。运行慢时看进程健康、可用内存、实际推理后端与卸载层数；检测到 GPU 不能证明使用了 GPU。必要时改用资源需求更低的档位或暂时走云端。</p></details>
+   <details><summary>开启脱敏后请求被阻断</summary><p>核对启动授权、组内第一个本地成员和当前开启模型是否一致；检查本地健康、错误码与“用量 → 脱敏”。准备失败或超时会阻断云端。若决定停用，明确将组内“本地模型脱敏”设为“关”，了解后续适用请求将直接按策略路由。</p></details>
+   <details><summary>为什么“用量 → 请求”里没有这条消息？</summary><p>确认应用选择端云协同、选中目标模型或组并使用新会话，然后手动刷新。没有经过 Router 的请求不会记录；同时检查筛选条件与时间范围。</p></details>
+   <details><summary>管理页面打不开，或端口变化了</summary><p>从正常安装位置或仓库 start.cmd 重新启动，使用返回的实际管理 URL。端口占用由服务自动换端口处理，不要终止其他端口监听者，也不要手改应用端点去匹配临时实例。已接入宿主的端点由正常启动流程同步；重开宿主以加载。</p></details>
+  </div>
+  <h3>停用、还原与日常管理</h3>
+  <div class="table-wrap"><table><thead><tr><th>你想做什么</th><th>正确操作</th></tr></thead><tbody><tr><td>停止应用经过 Router</td><td>结束任务并关闭应用，在 Agent 关闭接入开关，或“详情 → 断开并还原”。确认恢复结果，再重开应用。</td></tr><tr><td>只释放本地模型资源</td><td>到“本地模型”关闭已安装模型的开关。云端能否继续使用取决于应用选中模型或组的配置。</td></tr><tr><td>停止 / 重启 Router</td><td>“设置 → 服务管理”中按提示确认页面会断开，再停止或重启。停止会保留宿主接入配置，需要继续用时从原入口启动。</td></tr><tr><td>设置登录自启</td><td>到“设置 → 服务管理”查看运行程序与登录自启设置，再按需要启用。首次安装不会自动开启。</td></tr><tr><td>还原提示文件冲突</td><td>先保留改动文件与宿主恢复记录，按提示处理冲突。不要直接覆盖不明配置或删恢复记录。</td></tr></tbody></table></div>
+  <div class="note">修改或删除供应商、模型和组之后，重新检查 Agent 中的已选项。无效引用可能需要重新选择并连接；不要以为删掉组只影响路由页。</div>
+ </section>
+ <section class="end-card"><div class="eyebrow">READY FOR EVERYDAY USE</div><h2>先跑通，再组合，最后用记录验证。</h2><p>日常使用只需要：启动 Router → 打开应用 → 选择端云协同的模型或路由组。需要调整策略时再回管理页，遇到问题优先看请求详情。</p><p style="margin-top:12px"><a href="#provider">重看供应商配置</a>　·　<a href="#hybrid">重看端云协同</a>　·　<a href="#verify">重看核验方法</a></p></section>
+ <footer class="footer"><div>端云协同新用户使用教程 · 按当前仓库界面与行为编写 · 更新于 2026-10-26</div><div>图示均为教学示意。独立文件不读取服务、账号或密钥；勾选记录仅用于自查，不代表系统自动验收。</div><details><summary>内容核对来源（随仓库阅读时可打开）</summary><ul><li><a href="../README.md">项目 README：启动与功能范围</a></li><li><a href="../magpie/internal/routerservice/assets/tutorial.js">内置教学：操作路径与功能边界</a></li><li><a href="../magpie/internal/routerservice/assets/provider.js">供应商页面与保存行为</a></li><li><a href="../magpie/internal/routerservice/assets/profiles.js">Agent 模型选择与接入</a></li><li><a href="../magpie/internal/routerservice/assets/routing-groups-editor.js">路由组编辑与端云策略显示条件</a></li><li><a href="../magpie/docs/subsystems/api-router-runtime.md">本地模型运行说明</a> · <a href="../magpie/docs/subsystems/api-router-redaction.md">脱敏说明</a> · <a href="../magpie/docs/windows-delivery.md">Windows 安装与恢复</a></li></ul></details></footer>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script>
+(() => {
+ 'use strict';
+ const storageKey='api-router-user-guide-checklist-v1';
+ const checks=[...document.querySelectorAll('[data-check]')];
+ const toast=document.getElementById('toast');let toastTimer;
+ function notify(message){clearTimeout(toastTimer);toast.textContent=message;toast.hidden=false;toastTimer=setTimeout(()=>{toast.hidden=true},3000)}
+ let saved={};try{const raw=JSON.parse(localStorage.getItem(storageKey)||'{}');if(raw&&typeof raw==='object'&&!Array.isArray(raw))saved=raw}catch{}
+ checks.forEach(input=>{input.checked=saved[input.dataset.check]===true;input.addEventListener('change',()=>update(true))});
+ function update(persist){const done=checks.filter(c=>c.checked).length;document.getElementById('progress').value=done;const text=`已核验 ${done} / ${checks.length} 项`;document.getElementById('progressText').textContent=text;document.getElementById('mobileProgress').textContent=text;if(persist){const state={};checks.forEach(c=>state[c.dataset.check]=c.checked);try{localStorage.setItem(storageKey,JSON.stringify(state))}catch{notify('浏览器未允许保存，勾选仅在本次打开有效。')}}}
+ update(false);
+ document.getElementById('resetProgress').addEventListener('click',()=>{checks.forEach(c=>c.checked=false);update(true);notify('已重置教程勾选记录。')});
+ const nav=document.getElementById('chapterNav');document.getElementById('mobileNav').innerHTML=nav.innerHTML;
+ const navLinks=[...nav.querySelectorAll('a')],sections=[...document.querySelectorAll('.section')];let queued=false;
+ function highlight(){let current=sections[0];for(const section of sections){if(section.getBoundingClientRect().top<=120)current=section}for(const a of navLinks){const active=a.getAttribute('href')==='#'+current.id;a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','location');else a.removeAttribute('aria-current')}queued=false}
+ addEventListener('scroll',()=>{if(!queued){queued=true;requestAnimationFrame(highlight)}},{passive:true});highlight();
+ document.querySelectorAll('#mobileNav a').forEach(a=>a.addEventListener('click',()=>{document.querySelector('.mobile-index').open=false}));
+ async function copyText(value){try{await navigator.clipboard.writeText(value);return true}catch{const field=document.createElement('textarea');field.value=value;field.style.position='fixed';field.style.left='-9999px';document.body.appendChild(field);field.select();let ok=false;try{ok=document.execCommand('copy')}catch{}field.remove();return ok}}
+ document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{const value=button.closest('pre').querySelector('code').textContent;const ok=await copyText(value);notify(ok?'已复制，请在实际配置环境中使用。':'无法自动复制，请手动选择文本复制。');button.focus({preventScroll:true})}));
+ const kind=document.getElementById('requestKind'),state=document.getElementById('localState');
+ function simulate(){const local=kind.value==='simple'&&state.value==='ready';const result=document.getElementById('labResult'),reason=document.getElementById('labReason');document.getElementById('localBranch').className=local?'on':'';document.getElementById('cloudBranch').className=local?'':'cloud-on';if(local){result.textContent='本地优先尝试 → 云端兜底';reason.textContent='短小简单纯文本且本地就绪时，可先尝试本地；判断不适合或遇到可回退的失败时转云。最终结果以请求详情为准。'}else{result.textContent='优先走云端';reason.textContent=state.value!=='ready'?(state.value==='busy'?'本地有执行或等待任务时，端云协同会让请求走云端，避免等待本地队列。':'本地未开启或状态不健康时，不能承担本地执行，请求可交由组内可用云端模型。') : ({complex:'复杂分析或推理通常交给云端。实际还会结合判断结果、成员状态和请求内容。',image:'包含图片的请求通常交给支持该输入能力的云端成员，仍需核对上游能力。',tools:'携带工具调用的请求通常交给支持相应工具协议的云端成员。',long:'长上下文不属于此处的简单本地优先场景；这里采用界面提示的 2048 tokens 条件作示意。'})[kind.value];reason.textContent+=' 此演示不检查真实模型和服务状态。'}}
+ kind.addEventListener('change',simulate);state.addEventListener('change',simulate);simulate();
+ document.getElementById('printGuide').addEventListener('click',()=>print());
+ let printOpen=[];addEventListener('beforeprint',()=>{printOpen=[...document.querySelectorAll('details')].map(el=>[el,el.open]);printOpen.forEach(([el])=>el.open=true)});addEventListener('afterprint',()=>printOpen.forEach(([el,open])=>el.open=open));
+})();
+</script>
+</body>
+</html>

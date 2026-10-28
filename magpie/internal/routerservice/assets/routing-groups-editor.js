@@ -67,7 +67,6 @@
       enabled: g.enabled !== false && !g.disabled,
       members: members,
       patterns: isNew ? [] : rawPatterns.slice(),
-      hideMembers: !!(g.unlists || g.hideMembers),
       routing: rg.normalizeStrategy(g.routing || 'smart_hybrid'),
       localRedaction: !!g.localRedaction,
       redactionPolicy: g.redactionPolicy || null,
@@ -318,11 +317,8 @@
       // 5. Model list
       '<label>' + rg.esc(rg.tr('Model list')) + '</label>' +
       '<div>' +
-        '<div class="segs">' +
-          '<button type="button" class="opt' + (!draft.hideMembers ? ' on' : '') + '" data-rg-hide-members="0">' + rg.esc(rg.tr('Keep members listed')) + '</button>' +
-          '<button type="button" class="opt' + (draft.hideMembers ? ' on' : '') + '" data-rg-hide-members="1">' + rg.esc(rg.tr('Group only')) + '</button>' +
-        '</div>' +
-        '<div class="hint">' + rg.esc(rg.tr(draft.hideMembers ? 'Member models are hidden from model pickers; only this group is listed.' : 'Member models still appear individually in agents\' model pickers.')) + '</div>' +
+        '<div>' + rg.esc(rg.tr('Group only')) + '</div>' +
+        '<div class="hint">' + rg.esc(rg.tr('Member models are hidden from model pickers; only this group is listed.')) + '</div>' +
       '</div>' +
 
       // 6. Routing
@@ -773,8 +769,8 @@
       members: draft.members.slice(),
       match: cleanPatterns,
       patterns: cleanPatterns,
-      unlists: !!draft.hideMembers,
-      hideMembers: !!draft.hideMembers,
+      unlists: true,
+      hideMembers: true,
       pick: activeModel,
       active: activeModel,
       weights: weightsOut,
@@ -940,13 +936,6 @@
           if (nextEff) draft.memberEfforts[effRef] = nextEff;
           else delete draft.memberEfforts[effRef];
           renderMembersSection();
-          return;
-        }
-
-        var hideMemBtn = ev.target.closest('[data-rg-hide-members]');
-        if (hideMemBtn) {
-          draft.hideMembers = hideMemBtn.getAttribute('data-rg-hide-members') === '1';
-          renderEditorBody();
           return;
         }
 
