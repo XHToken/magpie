@@ -211,6 +211,17 @@ Installation is proved by exact model/template hashes and reverified extraction
 receipts, **never** by file existence, progress, config or `models/manifest.json`.
 The latter is written after verification: schema 1 for runtimes without native
 dependency metadata, schema 2 for the Windows app-local dependency contract below.
+
+The management page renders `local_model_install_<stage>_<reason>` failures
+from REST snapshots, streamed status and failed operation responses with the
+actual progress step/source and a localized reason and retry action. Legacy
+stage codes (`weights`/`corrupt`) remain readable. Integrity errors describe a
+size/SHA256 mismatch without assuming network corruption: incorrect catalog
+metadata can also reject a valid file. Template failures explain that retries
+reuse verified weights and fetch the template again; they do not promise a
+completion time. Retry still requires an explicit install action and every
+cached artifact must pass the downloader's existing verification before reuse.
+
 A cold load verifies again; corruption clears installed state and prevents launch. An explicit repair
 quarantines a damaged extraction as `.invalid-<timestamp>` while no process uses
 it, then publishes a fresh verified tree. Quarantined files are retained for

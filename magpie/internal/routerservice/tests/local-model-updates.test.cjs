@@ -49,8 +49,9 @@ test(`local model push updates (${process.env.BROWSER || 'chromium'})`, { timeou
       let receiver, releaseReceiver, hidden = false;
       Object.defineProperty(document, 'hidden', { get: () => hidden, configurable: true });
       window.__visibility = value => { hidden = value; document.dispatchEvent(new Event('visibilitychange')); };
-      window.__streams = { opened: 0, active: 0, paths: [] };
+      window.__streams = { opened: 0, active: 0, reads: 0, paths: [] };
       window.fetch = async (url, options) => {
+        if (url === '/api/local-model') window.__streams.reads++;
         if (url !== '/api/local-model/events') return originalFetch(url, options);
         window.__streams.opened++; window.__streams.active++;
         window.__streams.paths.push({ url, auth: new Headers(options.headers).get('Authorization') });
@@ -114,11 +115,18 @@ test(`local model push updates (${process.env.BROWSER || 'chromium'})`, { timeou
     // browser assertions must not count toward the one-second backoff.
     await page.clock.pauseAt(await page.evaluate(() => Date.now() + 60000));
     const opened = await page.evaluate(() => window.__streams.opened);
+    const retryReads = await page.evaluate(() => window.__streams.reads);
     await page.evaluate(() => window.__end());
     await page.waitForFunction(() => document.querySelector('#localModelError').textContent === t('Connection unavailable'));
     await page.clock.runFor(999);
     assert.equal(await page.evaluate(() => window.__streams.opened), opened, 'disconnect recovery backs off');
+    assert.equal(await page.evaluate(() => window.__streams.reads), retryReads, 'the retry does not start before the backoff');
     await page.clock.runFor(1);
+    assert.equal(await page.evaluate(() => window.__streams.reads), retryReads + 1, 'the retry starts at the backoff boundary');
+    // The REST refresh and stream reopen finish asynchronously. Resume frames
+    // after checking the exact boundary so WebKit's RAF-based wait can observe
+    // their completion even when the response arrives after runFor returns.
+    await page.clock.resume();
     await page.waitForFunction(count => window.__streams.opened === count + 1, opened);
     await page.waitForFunction(() => window.__streams.active === 1);
 
