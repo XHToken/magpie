@@ -1,6 +1,10 @@
 # Local model installation and runtime
 
-On macOS, downloader destination, runtime dependency and installation path checks accept the known system directory links `/var`, `/tmp` and `/etc` when they resolve to directories. Other filesystem links remain rejected; archive alias materialization and file integrity checks retain their existing constraints. Runtime selection uses the native architecture described in [device detection](wefto-device.md), including Apple Silicon under Rosetta.
+Application and routing-group requirements now use the same
+[unified redaction service and engine](wefto-redaction.md). Both flags are
+retained; model binding, actual engine identity, strict preparation and shared
+statistics are independent of the source of a requirement.
+
 
 `routermanifest`, `routerdownload`, `routerprocess` and `routerruntime` implement
 T3.2–T3.8. The [management adapter](../../internal/routerservice/local_models.go)
@@ -460,8 +464,9 @@ Only that choice permits
 `NewExperimentalRedactionInvoker(fingerprint,suite)`. The immutable handle
 admits Redaction for either enabled fixed Spark-X2.6 Q4_K_M or Q8_0 selection
 declared by `Model.SupportsRedactionTrial`, and its exact
-current artifact fingerprint, with a complete `privacy-trial-v2:` suite plus
-64 lowercase hexadecimal digits. `VerifyBinding` checks the experimental
+current artifact fingerprint, with a complete `privacy-user-input-trial-v1:` suite
+plus 64 lowercase hexadecimal digits. The legacy `privacy-trial-v2:` prefix is
+retained for isolated diagnostic baselines; production uses the unified suite. `VerifyBinding` checks the experimental
 extractor's exact fingerprint and suite on every request. Disabled, closing,
 stopping, different-purpose/model/binding and incomplete-suite calls reject.
 
@@ -635,3 +640,14 @@ The local Manager also publishes the safe, nonblocking [`LocalCallObservation`](
 completion contract for Router business calls and explicit checks. It preserves actual nullable usage and measured
 queue/load timing without recording prompts, responses, tools, entities, URLs or credentials; ledger persistence remains
 owned by the statistics subsystem.
+
+## User input scope (2026-10-29)
+
+The production redactor uses the original-protocol `user-input-v1` view,
+request-owned identification snapshot and target provenance sidecar. System and
+tool context cannot consume user scanning blocks. Assistant/tool echoes reuse
+only known user values. Cache trust requires a server-issued app-bound session
+handle or a trusted internal adapter; client declarations are insufficient.
+See [user input redaction](wefto-redaction.md) for source, cache,
+restoration authority, safe workload fields and failure semantics. Existing
+saved requirements, providers, models and host connections are preserved.

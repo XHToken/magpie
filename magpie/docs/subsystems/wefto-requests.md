@@ -7,9 +7,12 @@ from individual model calls: effective requirement, source groups, model and
 preparation/block status. Missing historical policy is unknown. A prepared
 state does not prove an upstream send; actual attempt records remain authoritative.
 The group console shows inherited policy and model conflicts even when the
-group's own switch is off. Authenticated draft previews are read-only, and
+group's own switch is off. In the editor, the enabled redaction requirement
+appears only in the policy summary, without a duplicate hint below the switch.
+The off-state switch hint still explains that inherited and application
+requirements apply. Authenticated draft previews are read-only, and
 opening or saving an editor never clears existing privacy intent because a
-local member disappeared. See [redaction inheritance](wefto-redaction.md#nested-groups-and-request-scoped-requirements).
+local member disappeared. See [redaction inheritance](wefto-redaction.md#requirements-and-model-selection).
 
 Capture privacy-safe per-request diagnostic records (`routerobs`) and persistent
 token/cost usage rollups (`routerusage`) across cloud, local, and routing-group

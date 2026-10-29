@@ -132,7 +132,15 @@ const MaxAttempts = 16
 
 func validOutcome(o Outcome, processing bool) bool {
 	if p := o.Redaction; p != nil {
-		if len(p.SourceGroupIDs) > 8 || p.SourceGroupCount < len(p.SourceGroupIDs) || p.SourceGroupCount > 16384 || !display(p.ModelID, 256) {
+		if !display(p.ScopeVersion, 128) || p.NewUserCharacters < 0 || p.NewUserCharacters > 8<<20 || p.NewUserChunks < 0 || p.NewUserChunks > 64 || p.ReusedUserFragments < 0 || p.ReusedUserFragments > 8192 || p.LocalInferenceCalls < 0 || p.LocalInferenceCalls > 1024 || p.PreparationMS < 0 {
+			return false
+		}
+		switch p.ScanDisposition {
+		case "", "scanned", "cache_hit", "known_values_only", "no_user_input":
+		default:
+			return false
+		}
+		if len(p.SourceGroupIDs) > 8 || p.SourceGroupCount < len(p.SourceGroupIDs) || p.SourceGroupCount > 16384 || !display(p.ModelID, 256) || !display(p.ActualModelID, 256) || !display(p.EngineVersion, 128) || p.ProfileRequired && !p.Required {
 			return false
 		}
 		for _, id := range p.SourceGroupIDs {

@@ -132,6 +132,7 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   assert.equal(await codingCard.locator('[data-copy-call="group/coding"]').textContent(), 'group/coding');
   assert.equal(await codingCard.locator('.rt-strategy-tag').isVisible(), true);
   assert.equal(await codingCard.locator('.rt-member-chip.is-local[data-member="local/spark-x2.6-4b"]').isVisible(), true);
+  assert.equal(await codingCard.locator('[data-member="local/spark-x2.6-4b"] > span').first().textContent(), 'Spark-X2.6-4B-Q4_K_M');
   assert.equal(await codingCard.locator('.rt-member-chip[data-member="openai/gpt-4o"]').isVisible(), true);
 
   const autoCard = page.locator('#autoRoutingGroupsList .rt-group-card[data-group-id="auto-deepseek-chat"]');
@@ -179,6 +180,7 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   const localCand = page.locator('#rgPickerList [data-picker-ref="local/spark-x2.6-4b"]');
   const cloudCand = page.locator('#rgPickerList [data-picker-ref="openai/gpt-4o"]');
   await localCand.waitFor({ state: 'visible' });
+  assert.equal(await localCand.locator('.v').textContent(), 'Spark-X2.6-4B-Q4_K_M');
   await cloudCand.waitFor({ state: 'visible' });
   assert.deepEqual(await page.locator('#rgPickerList [data-picker-ref^="local/"]').evaluateAll(rows => rows.map(row => row.dataset.pickerRef)), ['local/spark-x2.6-4b'], 'the group picker only offers the installed Q4 model');
 
@@ -190,7 +192,7 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
 
   // Adding a local/* model reveals the "本地模型脱敏" row with "开" and "关" options
   await page.locator('#rgLocalRedactionLabel').waitFor({ state: 'visible' });
-  assert.equal(await page.locator('#rgLocalRedactionLabel').textContent(), '本地模型脱敏');
+  assert.equal(await page.locator('#rgLocalRedactionLabel').textContent(), '用户输入脱敏');
   const redactOnBtn = page.locator('#rgLocalRedactionSection [data-rg-local-redaction="1"]');
   const redactOffBtn = page.locator('#rgLocalRedactionSection [data-rg-local-redaction="0"]');
   assert.equal(await redactOnBtn.textContent(), '开');
@@ -294,6 +296,48 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   await page.waitForFunction(() => !document.querySelector('#customRoutingGroupsList .rt-group-card[data-group-id="hybrid-coding"]'));
   const deleteCall = apiCalls.find(c => c.method === 'DELETE' && c.path === '/api/routing-groups?id=hybrid-coding');
   assert.ok(deleteCall, 'expected DELETE /api/routing-groups?id=hybrid-coding');
+
+  // All routing surfaces use catalogue names, including missing installations.
+  const localNames = ['Spark-X2.6-4B-Q4_K_M', 'Spark-X2.6-4B-Q8_0'];
+  const localRefs = ['local/spark-x2.6-4b', 'local/spark-x2.6-4b-q8_0'];
+  await page.route('**/api/cloud-providers', route => route.fulfill({ json: {
+    providers: [], localModels: localRefs.map((selector, i) => ({ id: selector.slice(6), selector, name: localNames[i], installed: true })),
+  } }));
+  for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) {
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`http://${address}/?locale=${language}&view=routing`);
+      await page.waitForFunction(() => window.__weftoRoutingGroups?.state.localModels.length === 2);
+      assert.deepEqual(await page.evaluate(refs => refs.map(ref => window.__weftoRoutingGroups.describeMember(ref).modelName), localRefs), localNames);
+      assert.equal(await page.evaluate(() => window.__weftoRoutingGroups.describeMember('local/unknown-model').modelName), 'unknown-model');
+      await page.locator('#newRoutingGroupBtn').click();
+      await page.locator('#rgAddModelBtn').click();
+      for (let i = 0; i < localRefs.length; i++) {
+        assert.equal(await page.locator(`[data-picker-ref="${localRefs[i]}"] .v`).textContent(), localNames[i]);
+      }
+      await page.locator('#rgPickerSearch').fill('Q4_K_M');
+      assert.deepEqual(await page.locator('#rgPickerList [data-picker-ref]').evaluateAll(rows => rows.map(row => row.dataset.pickerRef)), [localRefs[0]]);
+      await page.locator(`[data-picker-ref="${localRefs[0]}"]`).click();
+      await page.locator('#rgAddModelBtn').click();
+      assert.ok((await page.locator('#routingGroupModal').textContent()).includes(localNames[0]));
+      await page.evaluate(refs => {
+        const rg = window.__weftoRoutingGroups;
+        rg.state.groups.push({ id: 'label-rule', name: 'Label rule', members: [refs[0]], rules: [{ when: 'tools', use: refs[1] }] });
+        rg.renderGroups();
+      }, localRefs);
+      await page.locator('#rgCancelBtn').click();
+      await page.locator('[data-rg-edit="label-rule"]').click();
+      for (let i = 0; i < localRefs.length; i++) {
+        assert.ok((await page.locator(`.rt-rule-use option[value="${localRefs[i]}"]`).textContent()).startsWith(localNames[i]), 'rule targets use names even outside group members');
+      }
+      await page.waitForFunction(() => {
+        const rg = window.__weftoRoutingGroups, note = document.querySelector('#rgPrivacySummary');
+        return note && note.textContent !== rg.tr('Checking redaction policy');
+      });
+      await page.locator('#rgCancelBtn').click();
+    }
+  }
+  await page.unroute('**/api/cloud-providers');
 
   // 6. 模型服务商页「本地端侧模型」图标渲染验证
   await page.goto(`http://${address}/?locale=zh&view=providers`);

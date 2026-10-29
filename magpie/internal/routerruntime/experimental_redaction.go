@@ -8,6 +8,7 @@ import (
 
 const experimentalRedactionBudget = DefaultRedactionBudget
 const experimentalRedactionSuitePrefix = "privacy-trial-v2:"
+const hybridRedactionSuitePrefix = "privacy-user-input-trial-v1:"
 
 // ExperimentalRedactionInvoker permits an explicitly selected X2.6 variant trial while
 // preserving the Manager's actual capability samples. Its binding is immutable;
@@ -19,10 +20,14 @@ type ExperimentalRedactionInvoker struct {
 }
 
 func validExperimentalRedactionSuite(suite string) bool {
-	if !strings.HasPrefix(suite, experimentalRedactionSuitePrefix) || len(suite) != len(experimentalRedactionSuitePrefix)+64 {
+	prefix := experimentalRedactionSuitePrefix
+	if strings.HasPrefix(suite, hybridRedactionSuitePrefix) {
+		prefix = hybridRedactionSuitePrefix
+	}
+	if !strings.HasPrefix(suite, prefix) || len(suite) != len(prefix)+64 {
 		return false
 	}
-	for _, c := range suite[len(experimentalRedactionSuitePrefix):] {
+	for _, c := range suite[len(prefix):] {
 		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
 			return false
 		}

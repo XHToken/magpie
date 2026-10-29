@@ -134,7 +134,8 @@
         '<button type="button" class="opt' + (isOn ? ' on' : '') + '" data-rg-local-redaction="1">' + rg.esc(rg.tr('Redact On')) + '</button>' +
         '<button type="button" class="opt' + (!isOn ? ' on' : '') + '" data-rg-local-redaction="0">' + rg.esc(rg.tr('Redact Off')) + '</button>' +
       '</div>' +
-      '<div class="hint">' + rg.esc(rg.tr(isOn ? 'Cloud requests require redaction; failures block outbound requests.' : 'This switch is off. Inherited and application redaction requirements still apply.')) + '</div>';
+      (isOn ? '' : '<div class="hint">' + rg.esc(rg.tr('This switch is off. Inherited and application redaction requirements still apply.')) + '</div>');
+    secEl.insertAdjacentHTML('beforeend', '<div class="hint">' + rg.esc(rg.tr('System prompts and new information from tools are not scanned.')) + '</div>');
     previewPrivacyPolicy();
   }
 
@@ -257,7 +258,8 @@
         return '<option value="' + rg.esc(m) + '"' + sel + '>' + rg.esc(info.modelName + ' · ' + info.providerName) + '</option>';
       }).join('');
       if (r.use && draft.members.indexOf(r.use) < 0) {
-        memberOpts = '<option value="' + rg.esc(r.use) + '" selected>' + rg.esc(r.use) + '</option>' + memberOpts;
+        var targetInfo = rg.describeMember(r.use);
+        memberOpts = '<option value="' + rg.esc(r.use) + '" selected>' + rg.esc(targetInfo.modelName + ' · ' + targetInfo.providerName) + '</option>' + memberOpts;
       }
       var hidePattern = r.when === 'tools' || r.when === 'vision';
       return '<div class="rt-rule" data-rule-idx="' + idx + '">' +
@@ -322,14 +324,15 @@
       '</div>' +
 
       // 6b. Local model redaction (shown when members include a local/* model)
-      '<label id="rgLocalRedactionLabel"' + (hasLocal ? '' : ' hidden') + '>' + rg.esc(rg.tr('Local model redaction')) + '</label>' +
+      '<label id="rgLocalRedactionLabel"' + (hasLocal ? '' : ' hidden') + '>' + rg.esc(rg.tr('User input redaction')) + '</label>' +
       '<div id="rgLocalRedactionSection"' + (hasLocal ? '' : ' hidden') + '>' +
         (hasLocal
           ? '<div class="segs">' +
               '<button type="button" class="opt' + (draft.localRedaction ? ' on' : '') + '" data-rg-local-redaction="1">' + rg.esc(rg.tr('Redact On')) + '</button>' +
               '<button type="button" class="opt' + (!draft.localRedaction ? ' on' : '') + '" data-rg-local-redaction="0">' + rg.esc(rg.tr('Redact Off')) + '</button>' +
             '</div>' +
-            '<div class="hint">' + rg.esc(rg.tr(draft.localRedaction ? 'Cloud requests require redaction; failures block outbound requests.' : 'This switch is off. Inherited and application redaction requirements still apply.')) + '</div>'
+            (draft.localRedaction ? '' : '<div class="hint">' + rg.esc(rg.tr('This switch is off. Inherited and application redaction requirements still apply.')) + '</div>') +
+            '<div class="hint">' + rg.esc(rg.tr('System prompts and new information from tools are not scanned.')) + '</div>'
           : '') +
       '</div>' +
 
@@ -469,15 +472,15 @@
     var localItems = [];
     (rg.state.localModels || []).forEach(function (m) {
       if (!m || m.installed !== true) return;
-      var id = m.id || m.name;
-      if (!id) return;
-      var ref = 'local/' + id;
+      var id = m.id || m.modelId;
+      var ref = m.selector || (id ? 'local/' + id : '');
+      if (!ref) return;
       var info = rg.describeMember(ref);
       var usedIn = rg.groupsContainingMember(ref, currentEditId);
       localItems.push({
         ref: ref,
         providerKey: 'local',
-        modelName: id,
+        modelName: info.modelName,
         icon: info.icon,
         ctx: info.contextBadge || '',
         note: rg.tr('Local on-device') + (usedIn.length ? (' · ' + rg.tr('in ') + usedIn.join(', ')) : '')

@@ -1,5 +1,11 @@
 # 端云协同 request ledger
 
+Application and routing-group requirements now use the same
+[unified redaction service and engine](wefto-redaction.md). Both flags are
+retained; model binding, actual engine identity, strict preparation and shared
+statistics are independent of the source of a requirement.
+
+
 [`internal/routerledger`](../../internal/routerledger/types.go) owns the minimal
 business-request store. Its only runtime storage dependency is the existing pure
 Go `modernc.org/sqlite` driver. It imports no legacy usage, settings, provider,
@@ -225,3 +231,14 @@ watchdog test holds the database mutex while Progress completes, proving the
 Observe path has no dependency on SQL completion. The task delivery record
 contains exact commands and integration evidence; ledger tests alone do not
 prove product HTTP dispatch or real upstream requests.
+
+## User input scope (2026-10-29)
+
+The production redactor uses the original-protocol `user-input-v1` view,
+request-owned identification snapshot and target provenance sidecar. System and
+tool context cannot consume user scanning blocks. Assistant/tool echoes reuse
+only known user values. Cache trust requires a server-issued app-bound session
+handle or a trusted internal adapter; client declarations are insufficient.
+See [user input redaction](wefto-redaction.md) for source, cache,
+restoration authority, safe workload fields and failure semantics. Existing
+saved requirements, providers, models and host connections are preserved.

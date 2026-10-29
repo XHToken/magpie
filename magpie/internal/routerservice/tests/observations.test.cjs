@@ -235,8 +235,8 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     await page.unroute('**/api/requests?*'); await page.unroute('**/api/requests/' + recovered.requestId);
     const count = (knownTokens, knownRequests, unknownRequests) => ({ knownTokens, knownRequests, unknownRequests });
     const known = count(0, 1, 0), unknown = count(null, 0, 1);
-    const local = { ...failed, requestId: 'a'.repeat(32), status: 'succeeded', destination: 'local', attempts: 0, attemptDetails: [], localModel: 'actual-local-1.7b', safeErrorCode: '', failureStage: '', usage: { inputTokens: 0, outputTokens: 7, totalTokens: null }, referencePrice: { currency: 'USD', unit: 'million-tokens', input: 1.25, output: 2.5, version: 'price-v1', source: 'Profile reference' } };
-    const localUnknown = { ...local, requestId: 'b'.repeat(32), usage: { inputTokens: 0, outputTokens: null, totalTokens: null } };
+    const local = { ...failed, requestId: 'a'.repeat(32), status: 'succeeded', destination: 'local', attempts: 0, attemptDetails: [], localModel: 'spark-x2.6-4B', safeErrorCode: '', failureStage: '', usage: { inputTokens: 0, outputTokens: 7, totalTokens: null }, referencePrice: { currency: 'USD', unit: 'million-tokens', input: 1.25, output: 2.5, version: 'price-v1', source: 'Profile reference' } };
+    const localUnknown = { ...local, requestId: 'b'.repeat(32), localModel: 'spark-x2.6-4B-Q8_0', usage: { inputTokens: 0, outputTokens: null, totalTokens: null } };
     const localZero = { ...local, requestId: 'c'.repeat(32), usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, referencePrice: { ...local.referencePrice, currency: 'EUR' } };
     const counts = { processing: 0, succeeded: 0, failed: 0, canceled: 0, timedOut: 0, interrupted: 0 };
     const timing = { knownMs: 0, knownCalls: 1, unknownCalls: 0 }, unknownTiming = { knownMs: null, knownCalls: 0, unknownCalls: 1 };
@@ -247,7 +247,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       internalCalls: [{ ...calls, purpose: 'judgment' }, { ...calls, purpose: 'execution', businessUsageCalls: 1, overheadUsageCalls: 0, overheadInputTokens: count(null, 0, 0), overheadOutputTokens: count(null, 0, 0), overheadTotalTokens: count(null, 0, 0) }, { ...calls, purpose: 'redaction', inferenceStarted: 0, notStarted: 1, results: { rejected: 1 }, inputTokens: count(null, 0, 0), outputTokens: count(null, 0, 0), totalTokens: count(null, 0, 0) }], checkCalls: [{ ...calls, purpose: 'judgment', total: 2, inferenceStarted: 2, overheadUsageCalls: 2 }] };
     const callDetail = { purpose: 'execution', modelId: local.localModel, fingerprint: 'safe-model-fingerprint', materialVersion: 'execution-v1', mode: 'formal', result: 'succeeded', inferenceStarted: true, startedAt: local.startedAt, endedAt: local.endedAt, safeErrorCode: '', usage: local.usage, timings: { queueLoadMs: 0, queueMs: null, loadMs: null, inferenceMs: 0, totalMs: 0 } };
     const settings = { contextTokens: 65536, judgmentQueueSeconds: 15, judgmentInferenceSeconds: 30, executionQueueSeconds: 30, executionSeconds: 300, loadSeconds: 90, requestSeconds: 600, cloudReserveSeconds: 60 };
-    const fallback = { ...failed, decision: 'cloud', capabilityState: 'judgment_inference_timeout', judgmentMs: 30000 };
+    const fallback = { ...failed, redactionPolicy: { required: true, profileRequired: true, sourceGroupIds: ['privacy'], sourceGroupCount: 1, modelId: 'spark-x2.6-4B-Q8_0', actualModelId: 'spark-x2.6-4B-Q8_0', engineVersion: 'privacy-user-input-v1', scopeVersion: 'user-input-v1', scanDisposition: 'known_values_only', newUserCharacters: 0, newUserChunks: 0, reusedUserFragments: 2, localInferenceCalls: 0, state: 'prepared' }, decision: 'cloud', capabilityState: 'judgment_inference_timeout', judgmentMs: 30000 };
     const failedJudgment = { ...callDetail, purpose: 'judgment', result: 'failed', safeErrorCode: 'local_judgment_inference_timeout', settings, settingsFingerprint: 'a'.repeat(64), contextUsage: { inputTokens: 128, outputTokens: 32, contextTokens: 65536 }, httpStatus: 400 };
     for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) for (const width of [1600, 375]) {
       const fixturePage = await browser.newPage({ locale: 'en-US' }); fixturePage.on('pageerror', error => errors.push(error.message));
@@ -261,15 +261,20 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       await localRow.waitFor(); assert.equal(await localRow.locator('td').nth(6).textContent(), await fixturePage.evaluate(() => t('Local')));
       assert.ok((await fixturePage.locator('#requestRecords .request-observation-warning').textContent()).endsWith(': 2'));
       assert.equal(await localRow.locator('td').nth(1).textContent(), local.localModel);
+      assert.equal(await fixturePage.locator(`#requestRecords [data-request="${localUnknown.requestId}"] td`).nth(1).textContent(), localUnknown.localModel);
       assert.ok((await localRow.textContent()).includes(await fixturePage.evaluate(() => t('Input tokens') + ': 0')));
       assert.ok((await localRow.textContent()).includes(await fixturePage.evaluate(() => t('Total tokens') + ': ' + t('Unknown'))));
       await localRow.locator('button').click(); await fixturePage.locator('#requestRecords .request-price').waitFor();
       assert.ok((await fixturePage.locator('#requestRecords .request-price').textContent()).includes('price-v1'));
       assert.ok((await fixturePage.locator('#requestRecords .request-detail > .request-fields').textContent()).includes(model));
+      assert.ok((await fixturePage.locator('#requestRecords .request-detail > .request-fields').textContent()).includes(local.localModel));
       assert.ok((await fixturePage.locator('#requestRecords .request-call-details').textContent()).includes('execution-v1'));
       await fixturePage.locator(`#requestRecords [data-request="${failed.requestId}"] button`).click();
       await fixturePage.waitForFunction(() => document.querySelector('#requestRecords .request-detail > .request-fields')?.textContent.includes(t('Judgment inference timed out')));
       const fallbackDetails = await fixturePage.locator('#requestRecords .request-detail > .request-fields').textContent();
+      assert.equal(await detailValue(fixturePage, 'User input processing'), await fixturePage.evaluate(() => t('Known user values only')));
+      assert.ok(fallbackDetails.includes(await fixturePage.evaluate(() => t('Application requirement'))), 'application privacy source is visible');
+      assert.ok(fallbackDetails.includes(await fixturePage.evaluate(() => t('Actual redaction model') + 'spark-x2.6-4B-Q8_0')), 'actual privacy binding is visible');
       assert.ok(fallbackDetails.includes(await fixturePage.evaluate(() => t('Judgment status') + t('Failed'))), 'local judgment failure remains visible with final cloud destination');
       assert.ok(fallbackDetails.includes(await fixturePage.evaluate(() => t('Execution status') + t('Not observed'))), 'no local execution is not misrepresented as success');
       const internalDetails = await fixturePage.locator('#requestRecords .request-call-details').textContent();

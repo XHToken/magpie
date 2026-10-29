@@ -71,7 +71,7 @@ func TestRuntimeRedactorContextReloadRebindsCacheAndPreservesPreparedSnapshot(t 
 	if err := manager.Enable(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	redactor := newRuntimeRedactor(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, true)
+	redactor := newRedactionService(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, true)
 	defer redactor.close()
 	oldPipeline, oldSpec, err := redactor.current()
 	if err != nil {
@@ -94,7 +94,7 @@ func TestRuntimeRedactorContextReloadRebindsCacheAndPreservesPreparedSnapshot(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if newPipeline == oldPipeline || oldSpec.RuntimeFingerprint() == newSpec.RuntimeFingerprint() || len(redactor.retired) != 1 {
+	if newPipeline == oldPipeline || oldSpec.RuntimeFingerprint() == newSpec.RuntimeFingerprint() || len(redactor.retired) != 0 {
 		t.Fatal("context reload reused the old redaction cache epoch")
 	}
 	if newSpec.RuntimeFingerprint() != manager.Identity().ModelFingerprint || newSpec.Budget() != 30*time.Second {

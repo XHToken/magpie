@@ -23,7 +23,7 @@ func TestAuditHybridInvalidCompletionMustBlock(t *testing.T) {
 		raw     string
 		blocked bool
 	}{
-		{"valid_complete_control", envelope(`{"entities":[{"value":"宁祁","label":"NAME"},{"value":"陆遥","label":"NAME"}]}`, "stop"), false},
+		{"valid_complete_control", envelope(`{"complete":true,"fields":[{"field":0,"complete":true,"findings":[{"label":"private_person","start":0,"end":2,"text":"宁祁","confidence":1},{"label":"private_person","start":2,"end":4,"text":"陆遥","confidence":1}]}]}`, "stop"), false},
 		{"empty_content", envelope("", "stop"), true},
 		{"malformed_json", envelope("not-json", "stop"), true},
 		{"truncated_json", envelope(`{"entities":[`, "length"), true},
@@ -77,11 +77,11 @@ func TestAuditExtendedInvalidCompletionMustBlock(t *testing.T) {
 		raw     string
 		blocked bool
 	}{
-		{"valid_complete_control", envelope(`{"entities":[{"value":"宁祁","label":"NAME"},{"value":"陆遥","label":"NAME"}]}`, "stop"), false},
+		{"valid_complete_control", envelope(`{"complete":true,"fields":[{"field":0,"complete":true,"findings":[{"label":"private_person","start":0,"end":2,"text":"宁祁","confidence":1},{"label":"private_person","start":2,"end":4,"text":"陆遥","confidence":1}]}]}`, "stop"), false},
 		{"explicit_incomplete", envelope(`{"complete":false,"entities":[]}`, "stop"), true},
 		{"empty_field_coverage", envelope(`{"complete":false,"fields":[]}`, "stop"), true},
 		{"complete_true_empty_field_coverage", envelope(`{"complete":true,"fields":[]}`, "stop"), true},
-		{"unalignable_entity", envelope(`{"entities":[{"value":"原文里不存在的姓名","label":"NAME"}]}`, "stop"), true},
+		{"unalignable_entity", envelope(`{"complete":true,"fields":[{"field":0,"complete":true,"findings":[{"label":"private_person","start":0,"end":2,"text":"原文里不存在的姓名","confidence":1}]}]}`, "stop"), true},
 		{"duplicate_entities_key", envelope(`{"entities":[{"value":"宁祁","label":"NAME"}],"entities":[]}`, "stop"), true},
 		{"multiple_choices", `{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"{\"entities\":[]}"}},{"finish_reason":"length","message":{"role":"assistant","content":""}}]}`, true},
 		{"missing_finish_reason", `{"choices":[{"message":{"role":"assistant","content":"{\"entities\":[]}"}}]}`, true},

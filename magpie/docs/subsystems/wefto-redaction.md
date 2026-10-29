@@ -1,181 +1,232 @@
-# 端云协同 Privacy Redaction and Reversible Restoration
+# 端云协同 user input redaction
 
-## Purpose
+## Responsibility and ownership
 
-Detect and redact sensitive PII, credentials, and user-defined confidential
-terms from outbound cloud requests across all supported wire protocols, and
-reversibly restore placeholders in both non-streaming and streaming responses.
+Application `redactionEnabled`, active routing-group `localRedaction`, nested
+groups and matched rule targets contribute requirements to one server-owned
+request plan. They use the same production engine and do not choose different
+algorithms. The user-input scope contract supersedes the older full-request scope.
 
-## Entry Points
+`routerservice.RedactionService` is created by the service owner and shared through
+`ModelOptions.Redaction`. It owns one current pipeline, a bounded history cache,
+aggregate statistics, cancellation and retiring pipelines. There is no
+group-instance global cache. A group's compatibility execution scope does not replace the engine.
 
-- Redaction engine & wire rewriters (`internal/routerredact/`):
-  - `policy.go`: `Config`, `DetectorConfig`, `CustomEntry`, `DefaultConfig`,
-    `ValidateConfig`
-  - `engine.go`: `Engine`, `NewEngine`, `Session`, `Result`, `Match`
-  - `detectors.go`: built-in detectors (`email`, `phone_cn`, `id_card_cn`,
-    `bank_card`, `ip_address`, `api_secret`, `jwt_token`, `private_key`)
-  - `stream.go`: `StreamRestorer` (chunk-safe placeholder restoration across
-    SSE token boundaries)
-  - `wire.go`, `wire_parse.go`, `wire_decode.go`: protocol-aware request
-    redaction (`RedactWireRequest`), response restoration
-    (`RestoreWireResponse`), and SSE stream wrapping (`WrapSSEStream`)
-- Service HTTP handlers: `internal/routerservice/redaction.go`
-  (`handleRedaction`, `handleRedactionPreview`)
-- Frontend UI: `internal/routerservice/assets/routing-groups-editor.js` for
-  group redaction settings and `observations.js` for request observations.
-  The local-model page does not display redaction diagnostics/acceptance or
-  provide a bulk intent-disable action. The authenticated `/api/redaction`
-  management API and saved application/group redaction requirements remain.
+Sources of truth:
 
-## Architecture
+- [request policy](../../internal/routerservice/group_redaction_policy.go):
+  `groupPrivacyPlan`, `prepareRequiredRedaction`, `redactionSnapshot`;
+- [service lifetime and binding](../../internal/routerservice/runtime_redactor.go):
+  `RedactionService`, `prepare`, `Close`;
+- [engine specification and extraction](../../internal/routerredact/engine.go):
+  `NewEngineSpecification`, `HybridExtractor`;
+- [original-protocol user view and source sidecar](../../internal/cloudcodec/user_input.go),
+  [user scan and known-value application](../../internal/routerredact/user_input.go),
+  [legacy diagnostic wire parsing](../../internal/routerredact/wire_parse.go),
+  [pipeline/cache](../../internal/routerredact/pipeline.go),
+  [mapping](../../internal/routerredact/mapping.go),
+  [strict parser](../../internal/routerredact/privacy_parse.go) and
+  [JSON/SSE restoration](../../internal/routerredact/stream.go).
 
-### Policy Configuration (`routerredact.Config`)
+## Requirements and model selection
 
-Redaction settings live under `redaction` in `config.json`:
+Requirements combine with OR before candidate sorting or deduplication. Switching
+candidates, affinity, patience retries and restoring an earlier target cannot
+clear the request plan. Hidden, disabled and excluded groups contribute nothing;
+incomplete expansion fails closed. Only matched rule targets add requirements.
 
-- `Enabled bool`: master switch for outbound cloud redaction.
-- `Mode string`: `"placeholder"` (replaces sensitive spans with reversible
-  tokens such as `[REDACTED_EMAIL_1]` and restores them in responses) or
-  `"mask"` (irreversible masking).
-- `RestoreResponses bool`: whether placeholders in upstream cloud responses are
-  restored to their original values before returning to the caller.
-- `Detectors map[string]DetectorConfig`: per-detector enablement for built-in
-  patterns (`email`, `phone_cn`, `id_card_cn`, `bank_card`, `ip_address`,
-  `api_secret`, `jwt_token`, `private_key`).
-- `CustomEntries []CustomEntry`: user-defined sensitive terms or regex patterns
-  with optional replacement aliases and category labels.
+Application-only requirements use the Manager's selected local model. Groups
+constrain the model to their own first effective local member. Different group
+models, including different quantizations, return 409 `redaction_policy_conflict`.
+A required group with no local member returns 409 `redaction_model_missing`.
+A mismatch with the actual selected model, unavailable runtime, invalid output or
+failed preparation blocks cloud dispatch with 503 `redaction_unavailable`.
 
-### Request Inspection, Smart-Split Signal, and Outbound Redaction
+Overlapping application and group requirements mean one preparation for each
+final target request. Different cloud targets prepare their own final bodies;
+model calls within a preparation may be batched.
 
-1. **Sensitivity Signal for Routing Groups (`smart_split` & `has_sensitive`)**:
-   - During routing-group evaluation (`internal/routerservice/group_routing.go`),
-     the redaction engine inspects the request payload.
-   - Under `smart_split`, requests containing sensitive matches (`hasSensitive`)
-     can be steered according to group rules or redacted before cloud dispatch.
-2. **Protocol-Aware Wire Redaction (`wire.go`, `wire_parse.go`)**:
-   - `RedactWireRequest` traverses user/system text fields, tool arguments, and
-     tool outputs across OpenAI Chat, OpenAI Responses, Anthropic Messages, and
-     Gemini Native JSON payloads without corrupting structural fields (such as
-     `model`, `role`, tool names, or JSON schema keys).
-   - Generates deterministic per-request session placeholders
-     (`[REDACTED_<CATEGORY>_<N>]`) and records match counts and categories in
-     `routerredact.Result` for `routerobs` telemetry.
+Application requirements protect cloud egress. Existing direct-group local
+preparation/restoration is retained through `RedactLocal` in the request plan;
+inheritance does not change the parent's local execution scope. No local model
+or host endpoint is selected or changed automatically.
 
-### Non-Streaming and Streaming Restoration (`wire_decode.go`, `stream.go`)
+## Final request and response boundary
 
-- **Non-Streaming (`RestoreWireResponse`)**: Scans assistant message content and
-  tool-call arguments in the upstream JSON response and substitutes session
-  placeholders back with their original values.
-- **Streaming SSE (`StreamRestorer`, `WrapSSEStream`)**: Buffers only the minimal
-  trailing prefix needed when a `[` placeholder spans multiple SSE chunks,
-  emitting restored text deltas in real time without breaking SSE framing.
-  Responses reasoning summaries use separate `summary_index` channels; closing
-  one summary must not close another, and synthesized flush events retain that
-  summary's index.
+User identification uses the original validated inbound protocol. Chat selects
+only `role=user` content strings/direct text blocks; Responses selects string
+`input` or ordinary `message` items explicitly marked `role=user`; Anthropic
+selects direct user text, excluding nested `tool_result` content. All user turns
+participate, including earlier turns when the request ends with a tool callback.
+User-pasted code, attachments represented as text and host context concatenated
+into that same string are scanned in full.
 
-## Invariants
+System/developer/instructions, tools/schema/keys, host/accounting metadata,
+assistant messages, tool arguments and tool outputs never enter rules,
+dictionaries or the local extraction model for new entity discovery. Existing
+JSON/protocol/capability limits and the privacy text-only subset remain enforced.
+A secret first introduced by a system prompt or tool is outside this scope.
 
-### Nested groups and request-scoped requirements
+One request owns a `UserSnapshot` containing processed fragments and their
+private mappings. Candidate protocols and provider options are prepared
+separately. `UserTextView.BindTarget` passes unpredictable internal stand-ins
+through the same codec and ExtraBody expansion. It verifies each source survives,
+including multiple output locations and merged-string intervals, and verifies
+that rendering the original fragments reproduces the real final target tree.
+Source positions never come from client metadata or equality searches over
+business text. The stand-ins are never sent. Lost/overwritten source fragments
+and explicit reinjection through ExtraBody fail closed with the fixed business
+error `redaction_unavailable`; configuration already forbids conversation/target
+overrides independently.
 
-`routerconfig.ResolveActiveGroupExpansion` returns both model members and
-privacy sources. `routerservice.groupPrivacyPlan` merges requirements from the
-application, every active group in the selected expansion, and the matched rule's
-group target before ordering or deduplication. A requirement protects every cloud
-candidate in that request, including sibling fallbacks. Hidden, disabled and
-excluded groups contribute nothing; incomplete expansion fails closed.
+Assistant text, tool results and string leaves inside safely parsed tool
+arguments reuse only exact originals identified from user input. Replacement is
+single pass, longest match first, with case preserved. Boundary version
+`exact-longest-boundary-v1` requires Unicode word boundaries for values shorter
+than four code points. Longer values use ASCII word-neighbor checks at ASCII
+word edges, allowing a phone number adjacent to Chinese prose while excluding
+an ASCII identifier suffix. Keys, numbers, tool names, IDs,
+system/schema and unknown values are untouched. The trie matcher checks the
+shared context while applying mappings. Literal placeholder collisions reserve
+fresh IDs; only tokens actually emitted in allowed target values authorize
+response restoration. A missing allocated mapping fails closed.
 
-The server-owned context plan survives candidate target replacement. Required
-models are selected from each source group's own effective member order; unequal
-model IDs (including different quantizations) return `redaction_policy_conflict`.
-A source with no local member returns `redaction_model_missing`. These are 409
-configuration errors. Unavailable/invalid preparation returns 503
-`redaction_unavailable` and terminates both the candidate loop and patience
-retries. Ordinary local judgment/execution failures can still select a cloud
-candidate, which must pass the same privacy gate.
+A required new scan remains blocked while inference is unavailable. A request
+with no user text performs no inference, even without an available model; an
+unchanged selected binding is still required. Existing trusted, tool-only
+mapping application can finish with that binding while disabled. Full user-cache
+hits conservatively retain the extractor's current admission check. Neither
+case acquires or waits for a model slot merely to attest completion.
 
-`prepareRequiredRedaction` shares one preparation deadline across candidates
-(at most 30 seconds, bounded by the request deadline) and pins routing versions
-before and after extraction. It reuses the existing exact extractor/cache
-identities; inheritance does not change extraction material or grant capability
-acceptance. Protocol/target preparation still precedes redaction, so provider
-extra body is checked. Prepared bodies are not exchanged between providers.
+The executor receives only the prepared final body. Adaptation to the client's
+protocol precedes restoration. Each Prepared request owns an independent mapping
+snapshot; JSON and SSE use the same snapshot, including split tokens, independent
+tool channels and reasoning summary channels. A restoration error terminates the
+response. Output commitment still prevents selecting a second result.
 
-Saved `localRedaction` intent is not automatically cleared when a model/member
-disappears. New enablement without a consistent local model is rejected by the
-management save API. `/api/routing-groups?preview=1` accepts an authenticated
-POST for read-only draft policy resolution. Group views expose `redactionPolicy`
-with own/inherited requirements, source group IDs, model, local-member presence,
-rule dependence and fixed invalid-reason codes. Rule-dependent summaries are
-static; only the matched rule affects an actual request.
+Native token counting, connection checks, titles and ordinary generation obey
+the same cloud egress rule. Token counting is not exempt because it sends data.
 
-Request policy state is persisted separately from model call status; see the
-[request ledger](wefto-request-ledger.md). Local completion without any cloud
-preparation is `not_sent`, not proof of successful cloud redaction. Relevant
-regressions are `group_redaction_policy_test.go`, `groups_privacy_test.go`, and
-the routing-group browser suite.
+## Unified detection and strict validation
 
-### Local model preparation budget and policy identity
+Rules and the dictionary scan complete uncached user fields; the local model independently
+scans every planned nonempty chunk. Results combine through a deterministic union
+of overlapping sensitive spans, preserving their uncovered bytes. Rule matches
+do not excuse missing model completion. Non-sensitive `public_information` and
+`job_title` findings are ignored only after strict validation; they cannot erase
+rule/dictionary sensitive findings.
 
-The local-model preparation path uses
-[`Pipeline.Prepare`](../../internal/routerredact/pipeline.go),
-[`RuntimeExtractor.Extract`](../../internal/routerredact/runtime.go) and the
-service-owned runtime Manager. Their default redaction deadline is 30 seconds,
-defined by `routerruntime.DefaultRedactionBudget`. The deadline covers request
-preparation, runtime queueing and every chunk/batch; batching does not renew it.
-A shorter caller deadline or cancellation still wins. Invalid model results
-and incomplete preparation block cloud dispatch.
-Rule matching is part of that complete scan: an initial or subsequent matcher
-failure, including a regular-expression timeout, returns the fixed safe code
-`redaction_extraction_failed` and blocks dispatch. Matcher diagnostics containing
-source text are not propagated to clients or observations. The management API
-reports the Manager's actual preparation budget for both formal and trial paths.
+The engine retains all 49 legacy model labels and adds IP, MAC and hostname
+labels. Sensitive personal dates, business ratios and short secrets are not
+silently removed by the legacy group detector's heuristic filters. The legacy
+model-only specification and legacy orchestrator remain available for diagnostic
+and fixture baselines; production has no fallback to either algorithm.
 
-[`PrivacySpecification`](../../internal/routerredact/privacy_specification.go)
-versions the strict parsing policy as `privacy-go-v6` (explicit trials use
-`privacy-trial-v2`). Its configuration hash includes the 30-second budget and
-`coordinateRecoveryPolicy=unique-exact-substring-valid-coordinates-v1`.
-[`Parse`](../../internal/routerredact/privacy_parse.go) requires valid supplied
-coordinate bounds, but may recover a mismatched span from one unique exact
-source substring with valid ASCII boundaries. Uniqueness includes overlapping
-matches, including multibyte and non-BMP text. Missing or ambiguous matches,
-invalid bounds, duplicates and other invalid findings still reject the result.
-This declaration records existing parser behavior; it adds no new recovery.
+Output requires exactly one complete response with `finish_reason=stop`, an
+assistant content string, complete exact field coverage, known labels, finite
+confidence and valid Unicode coordinates. Duplicate keys, truncation, ambiguous
+or missing source substrings, invalid bounds and invalid findings reject the
+whole preparation. Coordinate recovery permits only the versioned unique exact
+substring rule with valid supplied bounds and ASCII boundaries.
 
-The configuration and suite identities change with this policy, so prior
-acceptance/cache identities cannot substitute for new policy evidence. Model,
-runtime artifact, prompt and schema identities remain tied to their own inputs;
-the policy update does not require new weights or grant capability acceptance.
+Sensitive amounts now use reversible placeholders. Group requests no longer
+implicitly generalize amounts. The engine preserves the original fine category
+in observations. Restoration recovers echoed original values, not arithmetic
+performed on hidden operands. Numeric JSON scalars retain their existing wire
+contract; this change does not claim general scalar masking support.
 
-Explicit experimental privacy preparation accepts the current `spark-x2.6-4B`
-and `spark-x2.6-4B-Q8_0` variants, using independent pinned model fingerprints
-and the same `privacy-trial-v2` material, parser and budget. It still requires the trusted
-startup permission (enabled by default by the product CLI) and exact current binding; adding a model grants no formal
-redaction quality acceptance or automatic privacy enablement.
+## Chunks, deadline and binding
 
-Both X2.6 catalog entries explicitly declare `redactionTrial: true` and the
-purpose `public_execution_and_redaction_validation_only`. The specification
-and runtime invoker share `Model.SupportsRedactionTrial` for admission; a
-descriptive purpose string is not an authorization input. This metadata change
-updates the bound model fingerprints, invalidating old capability/cache
-bindings, while retaining the same pinned weights, template and runtime bytes.
-Existing downloads need no replacement. The original extraction, restoration,
-30-second budget and failure-blocking paths remain in use for both variants.
-Saved installation manifests may retain historical descriptive metadata until
-refreshed by installation; admission uses the service's fixed catalog, not that
-saved purpose string. Historical held-out evaluation names identify their
-material provenance and do not restrict the production model allowlist.
+The engine uses approximately 1800 Unicode code points per chunk with 120 points
+of overlap, at most 64 chunks per new scan, and strict batches of at most 16
+fields / 2048 code points. The application-only 2048-point whole-field limit no
+longer applies. The runtime still validates token capacity and reserves output;
+context overflow fails preparation rather than truncating input.
 
-### Plaintext lifetime
+Outer limits remain 8 MiB and 4096 entities; the 8192-field and 64-chunk scan limits count user fragments only. Every nonempty
+planned chunk must finish; an over-limit plan fails before model calls. Empty
+fields need no inference because they contain no sensitive bytes. Full character
+coverage is an engineering guarantee, not proof of recall for long entities
+crossing chunk boundaries.
 
-- Mapping/session caches are held in memory. The separate service-owned
-  `routerledger.RedactionObservationStore` persists the latest user input,
-  redacted input and replacement values in the private
-  `<state>/redaction_observations.sqlite` database for the authenticated
-  management view. Its default retention is seven days and 500 request IDs.
-  Queries exclude expired records; physical pruning (with `PRAGMA secure_delete=ON`)
-  runs on database open, record writes, queries, and periodic background expiration.
-  Repeated observations for one request update that record without evicting
-  another request at capacity. The management clear operation deletes the
-  stored observations. Business request/usage ledgers remain separate.
-- Local engine executions (`local/*`) stay on-device and do not send data to
-  external cloud endpoints.
+One deadline covers preparation, loading, queueing, rules, all model batches and
+candidate re-preparation: at most 30 seconds, bounded by the request deadline
+and any shorter Manager budget. A retry or another chunk cannot renew it.
+
+`NewEngineSpecification` hashes actual prompt/schema, label/action policy,
+rule/dictionary material, builtin definitions, normalization, chunking, limits,
+amount handling and validation/merge policy. Production uses `privacy-user-input-v1`
+or `privacy-user-input-trial-v1` suites. Scope, extraction, mapping boundaries,
+server-issued session/cache policy and target restoration authority are included
+in the material identity. Old full-request caches and suites cannot authorize
+this scope. Old model-only acceptance cannot authorize
+the new extractor. The Manager verifies the same model fingerprint and suite;
+experimental permission does not grant formal quality acceptance.
+
+The first preparation binds an immutable specification; later candidates must
+match. Model/context/backend changes before dispatch reject that preparation.
+Previously prepared response snapshots remain independent of cache rotation.
+
+## Cache, observations and shutdown
+
+Cache keys isolate authenticated application, server-verified session, source
+user ordinals/text-block ordinals, exact user fingerprints, fixed scope and
+model/material binding. User identification is independent of target provider,
+policy source flags, system prompts, tools and ordinary assistant/tool changes.
+Only an unchanged user prefix is reused; edits, deletion, reordering and forks
+are rescanned. Every outbound history is still rewritten on a cache hit.
+
+There is no verified host-session adapter in this checkout. Body session IDs,
+metadata, trace IDs, message counts and identical first-user text grant no trust.
+The service can issue `X-Router-Redaction-Session`: a random nonce, timestamp and
+HMAC-SHA256 bound to the authenticated app and this service instance, valid for
+15 minutes. A host may echo it to reuse its private cache; missing/invalid,
+cross-app or pre-restart handles use a fresh request session and cannot read
+another session's mappings. This requires no host endpoint/configuration change.
+Internal trusted adapters may supply `SessionVerified`; unverified seed keys are
+never published. The history cache remains bounded to 128 entries, 16 MiB and
+15 minutes, with epoch invalidation and independent response snapshots.
+
+`/api/redaction` is authenticated and reports the shared service's aggregate
+preparation statistics, actual selected model, engine version, readiness and
+trial/formal state. Readiness does not mean every application/group is enabled.
+Request policy observations retain application/group sources, required model,
+actual prepared model and engine version separately from cloud attempts.
+Successful preparation also records `scopeVersion`, `scanDisposition`
+(`scanned`, `cache_hit`, `known_values_only`, `no_user_input`), newly scanned
+user characters/chunks, reused fragments, actual inference calls and preparation
+milliseconds. Failed calls retain separate safe runtime observations rather than
+claiming a successful zero-scan result. Actual reported tokens and combined
+queue/load timing remain in local-call records; absent usage is unknown.
+No-user-input is a scope disposition, not a claim that all content is private.
+The routing-group editor provides the User input redaction switch and explains
+that system/tool discoveries are excluded. Application Details has no redaction
+control. The application flag remains off by default; existing saved values and
+the management API remain compatible, and page visits do not rewrite them.
+
+Mapping/cache data is in memory. The authenticated latest-user-input comparison
+continues to retain original text, redacted text and replacement values in
+`<state>/redaction_observations.sqlite`, at most 500 request IDs / seven days.
+It does not display the entire scanned request. Pruning and clear operations
+retain existing secure-delete behavior. Ordinary logs contain safe metadata.
+
+Close stops new work, cancels in-flight preparation and closes pipeline expiry
+loops. Prepared snapshots close after response restoration; repeated Close is
+safe. No model process is owned by the redaction service: it uses the shared
+runtime Manager.
+
+## Verification
+
+`user_input_test.go` in codec, redaction and service covers original-source
+projection, the nine conversion pairs, cache trust, callback zero inference,
+known-value boundaries, literal/unused-token authority, large tool schemas,
+request snapshot reuse and configuration conflicts. `engine_test.go` covers long fields, exact amounts, strict chunk coverage, scope
+isolation, bounds and new acceptance identities. `unified_redaction_test.go`
+compares application, group and combined paths on both X2.6 variants, verifies
+shared statistics, cancellation and concurrent ownership. Existing group-policy,
+final-boundary, protocol, cache and restoration regressions remain relevant.
+
+Run affected package tests and race checks under `testenv` isolation. Synthetic
+local/cloud transports prove engineering behavior; real-model trials and held-out
+quality evidence must be reported separately. An experimental engine remains
+experimental after the engineering tests pass.

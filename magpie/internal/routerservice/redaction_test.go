@@ -190,7 +190,7 @@ func TestRedactionMultiTurnSessionCacheHitAndIncrementalExtraction(t *testing.T)
 		b, _ := io.ReadAll(r.Body)
 		cloudBodies = append(cloudBodies, string(b))
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"Hello <PERSON:1>"},"finish_reason":"stop"}]}`))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"Hello <NAME:1>"},"finish_reason":"stop"}]}`))
 	}))
 	defer cloud.Close()
 
@@ -210,7 +210,7 @@ func TestRedactionMultiTurnSessionCacheHitAndIncrementalExtraction(t *testing.T)
 	if err := manager.Enable(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	spec, err := routerredact.NewPrivacySpecification(routerredact.ModelBinding{ModelID: modelID, RuntimeID: runtimeID, ContextTokens: manager.Status().Settings.ContextTokens})
+	spec, err := routerredact.NewEngineSpecification(routerredact.ModelBinding{ModelID: modelID, RuntimeID: runtimeID, ContextTokens: manager.Status().Settings.ContextTokens}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestRedactionMultiTurnSessionCacheHitAndIncrementalExtraction(t *testing.T)
 		t.Fatal(err)
 	}
 
-	redactor := newRuntimeRedactor(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, false)
+	redactor := newRedactionService(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, false)
 	defer redactor.close()
 	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "management-token", store, ModelOptions{
 		LocalRuntime: &LocalModels{Manager: manager, Layout: layout, Catalog: catalog},
@@ -259,6 +259,7 @@ func TestRedactionMultiTurnSessionCacheHitAndIncrementalExtraction(t *testing.T)
 	req2 := httptest.NewRequest(http.MethodPost, "http://"+address+"/app/codex/v1/chat/completions", strings.NewReader(`{"model":"profile-model","messages":[{"role":"user","content":"Contact Alice"},{"role":"assistant","content":"Hello Alice"},{"role":"user","content":"Also invite Bob"}]}`))
 	req2.RemoteAddr = "127.0.0.1:2345"
 	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set(redactionSessionHeader, w1.Header().Get(redactionSessionHeader))
 	w2 := httptest.NewRecorder()
 	h.ServeHTTP(w2, req2)
 	if w2.Code != http.StatusOK {
@@ -295,6 +296,7 @@ func TestRedactionMultiTurnSessionCacheHitAndIncrementalExtraction(t *testing.T)
 	req4 := httptest.NewRequest(http.MethodPost, "http://"+address+"/app/codex/v1/responses", strings.NewReader(`{"model":"profile-model","input":[{"role":"user","content":"Email Alice"},{"role":"assistant","content":"Hello Alice"},{"role":"user","content":"CC Bob"}]}`))
 	req4.RemoteAddr = "127.0.0.1:2345"
 	req4.Header.Set("Content-Type", "application/json")
+	req4.Header.Set(redactionSessionHeader, w3.Header().Get(redactionSessionHeader))
 	w4 := httptest.NewRecorder()
 	h.ServeHTTP(w4, req4)
 	if w4.Code != http.StatusOK {
@@ -354,7 +356,7 @@ func TestRedactionManagementAPIReportsActualBudgetInNormalAndExperimentalModes(t
 			}
 			defer mgr.Close(context.Background())
 			localModels := &LocalModels{Manager: mgr, Layout: layout, Catalog: catalog}
-			redactor := newRuntimeRedactor(localModels, tc.experimental)
+			redactor := newRedactionService(localModels, tc.experimental)
 			defer redactor.close()
 			const token = "redaction-budget-test-token"
 			h := handlerWithModelOptions(Info{Address: "127.0.0.1:13145"}, token, store, ModelOptions{

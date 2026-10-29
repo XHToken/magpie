@@ -179,7 +179,7 @@ func (e *RuntimeExtractor) Extract(parent context.Context, in Extraction) (Resul
 	if err != nil {
 		return Result{}, err
 	}
-	return Result{Complete: true, Entities: entities}, nil
+	return Result{Complete: true, Entities: entities, LocalInferenceCalls: len(batches)}, nil
 }
 
 func (e *RuntimeExtractor) extractBatch(ctx context.Context, in Extraction) (Result, error) {

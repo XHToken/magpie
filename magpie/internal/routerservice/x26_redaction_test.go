@@ -29,17 +29,18 @@ func TestX26VariantsUseExistingGroupRedactionPath(t *testing.T) {
 			local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				localCalls.Add(1)
+				body, _ := io.ReadAll(r.Body)
 				var request struct {
 					Model string `json:"model"`
 				}
-				if json.NewDecoder(r.Body).Decode(&request) != nil || request.Model != modelID {
+				if json.Unmarshal(body, &request) != nil || request.Model != modelID {
 					t.Error("redaction did not use the selected X2.6 variant")
 				}
-				content := `{"entities":[{"label":"NAME","value":"Alice"},{"label":"EMAIL","value":"first@example.test"}]}`
 				if invalid.Load() {
-					content = `{"entities":[`
+					_, _ = io.WriteString(w, `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"invalid"}}]}`)
+				} else {
+					_, _ = w.Write(strictRedactionFixture(body, map[string]string{"Alice": "private_person", "first@example.test": "private_email"}))
 				}
-				_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"index": 0, "finish_reason": "stop", "message": map[string]string{"role": "assistant", "content": content}}}})
 			}))
 			defer local.Close()
 			cloud := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -75,9 +76,10 @@ func TestX26VariantsUseExistingGroupRedactionPath(t *testing.T) {
 				t.Fatal(err)
 			}
 			localModels := &LocalModels{Manager: manager, Layout: layout, Catalog: catalog}
-			defer closeServiceGroupRedactors(store, localModels)
+			redactor := newRedactionService(localModels, true)
+			defer redactor.close()
 			h := handlerWithModelOptions(Info{Service: "api-router", Address: "127.0.0.1:13145"}, "mgmt-secret-token", store, ModelOptions{
-				LocalRuntime: localModels, ExperimentalRedaction: true, Routing: &RoutingOptions{LocalInvoker: manager},
+				LocalRuntime: localModels, Redaction: redactor, ExperimentalRedaction: true, Routing: &RoutingOptions{LocalInvoker: manager},
 			})
 			provider := saveTestCloudProvider(t, store, "X26RedactionFixture", cloud.URL+"/v1", "fixture")
 			if _, err := store.SaveGroup(routerconfig.Group{ID: "x26-redaction", Name: "X26 Redaction", Routing: "order", LocalRedaction: true, Members: []string{"local/" + strings.ToLower(modelID), provider.ID + "/fixture"}}); err != nil {

@@ -62,6 +62,24 @@ func executePreparedModelBody(w http.ResponseWriter, prepared *http.Request, sub
 	ctx, options := snapshotRuntimeSettings(prepared.Context(), options)
 	prepared = ensureProfileRedactionPlan(prepared.WithContext(ctx))
 	state, _ := routerrequest.FromContext(prepared.Context())
+	if work := redactionWork(prepared.Context()); work != nil {
+		defer func() {
+			if work.userSnapshot != nil {
+				work.userSnapshot.Close()
+				work.userSnapshot = nil
+			}
+		}()
+		service := options.Redaction
+		if service == nil && options.Routing != nil {
+			service, _ = options.Routing.Redactor.(*RedactionService)
+		}
+		if service != nil {
+			work.session = service.requestSession(state.AppID, prepared.Header.Get(redactionSessionHeader))
+			if work.session.Verified {
+				w.Header().Set(redactionSessionHeader, work.session.ID)
+			}
+		}
+	}
 	defer func() { result.Redaction = redactionSnapshot(prepared.Context(), err) }()
 	// C binds the request's observer after Prepare. Promote that trusted
 	// context value into A's producer options so judgment, execution and
@@ -108,6 +126,9 @@ func executePreparedModelBody(w http.ResponseWriter, prepared *http.Request, sub
 	// W4 routing is enabled only when explicitly injected or when the user has
 	// enabled the shared local runtime. The legacy cloud executor remains the
 	// direct path for disabled/unconfigured local models.
+	if redactionRequired(prepared.Context(), state.Target.Profile.RedactionEnabled) && !options.shouldRoute() {
+		return executeCloudModelSub(w, prepared, protocolForSub(sub), sub, body, options, emit, writer)
+	}
 	if options.shouldRoute() {
 		return executeRoutedModelSub(w, prepared, protocolForSub(sub), sub, body, options, emit, writer)
 	}

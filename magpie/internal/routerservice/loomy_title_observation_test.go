@@ -82,7 +82,7 @@ func TestLoomyLocalTitlesRetainActualModel(t *testing.T) {
 				}
 				model := "profile-pinned"
 				if route != "routed" {
-					model = "local/" + modelID
+					model = "local/" + strings.ToLower(modelID)
 					if route == "group" {
 						if _, err := store.SaveGroups([]routerconfig.Group{{ID: "title-hybrid", Name: "Title hybrid", Routing: "smart_split", Members: []string{model, app.Cloud.ProviderID + "/profile-pinned"}}}); err != nil {
 							t.Fatal(err)

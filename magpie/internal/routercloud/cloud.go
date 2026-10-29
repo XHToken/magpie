@@ -65,6 +65,59 @@ func (p PreparedRequest) WithBody(body []byte) PreparedRequest {
 	return p
 }
 
+// UserInputTarget derives private source positions through the same conversion
+// and ExtraBody expansion. Failure is a privacy scope conflict, never permission
+// to use a partially transformed body.
+func (p PreparedRequest) UserInputTarget() (*cloudcodec.UserTextTarget, error) {
+	view, err := cloudcodec.NewUserTextView(p.protocol, p.sourceBody)
+	if err != nil {
+		return nil, err
+	}
+	for _, raw := range p.target.Provider.ExtraBody {
+		var value any
+		decoder := json.NewDecoder(bytes.NewReader(raw))
+		decoder.UseNumber()
+		if decoder.Decode(&value) != nil {
+			return nil, cloudcodec.ErrUserInputScope
+		}
+		value = expandSession(value, p.target.SessionID)
+		var conflict func(any) bool
+		conflict = func(value any) bool {
+			switch x := value.(type) {
+			case string:
+				for _, text := range view.Texts() {
+					if text != "" && (x == text || len([]rune(text)) >= 4 && strings.Contains(x, text)) {
+						return true
+					}
+				}
+			case []any:
+				for _, v := range x {
+					if conflict(v) {
+						return true
+					}
+				}
+			case map[string]any:
+				for _, v := range x {
+					if conflict(v) {
+						return true
+					}
+				}
+			}
+			return false
+		}
+		if conflict(value) {
+			return nil, cloudcodec.ErrUserInputScope
+		}
+	}
+	return view.BindTarget(p.body, func(source []byte) ([]byte, error) {
+		probe, err := PrepareRequestBody(Request{Protocol: p.protocol, Body: source, Target: p.target}, p.countTokens)
+		if err != nil {
+			return nil, err
+		}
+		return probe.Body(), nil
+	})
+}
+
 // Result is one business operation, regardless of Attempts. Unknown usage is
 // represented by nil; it must not be recorded as zero by the entry's ledger.
 type Result struct {
@@ -88,6 +141,17 @@ type Result struct {
 
 // RedactionPolicy is safe execution metadata, never request or entity content.
 type RedactionPolicy struct {
+	ScopeVersion        string `json:"scopeVersion,omitempty"`
+	ScanDisposition     string `json:"scanDisposition,omitempty"`
+	NewUserCharacters   int    `json:"newUserCharacters"`
+	NewUserChunks       int    `json:"newUserChunks"`
+	ReusedUserFragments int    `json:"reusedUserFragments"`
+	LocalInferenceCalls int    `json:"localInferenceCalls"`
+	PreparationMS       int64  `json:"preparationMs"`
+
+	ProfileRequired  bool     `json:"profileRequired,omitempty"`
+	ActualModelID    string   `json:"actualModelId,omitempty"`
+	EngineVersion    string   `json:"engineVersion,omitempty"`
 	SourceGroupCount int      `json:"sourceGroupCount"`
 	Required         bool     `json:"required"`
 	SourceGroupIDs   []string `json:"sourceGroupIds"`

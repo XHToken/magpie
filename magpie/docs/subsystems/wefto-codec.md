@@ -66,8 +66,8 @@ metadata and the explicit Chat controls emitted by Loomy's compatible SDK and
 WorkBuddy's model builder. Cloud input validation and routing normalization use
 the same field, role, type, normalized-usage and text/refusal checks. Conversion
 uses the same names to refuse host metadata or request options that the portable
-IR cannot preserve, before opening an upstream request. Privacy extraction uses
-the registry to scan every protected string/key. Registry objects are internal;
+IR cannot preserve, before opening an upstream request. User-input privacy recognition excludes these structural strings and keys;
+ordinary protocol validation continues to use the registry. Registry objects are internal;
 callers receive fresh name lists and cannot mutate the contract.
 
 The native option subset is `frequency_penalty`, `presence_penalty`, signed
@@ -128,7 +128,7 @@ were moved with their pure parser to preserve legacy behavior; the cloud
 executor still returns its own safe errors and never exposes upstream bodies.
 
 This boundary alone does not prove product startup behavior. The product
-integration must also check the built `cmd/wefto` dependency graph and run
+integration must also check the built `cmd/api-router` dependency graph and run
 an isolated process with temporary config and ports while observing network and
 subprocess activity. No local model, judgment, redaction or host compatibility
 claim follows from this extraction.
@@ -183,3 +183,14 @@ within the input limit remain byte-preserving for JSON clients. The budget is
 for input/output wire bytes and retained protocol buffers, not a total Go heap
 ceiling. Legacy `ResponsesWholeEvents` collects the same generator for existing
 callers; it does not introduce a second protocol implementation.
+
+## User input scope (2026-10-29)
+
+The production redactor uses the original-protocol `user-input-v1` view,
+request-owned identification snapshot and target provenance sidecar. System and
+tool context cannot consume user scanning blocks. Assistant/tool echoes reuse
+only known user values. Cache trust requires a server-issued app-bound session
+handle or a trusted internal adapter; client declarations are insufficient.
+See [user input redaction](wefto-redaction.md) for source, cache,
+restoration authority, safe workload fields and failure semantics. Existing
+saved requirements, providers, models and host connections are preserved.

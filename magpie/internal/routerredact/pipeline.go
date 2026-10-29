@@ -8,23 +8,30 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/yetone/magpie/internal/routerruntime"
 )
 
 type Stats struct {
-	Processed  uint64            `json:"processed"`
-	Entities   uint64            `json:"entities"`
-	CacheHits  uint64            `json:"cacheHits"`
-	Blocked    uint64            `json:"blocked"`
-	DurationMS int64             `json:"durationMs"`
-	Failures   map[string]uint64 `json:"failures"`
+	NewUserCharacters   uint64            `json:"newUserCharacters"`
+	NewUserChunks       uint64            `json:"newUserChunks"`
+	ReusedUserFragments uint64            `json:"reusedUserFragments"`
+	LocalInferenceCalls uint64            `json:"localInferenceCalls"`
+	NoUserInput         uint64            `json:"noUserInput"`
+	KnownValuesOnly     uint64            `json:"knownValuesOnly"`
+	Processed           uint64            `json:"processed"`
+	Entities            uint64            `json:"entities"`
+	CacheHits           uint64            `json:"cacheHits"`
+	Blocked             uint64            `json:"blocked"`
+	DurationMS          int64             `json:"durationMs"`
+	Failures            map[string]uint64 `json:"failures"`
 }
 type cacheKey struct {
-	app, session string
-	protocol     Protocol
-	operation    string
-	versions     Versions
+	app, session, scope string
+	protocol            Protocol
+	operation           string
+	versions            Versions
 }
 type cacheEntry struct {
 	fingerprints                     [][32]byte
@@ -46,6 +53,8 @@ type Pipeline struct {
 	closeOnce sync.Once
 }
 type Prepared struct {
+	scopeMeta                                                              ObservationMeta
+	newUserCharacters, reusedFragments, localInferenceCalls, newUserChunks int
 	*Snapshot
 	mu          sync.RWMutex
 	body        []byte
@@ -115,11 +124,12 @@ func (p *Prepared) ObservationMeta() (ObservationMeta, error) {
 		}
 		return replacements[i].Original < replacements[j].Original
 	})
-	return ObservationMeta{
-		CacheHit:     cacheHit,
-		DurationMS:   durationMS,
-		Replacements: replacements,
-	}, nil
+	meta := p.scopeMeta
+	meta.CacheHit = cacheHit
+	meta.DurationMS = durationMS
+	meta.Replacements = replacements
+	return meta, nil
+
 }
 
 func (p *Prepared) Close() {
@@ -195,7 +205,7 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 	if in.Operation == "generate" {
 		in.Operation = "generation"
 	}
-	if in.RequestID == "" || len(in.RequestID) > 128 || in.AppID == "" || len(in.AppID) > 48 || len(in.SessionID) > 256 || len(in.SeedSessionID) > 256 || in.Versions.Model == "" || len(in.Versions.Model) > 256 || in.Versions.Prompt == "" || len(in.Versions.Prompt) > 256 || in.Versions.Config == "" || len(in.Versions.Config) > 256 || (in.Operation != "generation" && in.Operation != "count_tokens") || len(in.Body) > 8<<20 {
+	if len(in.CacheScope) > 256 || in.RequestID == "" || len(in.RequestID) > 128 || in.AppID == "" || len(in.AppID) > 48 || len(in.SessionID) > 256 || len(in.SeedSessionID) > 256 || in.Versions.Model == "" || len(in.Versions.Model) > 256 || in.Versions.Prompt == "" || len(in.Versions.Prompt) > 256 || in.Versions.Config == "" || len(in.Versions.Config) > 256 || (in.Operation != "generation" && in.Operation != "count_tokens") || len(in.Body) > 8<<20 {
 		return nil, fail("redaction_invalid_input")
 	}
 	if p.options.Extractor == nil {
@@ -203,7 +213,7 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 	}
 	if available, ok := p.options.Extractor.(interface {
 		Available(context.Context, Versions) error
-	}); ok {
+	}); ok && len(in.Body) > 0 {
 		if checkErr := available.Available(ctx, in.Versions); checkErr != nil {
 			if err = contextError(ctx); err != nil {
 				return nil, err
@@ -219,6 +229,13 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 	if len(doc.texts) > 8192 {
 		return nil, fail("redaction_input_limit")
 	}
+	if len(in.TextIdentities) > 0 {
+		if len(in.TextIdentities) != len(doc.texts) {
+			return nil, fail("redaction_invalid_input")
+		}
+		doc.identities = append([]string(nil), in.TextIdentities...)
+	}
+	reserved := append(append([]string(nil), doc.texts...), in.Reserved...)
 	fingerprints := make([][32]byte, len(doc.texts))
 	textBytes := 0
 	for i, text := range doc.texts {
@@ -228,7 +245,7 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 	if textBytes > 8<<20 {
 		return nil, fail("redaction_input_limit")
 	}
-	key := cacheKey{in.AppID, in.SessionID, in.Protocol, in.Operation, in.Versions}
+	key := cacheKey{in.AppID, in.SessionID, in.CacheScope, in.Protocol, in.Operation, in.Versions}
 	cacheable := in.SessionVerified && in.SessionID != ""
 	mapping, categories, generalized := map[string]string{}, map[string]string{}, map[string]string{}
 	processed := []string{}
@@ -251,7 +268,7 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 		// A later literal equal to a prior generated token must never be restored
 		// as the prior entity. Re-scan and allocate a fresh collision-free mapping.
 		if equal {
-			for _, text := range doc.texts {
+			for _, text := range reserved {
 				for token := range cached.mapping {
 					if strings.Contains(text, token) {
 						equal = false
@@ -274,8 +291,10 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 		}
 	}
 	p.mu.Unlock()
+	reusedFragments := len(processed)
+	newCharacters, calls, chunks := 0, 0, 0
 	increment := append([]string(nil), doc.texts[len(processed):]...)
-	if len(increment) > 0 || !hit {
+	if len(increment) > 0 {
 		result, extractErr := p.options.Extractor.Extract(ctx, Extraction{Versions: in.Versions, Texts: append([]string(nil), increment...)})
 		if err = contextError(ctx); err != nil {
 			return nil, err
@@ -293,12 +312,17 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 			}
 			return nil, fail("redaction_extraction_failed")
 		}
+		calls = result.LocalInferenceCalls
+		chunks = result.Chunks
+		for _, text := range increment {
+			newCharacters += utf8.RuneCountInString(text)
+		}
 		entities, validationErr := validateEntities(increment, result)
 		if validationErr != nil {
 			return nil, validationErr
 		}
 		entityCount = len(entities)
-		replaced, replaceErr := applyEntities(increment, entities, mapping, categories, doc.texts, generalized)
+		replaced, replaceErr := applyEntitiesPolicy(increment, entities, mapping, categories, reserved, p.options.ReversibleAmounts, generalized)
 		if replaceErr != nil {
 			return nil, replaceErr
 		}
@@ -321,10 +345,6 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 	}
 	writeKey := key
 	canWrite := cacheable
-	if !canWrite && in.SeedSessionID != "" {
-		writeKey = cacheKey{in.AppID, in.SeedSessionID, in.Protocol, in.Operation, in.Versions}
-		canWrite = true
-	}
 	if canWrite && epoch == p.epoch {
 		entry := cacheEntry{fingerprints, append([]string(nil), processed...), cloneStrings(mapping), cloneStrings(categories), cloneStrings(generalized), now.Add(p.options.CacheTTL), now, 0}
 		for _, s := range entry.processed {
@@ -341,7 +361,8 @@ func (p *Pipeline) Prepare(parent context.Context, in Input) (prepared *Prepared
 	}
 	p.mu.Unlock()
 	return &Prepared{
-		Snapshot:    &Snapshot{mapping: mapping},
+		Snapshot:          &Snapshot{mapping: mapping},
+		newUserCharacters: newCharacters, reusedFragments: reusedFragments, localInferenceCalls: calls, newUserChunks: chunks,
 		body:        rendered,
 		cacheHit:    hit,
 		durationMS:  time.Since(started).Milliseconds(),

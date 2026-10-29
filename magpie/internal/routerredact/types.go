@@ -20,17 +20,21 @@ const (
 // cannot substitute for these independent capability/cache dimensions.
 type Versions struct{ Model, Prompt, Config string }
 
-// Input describes the final outbound body after target binding, conversion and
-// all provider option/session expansion. The caller keeps the client response
-// protocol separately and must not append original options after Prepare.
+// Input describes either the original protocol body for ScanUserInput or a
+// finalized diagnostic body for legacy Prepare. Source identities and reserved
+// target literals are trusted internal values, never client credentials.
 type Input struct {
+	ReservedBody    []byte   // Target literals; only collision protection, never scanning.
+	TextIdentities  []string // Server-owned original user ordinal/part identities.
+	Reserved        []string // Literal token collision protection; never detection input.
+	CacheScope      string
 	RequestID       string
 	AppID           string
 	Protocol        Protocol
 	Operation       string
 	SessionID       string
 	SessionVerified bool   // Server-verified session source; a Profile ID is insufficient.
-	SeedSessionID   string // Optional server-derived seed key written after first-turn extraction without enabling first-turn cache lookup.
+	SeedSessionID   string // Deprecated compatibility field; unverified seeds are ignored.
 	Versions        Versions
 	Body            []byte
 }
@@ -46,8 +50,9 @@ type Entity struct {
 	Text, Category string
 }
 type Result struct {
-	Complete bool
-	Entities []Entity
+	LocalInferenceCalls, Chunks int
+	Complete                    bool
+	Entities                    []Entity
 }
 type Extractor interface {
 	Extract(context.Context, Extraction) (Result, error)
@@ -77,11 +82,12 @@ func (f *Failure) Unwrap() error {
 func fail(code string) error { return &Failure{Code: code} }
 
 type Options struct {
-	Extractor    Extractor
-	Budget       time.Duration
-	Experimental bool // Explicit trial opt-in; raises only the budget ceiling to 30 seconds.
-	CacheEntries int
-	CacheBytes   int
-	CacheTTL     time.Duration
-	Now          func() time.Time
+	ReversibleAmounts bool // Unified production policy; preserve exact values in the private mapping.
+	Extractor         Extractor
+	Budget            time.Duration
+	Experimental      bool // Explicit trial opt-in; raises only the budget ceiling to 30 seconds.
+	CacheEntries      int
+	CacheBytes        int
+	CacheTTL          time.Duration
+	Now               func() time.Time
 }

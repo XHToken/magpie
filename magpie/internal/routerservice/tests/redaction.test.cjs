@@ -67,6 +67,17 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         await page.waitForFunction(() => !busy);
         await page.locator('#nav [data-view=agents]').click();
         await page.waitForFunction(() => !document.querySelector('#view-agents').hidden);
+        await page.locator('#agents [data-app="loomy"] .ag-link').click();
+        const details = page.locator('#agents [data-app="loomy"] .ag-exp');
+        await details.waitFor({ state: 'visible' });
+        const titles = { zh: '用户输入脱敏', en: 'User input redaction', 'zh-TW': '使用者輸入去識別化', ja: 'ユーザー入力の匿名化', de: 'Anonymisierung der Benutzereingabe' };
+        assert.equal(await details.getByRole('switch', { name: titles[language], exact: true }).count(), 0, 'redaction is configured in routing groups');
+        assert.equal(await details.getByText(titles[language], { exact: true }).count(), 0, 'application details omit the redaction setting');
+        if (process.env.ARTIFACT_DIR && ['zh','en'].includes(language)) {
+          await fs.mkdir(process.env.ARTIFACT_DIR, { recursive: true });
+          await page.screenshot({ path: path.join(process.env.ARTIFACT_DIR, `application-details-${engine}-${language}-${width}.png`), fullPage: true });
+        }
+
         await page.locator('#nav [data-view=local-model]').click();
         await page.waitForFunction(() => !document.querySelector('#view-local-model').hidden && document.querySelector('#localModelContent').children.length > 0);
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${language} ${width}: overflow`);

@@ -44,9 +44,7 @@ func newGroupRoutingEnv(t *testing.T, opts ModelOptions) (http.Handler, *routerc
 	if _, err := store.Initialize(); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		closeServiceGroupRedactors(store, opts.LocalRuntime)
-	})
+	opts = redactionTestOptions(t, opts)
 	info := Info{Service: "wefto", Address: "127.0.0.1:13145", PID: 42}
 	return handlerWithModelOptions(info, "mgmt-secret-token", store, opts), store
 }
@@ -889,7 +887,7 @@ func TestGroupLocalRedactionExecution(t *testing.T) {
 		response: &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"entities\":[{\"value\":\"张三\",\"label\":\"NAME\"}]}"}}]}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"complete\":true,\"fields\":[{\"field\":0,\"complete\":true,\"findings\":[{\"label\":\"private_person\",\"start\":0,\"end\":2,\"text\":\"张三\",\"confidence\":1}]}]}"}}]}`)),
 		},
 	}
 	h, store := newGroupRoutingEnv(t, ModelOptions{
@@ -952,10 +950,10 @@ func TestGroupLocalRedactionExecution(t *testing.T) {
 	mu.Unlock()
 
 	if strings.Contains(sentUpstream, "张三") || strings.Contains(sentUpstream, "13812345678") || strings.Contains(sentUpstream, "86.4万元") {
-		t.Fatalf("expected upstream body to be redacted and amount generalized, got: %s", sentUpstream)
+		t.Fatalf("expected upstream body to be redacted and amount replaced, got: %s", sentUpstream)
 	}
-	if !strings.Contains(sentUpstream, "<NAME:1>") || !strings.Contains(sentUpstream, "<PHONE:1>") || !strings.Contains(sentUpstream, "约85万元") {
-		t.Fatalf("expected placeholders and generalized amount in upstream body, got: %s", sentUpstream)
+	if !strings.Contains(sentUpstream, "<NAME:1>") || !strings.Contains(sentUpstream, "<PHONE:1>") || !strings.Contains(sentUpstream, "<AMOUNT:1>") {
+		t.Fatalf("expected reversible placeholders in upstream body, got: %s", sentUpstream)
 	}
 	if !strings.Contains(chatRec.Body.String(), "已收到张三的电话13812345678") {
 		t.Fatalf("expected placeholders to be restored in client response, got: %s", chatRec.Body.String())
@@ -1057,11 +1055,11 @@ func TestGroupLocalRedactionInvalidCompletionMustBlock(t *testing.T) {
 		{name: "empty_content", payload: `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":""}}]}`},
 		{name: "malformed_json", payload: `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"not-json"}}]}`},
 		{name: "truncated_json", payload: `{"choices":[{"index":0,"finish_reason":"length","message":{"role":"assistant","content":"{\"entities\":["}}]}`},
-		{name: "truncated_partial_entities", payload: `{"choices":[{"index":0,"finish_reason":"length","message":{"role":"assistant","content":"{\"entities\":[{\"value\":\"宁祁\",\"label\":\"NAME\"}]}"}}]}`},
-		{name: "unknown_label", payload: `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"entities\":[{\"value\":\"宁祁\",\"label\":\"UNRECOGNIZED_KIND\"}]}"}}]}`},
+		{name: "truncated_partial_entities", payload: `{"choices":[{"index":0,"finish_reason":"length","message":{"role":"assistant","content":"{\"complete\":true,\"fields\":[{\"field\":0,\"complete\":true,\"findings\":[{\"label\":\"private_person\",\"start\":0,\"end\":2,\"text\":\"宁祁\",\"confidence\":1}]}]}"}}]}`},
+		{name: "unknown_label", payload: `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"complete\":true,\"fields\":[{\"field\":0,\"complete\":true,\"findings\":[{\"label\":\"UNRECOGNIZED_KIND\",\"start\":0,\"end\":2,\"text\":\"宁祁\",\"confidence\":1}]}]}"}}]}`},
 		{name: "invalid_outer_envelope", payload: `{"choices":`},
 		{name: "empty_choices", payload: `{"choices":[]}`},
-		{name: "truncated_flag", payload: `{"truncated":true,"choices":[{"finish_reason":"stop","message":{"content":"{\"entities\":[]}"}}]}`},
+		{name: "truncated_flag", payload: `{"truncated":true,"choices":[{"finish_reason":"stop","message":{"content":"{\"complete\":true,\"fields\":[{\"field\":0,\"complete\":true,\"findings\":[]}]}","role":"assistant"},"index":0}]}`},
 	}
 
 	for i, tc := range badPayloads {
@@ -1088,7 +1086,7 @@ func TestGroupLocalRedactionInvalidCompletionMustBlock(t *testing.T) {
 	}
 
 	// Control case: valid LLM output succeeds, redacts "宁祁" -> "<NAME:1>", and restores it in the response.
-	llmInvoker.set(http.StatusOK, `{"choices":[{"finish_reason":"stop","message":{"content":"{\"entities\":[{\"label\":\"NAME\",\"value\":\"宁祁\"}]}"}}]}`)
+	llmInvoker.set(http.StatusOK, `{"choices":[{"finish_reason":"stop","message":{"content":"{\"complete\":true,\"fields\":[{\"field\":0,\"complete\":true,\"findings\":[{\"label\":\"private_person\",\"start\":0,\"end\":2,\"text\":\"宁祁\",\"confidence\":1}]}]}","role":"assistant"},"index":0}]}`)
 	mu.Lock()
 	upstreamBodies = nil
 	mu.Unlock()
@@ -1115,7 +1113,7 @@ func TestGroupOrchestratorRedactorEnforcesManagerBindingAndFormalAcceptance(t *t
 	const modelID = "spark-x2.6-4B"
 	localSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"entities\":[{\"label\":\"NAME\",\"value\":\"宁祁\"}]}"}}]}`))
+		_, _ = w.Write([]byte(`{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"complete\":true,\"fields\":[{\"field\":0,\"complete\":true,\"findings\":[{\"label\":\"private_person\",\"start\":0,\"end\":2,\"text\":\"宁祁\",\"confidence\":1}]}]}"}}]}`))
 	}))
 	defer localSrv.Close()
 
@@ -1216,12 +1214,12 @@ func TestGroupOrchestratorRedactorEnforcesManagerBindingAndFormalAcceptance(t *t
 
 	// 3. After formal Redaction capability acceptance on the bound model+suite, formal mode succeeds.
 	id, settings := mgr.SnapshotBinding(context.Background())
-	spec, err := routerredact.NewPrivacySpecification(routerredact.ModelBinding{
+	spec, err := routerredact.NewEngineSpecification(routerredact.ModelBinding{
 		ModelID:       id.ModelID,
 		RuntimeID:     id.RuntimeID,
 		ContextTokens: settings.Effective().ContextTokens,
 		ExecutionPlan: id.ExecutionPlan,
-	})
+	}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1362,7 +1360,7 @@ func (p *purposeSwitchInvoker) takeExecBodies() []string {
 
 func TestGroupLocalCandidateRestoresRedactedResponsesAcrossProtocols(t *testing.T) {
 	invoker := &purposeSwitchInvoker{
-		redactResp: `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"entities\":[{\"label\":\"NAME\",\"value\":\"宁祁\"}]}"}}]}`,
+		redactResp: `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"complete\":true,\"fields\":[{\"field\":0,\"complete\":true,\"findings\":[{\"label\":\"private_person\",\"start\":0,\"end\":2,\"text\":\"宁祁\",\"confidence\":1}]}]}"}}]}`,
 		execResp:   `{"id":"local-chat-1","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"已为<NAME:1>登记手机号<PHONE:1>"},"finish_reason":"stop"}],"usage":{"prompt_tokens":12,"completion_tokens":8,"total_tokens":20}}`,
 	}
 	h, store := newGroupRoutingEnv(t, ModelOptions{
@@ -1458,7 +1456,7 @@ func TestGroupLocalCandidateRestoresStreamingSSEResponse(t *testing.T) {
 		"",
 	}, "\n")
 	invoker := &purposeSwitchInvoker{
-		redactResp:  `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"entities\":[{\"label\":\"NAME\",\"value\":\"宁祁\"}]}"}}]}`,
+		redactResp:  `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"complete\":true,\"fields\":[{\"field\":0,\"complete\":true,\"findings\":[{\"label\":\"private_person\",\"start\":0,\"end\":2,\"text\":\"宁祁\",\"confidence\":1}]}]}"}}]}`,
 		execResp:    ssePayload,
 		execHeaders: http.Header{"Content-Type": []string{"text/event-stream"}},
 	}
@@ -1502,7 +1500,7 @@ func TestGroupLocalCandidateRestoresStreamingSSEResponse(t *testing.T) {
 
 func TestGroupLocalCandidateRestoreFailureFailsClosedWithoutCommittingOutput(t *testing.T) {
 	invoker := &purposeSwitchInvoker{
-		redactResp: `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"entities\":[{\"label\":\"NAME\",\"value\":\"宁祁\"}]}"}}]}`,
+		redactResp: `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"complete\":true,\"fields\":[{\"field\":0,\"complete\":true,\"findings\":[{\"label\":\"private_person\",\"start\":0,\"end\":2,\"text\":\"宁祁\",\"confidence\":1}]}]}"}}]}`,
 		// Malformed JSON causes chat->anthropic response translation / restore to fail before output commit.
 		execResp: `{"id":"broken-json","choices":[{"message":{"content":"<NAME:1>`,
 	}
@@ -1573,220 +1571,4 @@ func waitPipelineDone(t *testing.T, p *routerredact.Pipeline, label string) {
 	case <-time.After(2 * time.Second):
 		t.Fatalf("%s: timed out waiting for pipeline expiryLoop to stop", label)
 	}
-}
-
-func TestGroupOrchestratorRedactorLifecycleAndLeakPrevention(t *testing.T) {
-	t.Run("ephemeral_non_cacheable_closes_pipeline", func(t *testing.T) {
-		invoker := &dynamicPayloadInvoker{}
-		invoker.set(http.StatusOK, `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"entities\":[{\"label\":\"NAME\",\"value\":\"宁祁\"}]}"}}]}`)
-		opts := ModelOptions{
-			Routing: &RoutingOptions{LocalInvoker: invoker},
-		}
-		redactor := getGroupOrchestratorRedactor(opts, "qwen3-1.7b-q4_k_m")
-		if !redactor.ephemeral {
-			t.Fatalf("expected non-cacheable redactor to be marked ephemeral")
-		}
-		// RoutingVersions() must not allocate an active pipeline before Prepare.
-		_ = redactor.RoutingVersions()
-		redactor.mu.Lock()
-		preActive := redactor.active
-		redactor.mu.Unlock()
-		if preActive != nil {
-			t.Fatalf("expected RoutingVersions() not to pre-create a pipeline on ephemeral redactor")
-		}
-
-		prep, err := redactor.Prepare(context.Background(), RedactionRequest{
-			RequestID:      "req-eph-1",
-			AppID:          "codex",
-			SourceProtocol: "chat",
-			TargetProtocol: "chat",
-			Operation:      "generation",
-			Body:           []byte(`{"model":"m","messages":[{"role":"user","content":"请联系宁祁 13800138000"}]}`),
-		})
-		if err != nil {
-			t.Fatalf("Prepare failed: %v", err)
-		}
-		redactor.mu.Lock()
-		p1 := redactor.active
-		redactor.mu.Unlock()
-		if p1 == nil {
-			t.Fatalf("expected active pipeline during in-flight Prepare")
-		}
-		_ = prep.Close()
-		waitPipelineDone(t, p1, "ephemeral pipeline after prep.Close")
-		if stats := redactor.Stats(); stats.Processed != 1 {
-			t.Fatalf("expected retired stats to preserve Processed=1 after ephemeral close, got %+v", stats)
-		}
-	})
-
-	t.Run("concurrent_cold_cache_single_pipeline", func(t *testing.T) {
-		_, store := newGroupRoutingEnv(t, ModelOptions{})
-		opts := ModelOptions{store: store}
-		const workers = 32
-		start := make(chan struct{})
-		var wg sync.WaitGroup
-		redactors := make([]*groupOrchestratorRedactor, workers)
-		pipelines := make([]*routerredact.Pipeline, workers)
-		for i := 0; i < workers; i++ {
-			wg.Add(1)
-			go func(idx int) {
-				defer wg.Done()
-				<-start
-				r := getGroupOrchestratorRedactor(opts, "spark-x2.6-4B")
-				p, _, _ := r.current(context.Background())
-				redactors[idx] = r
-				pipelines[idx] = p
-			}(i)
-		}
-		close(start)
-		wg.Wait()
-		for i := 1; i < workers; i++ {
-			if redactors[i] != redactors[0] {
-				t.Fatalf("worker %d got different redactor instance %p != %p", i, redactors[i], redactors[0])
-			}
-			if pipelines[i] != pipelines[0] {
-				t.Fatalf("worker %d got different pipeline instance %p != %p", i, pipelines[i], pipelines[0])
-			}
-		}
-		closeGroupOrchestratorRedactors(store, nil)
-		waitPipelineDone(t, pipelines[0], "cached pipeline after closeGroupOrchestratorRedactors")
-	})
-
-	t.Run("model_switch_closes_idle_and_inflight_retired_pipelines", func(t *testing.T) {
-		layout, _ := fixture(t)
-		baseStore := routerconfig.New(layout)
-		localSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"entities\":[{\"label\":\"NAME\",\"value\":\"宁祁\"}]}"}}]}`))
-		}))
-		defer localSrv.Close()
-
-		catalog := routermanifest.Fixed()
-		runtimeID := routerruntime.PlatformRuntime(catalog, runtime.GOOS, runtime.GOARCH)
-		mgr, err := routerruntime.New(context.Background(), routerruntime.Options{
-			Catalog:               catalog,
-			RuntimeID:             runtimeID,
-			Store:                 routerruntime.ConfigIntentStore{Store: baseStore},
-			Installer:             integrationInstaller{},
-			Factory:               integrationFactory{endpoint: localSrv.URL},
-			ExperimentalRedaction: true,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer mgr.Close(context.Background())
-		if err := mgr.Select(context.Background(), "spark-x2.6-4B"); err != nil {
-			t.Fatal(err)
-		}
-		if err := mgr.Enable(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-
-		opts := ModelOptions{
-			store:                 baseStore,
-			LocalRuntime:          &LocalModels{Manager: mgr, Layout: layout, Catalog: catalog},
-			ExperimentalRedaction: true,
-		}
-		defer closeServiceGroupRedactors(baseStore, opts.LocalRuntime)
-
-		redactor := getGroupOrchestratorRedactor(opts, "local-redactor")
-		p1, _, _ := redactor.current(context.Background())
-		if p1 == nil {
-			t.Fatal("expected initial pipeline p1")
-		}
-
-		// 1. Idle model switch: p1 has no in-flight requests, so switching to spark-x2.6-4B-Q8_0 closes p1 immediately.
-		if err := mgr.Disable(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-		if err := mgr.Select(context.Background(), "spark-x2.6-4B-Q8_0"); err != nil {
-			t.Fatal(err)
-		}
-		if err := mgr.Enable(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-		p2, _, _ := redactor.current(context.Background())
-		if p2 == nil || p2 == p1 {
-			t.Fatalf("expected new pipeline p2 after model switch, got p1=%p p2=%p", p1, p2)
-		}
-		waitPipelineDone(t, p1, "idle pipeline p1 after model switch")
-		redactor.mu.Lock()
-		retiringLenIdle := len(redactor.retiring)
-		redactor.mu.Unlock()
-		if retiringLenIdle != 0 {
-			t.Fatalf("expected 0 retiring pipelines after idle switch, got %d", retiringLenIdle)
-		}
-
-		// 2. In-flight model switch: acquire PreparedCloudRequest on p2, switch model back to 1.7B while prep is open,
-		// verify prep.Restore still works, and verify p2 closes as soon as prep.Close() runs.
-		prep, err := redactor.Prepare(context.Background(), RedactionRequest{
-			RequestID:      "req-inflight-switch",
-			AppID:          "codex",
-			SourceProtocol: "chat",
-			TargetProtocol: "chat",
-			Operation:      "generation",
-			Body:           []byte(`{"model":"m","messages":[{"role":"user","content":"请联系宁祁 13800138000"}]}`),
-		})
-		if err != nil {
-			t.Fatalf("Prepare on p2 failed: %v", err)
-		}
-		if err := mgr.Disable(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-		if err := mgr.Select(context.Background(), "spark-x2.6-4B"); err != nil {
-			t.Fatal(err)
-		}
-		if err := mgr.Enable(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-		p3, _, _ := redactor.current(context.Background())
-		if p3 == nil || p3 == p2 {
-			t.Fatalf("expected new pipeline p3 after second model switch, got p2=%p p3=%p", p2, p3)
-		}
-		redactor.mu.Lock()
-		retiringDuringInFlight := len(redactor.retiring)
-		redactor.mu.Unlock()
-		if retiringDuringInFlight != 1 {
-			t.Fatalf("expected 1 retiring pipeline while prep is in-flight, got %d", retiringDuringInFlight)
-		}
-		restored, err := prep.Restore(context.Background(), "chat", "chat.completions", []byte(`{"id":"1","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"收到<NAME:1> <PHONE:1>"},"finish_reason":"stop"}]}`))
-		if err != nil || !strings.Contains(string(restored), "收到宁祁 13800138000") {
-			t.Fatalf("expected in-flight snapshot restore to succeed across model switch, got err=%v body=%s", err, string(restored))
-		}
-		_ = prep.Close()
-		waitPipelineDone(t, p2, "retiring pipeline p2 after in-flight prep.Close")
-		redactor.mu.Lock()
-		retiringAfterClose := len(redactor.retiring)
-		redactor.mu.Unlock()
-		if retiringAfterClose != 0 {
-			t.Fatalf("expected 0 retiring pipelines after in-flight prep.Close, got %d", retiringAfterClose)
-		}
-		if stats := redactor.Stats(); stats.Processed != 1 {
-			t.Fatalf("expected Stats() to retain Processed=1 from retired pipeline p2, got %+v", stats)
-		}
-
-		// 3. Shutdown via closeServiceGroupRedactors closes active pipeline p3, clears references, and prevents recreation.
-		closeServiceGroupRedactors(baseStore, opts.LocalRuntime)
-		waitPipelineDone(t, p3, "active pipeline p3 after closeServiceGroupRedactors")
-		redactor.mu.Lock()
-		closedFlag := redactor.closed
-		mgrRef := redactor.manager
-		invRef := redactor.invoker
-		activeRef := redactor.active
-		redactor.mu.Unlock()
-		if !closedFlag || mgrRef != nil || invRef != nil || activeRef != nil {
-			t.Fatalf("expected closed redactor to clear active/manager/invoker references, got closed=%v active=%v mgr=%v invoker=%v",
-				closedFlag, activeRef, mgrRef, invRef)
-		}
-		if _, err := redactor.Prepare(context.Background(), RedactionRequest{
-			RequestID:      "req-after-close",
-			AppID:          "codex",
-			SourceProtocol: "chat",
-			TargetProtocol: "chat",
-			Operation:      "chat.completions",
-			Body:           []byte(`{"model":"m","messages":[{"role":"user","content":"hello"}]}`),
-		}); !errors.Is(err, ErrRedactionUnavailable) {
-			t.Fatalf("expected ErrRedactionUnavailable on closed redactor, got %v", err)
-		}
-	})
 }

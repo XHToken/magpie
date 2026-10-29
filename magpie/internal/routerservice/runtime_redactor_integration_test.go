@@ -101,7 +101,7 @@ func TestProductionHTTPW4W5UsesTargetWireAndRestoresClientResponse(t *testing.T)
 				cloud := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					cloudBody, _ = io.ReadAll(r.Body)
 					w.Header().Set("Content-Type", "application/json")
-					_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"<PERSON:1>"},"finish_reason":"stop"}]}`))
+					_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"<NAME:1>"},"finish_reason":"stop"}]}`))
 				}))
 				defer cloud.Close()
 
@@ -121,9 +121,9 @@ func TestProductionHTTPW4W5UsesTargetWireAndRestoresClientResponse(t *testing.T)
 				if err := manager.Enable(context.Background()); err != nil {
 					t.Fatal(err)
 				}
-				spec, err := routerredact.NewPrivacySpecification(routerredact.ModelBinding{ModelID: modelID, RuntimeID: runtimeID})
+				spec, err := routerredact.NewEngineSpecification(routerredact.ModelBinding{ModelID: modelID, RuntimeID: runtimeID}, false)
 				if experimental {
-					spec, err = routerredact.NewExperimentalPrivacySpecification(routerredact.ModelBinding{ModelID: modelID, RuntimeID: runtimeID})
+					spec, err = routerredact.NewEngineSpecification(routerredact.ModelBinding{ModelID: modelID, RuntimeID: runtimeID}, true)
 				}
 				if err != nil {
 					t.Fatal(err)
@@ -156,7 +156,7 @@ func TestProductionHTTPW4W5UsesTargetWireAndRestoresClientResponse(t *testing.T)
 					t.Fatal("redaction intent was not persisted")
 				}
 
-				redactor := newRuntimeRedactor(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, experimental)
+				redactor := newRedactionService(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, experimental)
 				defer redactor.close()
 				h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "management-token", store, ModelOptions{
 					ExperimentalRedaction: experimental,
@@ -171,7 +171,7 @@ func TestProductionHTTPW4W5UsesTargetWireAndRestoresClientResponse(t *testing.T)
 				if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Alice") {
 					t.Fatalf("integrated request was not restored: %d %s", w.Code, w.Body.String())
 				}
-				if strings.Contains(string(cloudBody), "Alice") || !strings.Contains(string(cloudBody), "<PERSON:1>") {
+				if strings.Contains(string(cloudBody), "Alice") || !strings.Contains(string(cloudBody), "<NAME:1>") {
 					t.Fatalf("raw entity reached cloud: %s", cloudBody)
 				}
 				if len(localBodies) < 2 {

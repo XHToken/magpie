@@ -129,7 +129,13 @@ events. Title inference is business work, not a management check, on both direct
 and group routes.
 
 The execution completion also captures actual model identity, `localCallId` and
-reported usage in memory. Local final results can carry actual usage without
+reported usage in memory. The latest attempted execution supplies these fields,
+including retries and routing-group fallback; an earlier completion or duplicate
+cannot overwrite a newer one. Replacement clears earlier usage when the final
+execution reports none. Model identity comes from the runtime's captured catalog
+binding, preserving the distinct X2.6 Q4_K_M (`spark-x2.6-4B`) and Q8_0
+(`spark-x2.6-4B-Q8_0`) IDs independently of lowercase host selectors, requested
+aliases or later model switches. Local final results can carry actual usage without
 cloud attempts. A non-nil `Result.ReportedUsage` stays authoritative; otherwise the
 same execution event supplies local actual usage. Totals remain nullable. Final
 cloud fallback never inherits failed local usage into business results. The exact
@@ -145,6 +151,13 @@ HTTP routing, SQLite and management APIs, plus unsafe legacy price handling.
 exercises the real Manager producer against a mock local HTTP runtime, through
 direct, routed and group requests, including marked/native titles, streaming,
 both model selections and separate management checks.
+[`local_model_test.go`](../../internal/routerobserve/local_model_test.go) checks
+final X2.6 execution ownership after fallback, delayed duplicates, missing usage
+and persistence across reopening the ledger.
+[`x26_model_observation_test.go`](../../internal/routerservice/x26_model_observation_test.go)
+checks the real Manager through Chat (including streaming), Responses and
+Messages HTTP requests, lowercase host selectors and a Q4_K_M-to-Q8_0 switch.
+Earlier records retain their captured model and execution call identity.
 `routerobserve` tests cover concurrent duplicates, delayed events, overflow,
 write failure visibility and callbacks while persistence is blocked. These tests
 do not establish real model inference quality.

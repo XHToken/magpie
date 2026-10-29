@@ -153,9 +153,10 @@ func RunWithModelOptions(ctx context.Context, l dirs.Layout, version string, rea
 	// The service owns one redaction adapter for the same Manager used by W4.
 	// It is created even while capability evidence is unknown so the management
 	// surface can report the real integration state without enabling requests.
-	var productionRedactor *runtimeRedactor
+	var productionRedactor *RedactionService
 	if options.LocalRuntime != nil && options.LocalRuntime.Manager != nil {
-		productionRedactor = newRuntimeRedactor(options.LocalRuntime, options.ExperimentalRedaction)
+		productionRedactor = newRedactionService(options.LocalRuntime, options.ExperimentalRedaction)
+		options.Redaction = productionRedactor
 		if options.Routing == nil {
 			options.Routing = &RoutingOptions{
 				Judge:         RuntimeJudge{Manager: options.LocalRuntime.Manager, PromptVersion: defaultPromptVersion},
@@ -170,7 +171,6 @@ func RunWithModelOptions(ctx context.Context, l dirs.Layout, version string, rea
 	if productionRedactor != nil {
 		defer productionRedactor.close()
 	}
-	defer closeServiceGroupRedactors(store, options.LocalRuntime)
 	var ownedLedger *routerledger.Store
 	var ownedRedactionObservations *routerledger.RedactionObservationStore
 	defer func() {

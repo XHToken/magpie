@@ -101,11 +101,11 @@ func TestDeterministicCollisionUnicodeAndOwnership(t *testing.T) {
 
 func TestEntityValidation(t *testing.T) {
 	tests := map[string]Result{
-		"incomplete": {}, "missing": {true, []Entity{{0, 0, 3, "bad", "PERSON"}}},
-		"type": {true, []Entity{{0, 0, 3, "abc", "person"}}}, "field": {true, []Entity{{8, 0, 3, "abc", "PERSON"}}},
-		"overlap":           {true, []Entity{{0, 0, 3, "abc", "PERSON"}, {0, 1, 4, "bcd", "PERSON"}}},
-		"category conflict": {true, []Entity{{0, 0, 3, "abc", "PERSON"}, {0, 0, 3, "abc", "ORG"}}},
-		"byte boundary":     {true, []Entity{{0, 5, 6, string([]byte{0xa0}), "PERSON"}}},
+		"incomplete": {}, "missing": {Complete: true, Entities: []Entity{{0, 0, 3, "bad", "PERSON"}}},
+		"type": {Complete: true, Entities: []Entity{{0, 0, 3, "abc", "person"}}}, "field": {Complete: true, Entities: []Entity{{8, 0, 3, "abc", "PERSON"}}},
+		"overlap":           {Complete: true, Entities: []Entity{{0, 0, 3, "abc", "PERSON"}, {0, 1, 4, "bcd", "PERSON"}}},
+		"category conflict": {Complete: true, Entities: []Entity{{0, 0, 3, "abc", "PERSON"}, {0, 0, 3, "abc", "ORG"}}},
+		"byte boundary":     {Complete: true, Entities: []Entity{{0, 5, 6, string([]byte{0xa0}), "PERSON"}}},
 	}
 	for name, result := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -119,7 +119,7 @@ func TestEntityValidation(t *testing.T) {
 	}
 	p := New(Options{Extractor: ExtractorFunc(func(context.Context, Extraction) (Result, error) {
 		e := Entity{0, 0, 3, "abc", "PERSON"}
-		return Result{true, []Entity{e, e}}, nil
+		return Result{Complete: true, Entities: []Entity{e, e}}, nil
 	})})
 	defer p.Close()
 	prepared := mustPrepare(t, p, testInput("abc"))
@@ -127,7 +127,7 @@ func TestEntityValidation(t *testing.T) {
 		t.Fatal("exact duplicate not deduplicated")
 	}
 	many := make([]Entity, maxEntities+1)
-	if _, e := validateEntities([]string{"a"}, Result{true, many}); e == nil {
+	if _, e := validateEntities([]string{"a"}, Result{Complete: true, Entities: many}); e == nil {
 		t.Fatal("entity limit")
 	}
 }

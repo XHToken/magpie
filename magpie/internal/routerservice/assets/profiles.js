@@ -38,7 +38,14 @@
   const dedup = (list) => { const out = [], seen = new Set(); for (const raw of list || []) { const m = String(raw || '').trim(); if (m && !seen.has(m)) { seen.add(m); out.push(m); } } return out; };
   const appModels = (app) => Array.isArray(app?.models) ? dedup(app.models) : (app?.cloud?.providerId && app?.cloud?.model ? dedup([`${app.cloud.providerId}/${app.cloud.model}`]) : []);
   const shortModel = (id) => { const s = String(id || '').trim(), i = s.indexOf('/'); return i > 0 ? s.slice(i + 1) : s; };
-  const menuSaid = (models) => !models.length ? t('No models') : (models.length <= 2 ? models.map(shortModel).join(', ') : `${models.slice(0, 2).map(shortModel).join(', ')} +${models.length - 2}`);
+  const localModelSelector = (model) => model?.selector || model?.fullModelId || (model?.id || model?.modelId ? `local/${model.id || model.modelId}` : '');
+  const modelLabel = (id) => {
+    const selector = String(id || '').trim();
+    if (selector.startsWith('local/')) return localModels.find(m => localModelSelector(m).toLowerCase() === selector.toLowerCase())?.name || shortModel(selector);
+    if (selector.startsWith('group/')) return routingGroups.find(g => g.id === selector.slice(6))?.name || shortModel(selector);
+    return shortModel(selector);
+  };
+  const menuSaid = (models) => !models.length ? t('No models') : (models.length <= 2 ? models.map(modelLabel).join(', ') : `${models.slice(0, 2).map(modelLabel).join(', ')} +${models.length - 2}`);
   const setStatus = (msg) => { const n = $('#appStatus'); if (n && msg !== undefined) n.textContent = msg; };
   const hostErrText = (data) => data?.error?.code === 'host_config_unavailable' ? t('Host configuration directory was not found. Launch the host application first or use setup to specify its directory.') : data?.error?.code === 'host_profile_invalid' ? t('Select available routing groups and models before reconnecting.') : (data?.error?.message || t('Connection failed. Check that the service is running.'));
   const chevronRightSvg = '<svg viewBox="0 0 12 12" width="11" height="11"><path d="M4.5 2.5L8 6l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -51,7 +58,7 @@
     btn.replaceChildren(v, caret);
   }
   function fillPrimaryButton(btn, app) {
-    const models = appModels(app), primary = models[0] ? shortModel(models[0]) : t('No models'), v = el('span', 'v', primary), caret = el('span', 'caret');
+    const models = appModels(app), primary = models[0] ? modelLabel(models[0]) : t('No models'), v = el('span', 'v', primary), caret = el('span', 'caret');
     btn.classList.toggle('empty', !models.length); btn.title = models[0] || t('Choose models');
     caret.innerHTML = caretDownSvg;
     btn.replaceChildren(v, caret);
@@ -118,8 +125,8 @@
       const sourceLabel = !raw.length ? 'Saved model selection; availability is not verified' : p.modelListError && source === 'discovered' ? 'Cached models; refresh failed' : source === 'discovered' ? 'Discovered model list' : source === 'preset' ? 'Preset models; availability is not verified' : 'Provider models; source is unknown';
       if (items.length) sections.push({ key: `provider-${p.id}`, title: p.name || p.id, items, sourceLabel });
     }
-    const localRaw = (localModels || []).filter((m) => m?.installed === true && (m.id || m.fullModelId)).map((m) => ({ id: m.fullModelId || `local/${m.id}`, label: m.name || m.id || shortModel(m.fullModelId), tag: 'local' }));
-    for (const m of selected.filter((x) => x.startsWith('local/'))) if (!localRaw.some((r) => r.id === m)) localRaw.push({ id: m, label: shortModel(m), tag: 'local', savedOnly: true });
+    const localRaw = (localModels || []).filter((m) => m?.installed === true && localModelSelector(m)).map((m) => ({ id: localModelSelector(m), label: modelLabel(localModelSelector(m)), tag: 'local' }));
+    for (const m of selected.filter((x) => x.startsWith('local/'))) if (!localRaw.some((r) => r.id === m)) localRaw.push({ id: m, label: modelLabel(m), tag: 'local', savedOnly: true });
     for (const item of localRaw) covered.add(item.id);
     if (localRaw.length) sections.push({ key: 'local-models', title: t('Local models'), items: localRaw });
     const custom = selected.filter((m) => !covered.has(m)).map((m) => ({ id: m, label: m, tag: 'custom' }));
@@ -159,7 +166,7 @@
     const paint = () => {
       const sel = appModels(app), selSet = new Set(sel), sections = buildCandidateSections(sel), q = query.trim().toLowerCase();
       countBadge.textContent = String(sel.length);
-      footNote.textContent = sel.length ? `${t('Primary')}: ${shortModel(sel[0])}` : t('No models');
+      footNote.textContent = sel.length ? `${t('Primary')}: ${modelLabel(sel[0])}` : t('No models');
       resetBtn.disabled = !sel.length; listEl.replaceChildren();
       for (const sec of sections) {
         const filtered = q ? sec.items.filter((it) => it.id.toLowerCase().includes(q) || it.label.toLowerCase().includes(q) || sec.title.toLowerCase().includes(q)) : sec.items;

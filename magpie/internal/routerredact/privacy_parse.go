@@ -100,7 +100,7 @@ func (s *PrivacySpecification) Parse(ctx context.Context, in Extraction, raw []b
 	if len(fields) != len(in.Texts) {
 		return Result{}, privacyInvalid("field_coverage")
 	}
-	labels := PrivacyLabels()
+	labels := s.labels()
 	seenFields := make([]bool, len(in.Texts))
 	seenEntities := make(map[Entity]bool)
 	result := Result{Complete: true}

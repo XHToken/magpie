@@ -90,15 +90,13 @@ func appCheckAPI(w http.ResponseWriter, r *http.Request, store *routerconfig.Sto
 	// formally accepted suite permits the exact same draft during read-only
 	// checking; clients cannot claim acceptance and checks never save it.
 	capability := routerconfig.RedactionUnavailable
-	if options.Routing != nil {
-		if production, ok := options.Routing.Redactor.(*runtimeRedactor); ok {
-			projection := production.state()
-			switch {
-			case projection.Experimental && projection.TrialReady:
-				capability = routerconfig.RedactionExperimental
-			case !projection.Experimental && projection.RecognitionReady:
-				capability = routerconfig.RedactionAvailable
-			}
+	if production := options.Redaction; production != nil {
+		projection := production.state()
+		switch {
+		case projection.Experimental && projection.TrialReady:
+			capability = routerconfig.RedactionExperimental
+		case !projection.Experimental && projection.RecognitionReady:
+			capability = routerconfig.RedactionAvailable
 		}
 	}
 	target, err := store.ResolveAppDraftWithRedactionCapabilityContext(r.Context(), in, token, capability)

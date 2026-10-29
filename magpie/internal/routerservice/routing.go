@@ -657,12 +657,19 @@ func responsesUsage(usage map[string]json.RawMessage) map[string]json.RawMessage
 
 func (o ModelOptions) routingOptions() *RoutingOptions {
 	if o.Routing != nil {
-		return o.Routing
+		copy := *o.Routing
+		if o.Redaction != nil {
+			copy.Redactor = o.Redaction
+		}
+		return &copy
 	}
 	if o.LocalRuntime == nil || o.LocalRuntime.Manager == nil || !o.LocalRuntime.Manager.Status().Intent.Enabled {
+		if o.Redaction != nil {
+			return &RoutingOptions{Redactor: o.Redaction}
+		}
 		return nil
 	}
-	return &RoutingOptions{Judge: RuntimeJudge{Manager: o.LocalRuntime.Manager}, LocalInvoker: o.LocalRuntime.Manager, PromptVersion: defaultPromptVersion}
+	return &RoutingOptions{Judge: RuntimeJudge{Manager: o.LocalRuntime.Manager}, LocalInvoker: o.LocalRuntime.Manager, PromptVersion: defaultPromptVersion, Redactor: o.Redaction}
 }
 
 // shouldRoute keeps an injected redaction adapter available for fail-closed
@@ -1053,6 +1060,9 @@ func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protoco
 	target := routercloud.Target{Provider: state.Target.Provider, Model: state.Target.Profile.Cloud.Model, Authorization: state.Target.Authorization, RedactionRequired: redactionRequired(prepared.Context(), state.Target.Profile.RedactionEnabled), ResponseCapabilities: state.Target.Profile.Cloud.Capabilities}
 	operation := operationFor(sub)
 	routing := options.routingOptions()
+	if target.RedactionRequired {
+		beginRedactionPreparation(prepared.Context(), options)
+	}
 	wire, prepareErr := routercloud.PrepareRequestBody(routercloud.Request{Protocol: protocol, Body: body, Target: target}, operation == "count_tokens")
 	if prepareErr != nil {
 		return routercloud.Result{Operation: operation, Decision: string(DecisionCloud)}, prepareErr
@@ -1082,7 +1092,17 @@ func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protoco
 		}
 		beforeBody := append([]byte(nil), wire.Body()...)
 		sessionID, sessionVerified, seedSessionID := parseRedactionSessionMaterial(state.AppID, protocol, body)
-		preparedCloud, prepareErr = prepareRequiredRedaction(redactionCtx, options, routing.Redactor, versions, RedactionRequest{RequestID: state.ID, AppID: state.AppID, SourceProtocol: protocol, TargetProtocol: target.Provider.Config.Protocol, Operation: operation, SessionID: sessionID, SeedSessionID: seedSessionID, SessionVerified: sessionVerified, Versions: versions, Body: wire.Body(), Context: redactionCtx})
+		var userTarget *cloudcodec.UserTextTarget
+		if _, ok := routing.Redactor.(*RedactionService); ok {
+			userTarget, prepareErr = wire.UserInputTarget()
+			if prepareErr != nil {
+				return routercloud.Result{Operation: operation}, ErrRedactionUnavailable
+			}
+		}
+		if work := redactionWork(prepared.Context()); work != nil && work.session.Verified {
+			sessionID, sessionVerified = work.session.ID, true
+		}
+		preparedCloud, prepareErr = prepareRequiredRedaction(redactionCtx, options, routing.Redactor, versions, RedactionRequest{SourceBody: wire.SourceBody(), UserTarget: userTarget, RequestID: state.ID, AppID: state.AppID, SourceProtocol: protocol, TargetProtocol: target.Provider.Config.Protocol, Operation: operation, SessionID: sessionID, SeedSessionID: seedSessionID, SessionVerified: sessionVerified, Versions: versions, CacheScope: target.Provider.Config.ID + "\x00" + target.Provider.Config.BaseURL + "\x00" + target.Model, Body: wire.Body(), Context: redactionCtx})
 		if preparedCloud.Close != nil || preparedCloud.Release != nil {
 			defer func() {
 				if closeErr := closePreparedCloud(preparedCloud); closeErr != nil && err == nil {
@@ -1120,6 +1140,9 @@ func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protoco
 		cloudWriter = capture
 	}
 	executor := routercloud.Executor{Timeout: options.Budget, Observe: emit, BeforeAttempt: func(_ context.Context) error {
+		if target.RedactionRequired && options.Redaction != nil && preparedCloud.Versions != options.Redaction.RoutingVersions() {
+			return &routercloud.Error{Code: "redaction_unavailable", Message: "required redaction binding changed", Status: http.StatusServiceUnavailable}
+		}
 		if err := state.BeginCloudAttempt(); err != nil {
 			safe := routerrequest.ClassifyError(err)
 			return &routercloud.Error{Code: safe.Code, Message: safe.Message, Status: safe.Status}
@@ -1201,98 +1224,9 @@ func deriveRedactionSession(appID, protocol string, body []byte) (string, bool) 
 }
 
 func parseRedactionSessionMaterial(appID, protocol string, body []byte) (string, bool, string) {
-	appID = strings.TrimSpace(appID)
-	if appID == "" || len(body) == 0 {
-		return "", false, ""
-	}
-	var payload map[string]any
-	if err := json.Unmarshal(body, &payload); err != nil || payload == nil {
-		return "", false, ""
-	}
-	explicitKeys := []string{"conversation_id", "session_id", "thread_id"}
-	for _, k := range explicitKeys {
-		if id := cleanSessionIdentifier(payload[k]); id != "" {
-			derived := hashRedactionSession(appID, protocol, "explicit", id)
-			return derived, true, derived
-		}
-	}
-	if meta, ok := payload["metadata"].(map[string]any); ok {
-		for _, k := range explicitKeys {
-			if id := cleanSessionIdentifier(meta[k]); id != "" {
-				derived := hashRedactionSession(appID, protocol, "explicit", id)
-				return derived, true, derived
-			}
-		}
-	}
-	rawMessages := payload["messages"]
-	if rawMessages == nil {
-		rawMessages = payload["input"]
-	}
-	if items, ok := rawMessages.([]any); ok && len(items) > 0 {
-		if firstMap, ok := items[0].(map[string]any); ok {
-			for _, k := range []string{"traceId", "trace_id", "messageId", "message_id", "session_id", "conversation_id"} {
-				if id := cleanSessionIdentifier(firstMap[k]); id != "" {
-					derived := hashRedactionSession(appID, protocol, "explicit", id)
-					return derived, true, derived
-				}
-			}
-		}
-	}
-	var firstSystem, firstUser string
-	msgCount := 0
-	if sysText := extractRedactionSessionText(payload["system"]); sysText != "" {
-		firstSystem = sysText
-		msgCount++
-	} else if instText := extractRedactionSessionText(payload["instructions"]); instText != "" {
-		firstSystem = instText
-		msgCount++
-	}
-	switch items := rawMessages.(type) {
-	case string:
-		if strings.TrimSpace(items) != "" {
-			firstUser = items
-			msgCount++
-		}
-	case []any:
-		for _, rawItem := range items {
-			switch item := rawItem.(type) {
-			case string:
-				if strings.TrimSpace(item) != "" {
-					msgCount++
-					if firstUser == "" {
-						firstUser = item
-					}
-				}
-			case map[string]any:
-				msgCount++
-				role, _ := item["role"].(string)
-				text := extractRedactionSessionText(item["content"])
-				if text == "" {
-					text = extractRedactionSessionText(item["text"])
-				}
-				if text == "" {
-					text = extractRedactionSessionText(item["input"])
-				}
-				if role == "system" || role == "developer" {
-					if firstSystem == "" && text != "" {
-						firstSystem = text
-					}
-				} else if role == "user" || (role == "" && firstUser == "") {
-					if firstUser == "" && text != "" {
-						firstUser = text
-					}
-				}
-			}
-		}
-	}
-	if firstSystem == "" && firstUser == "" {
-		return "", false, ""
-	}
-	derived := hashRedactionSession(appID, protocol, firstSystem, firstUser)
-	if msgCount >= 2 {
-		return derived, true, derived
-	}
-	return "", false, derived
+	// There is no verified host-session adapter in this checkout. Only the
+	// service-issued, app-bound session handle can authorize cross-request cache.
+	return "", false, ""
 }
 
 func cleanSessionIdentifier(v any) string {

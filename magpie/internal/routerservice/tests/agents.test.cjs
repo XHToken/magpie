@@ -153,7 +153,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     assert.equal((await offlineSave).status(), 200);
 
     // Button summary shows first 2 short names + "+1"
-    assert.equal(await loomyMenuBtn.locator('.v').textContent(), 'coding-hybrid, gpt-4o +1');
+    assert.equal(await loomyMenuBtn.locator('.v').textContent(), '端云编程主力组, gpt-4o +1');
     assert.equal(await loomyMenuBtn.evaluate(el => el.classList.contains('empty')), false);
 
     // Search filter & Show all / Hide all
@@ -196,7 +196,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     const failedClear = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/hosts/auto');
     await page.locator('.am-foot button').filter({ hasText: '清空已选' }).click();
     assert.equal((await failedClear).status(), 409);
-    await page.waitForFunction(() => document.querySelector('#agents [data-app="loomy"] .field.ag-menu').textContent.includes('coding-hybrid'));
+    await page.waitForFunction(() => document.querySelector('#agents [data-app="loomy"] .field.ag-menu').textContent.includes('端云编程主力组'));
     assert.equal(await loomySwitch.getAttribute('aria-checked'), 'true');
     assert.deepEqual(JSON.parse(await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8')), loomyCfg);
     await page.keyboard.press('Escape');
@@ -210,7 +210,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     const restoredLoomyCfg = JSON.parse(await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8'));
     assert.equal(restoredLoomyCfg.model, 'anthropic/claude-original');
     assert.equal(Object.hasOwn(restoredLoomyCfg.provider || {}, 'wefto'), false);
-    assert.equal(await loomyMenuBtn.locator('.v').textContent(), 'coding-hybrid, gpt-4o +1');
+    assert.equal(await loomyMenuBtn.locator('.v').textContent(), '端云编程主力组, gpt-4o +1');
 
     // 4. WorkBuddy empty-model guard, multi-select reorder, one-click switch ON & OFF
     const wbSwitch = page.locator('#agents [data-app="workbuddy"] .lib-switch.ag-conn');
@@ -255,7 +255,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     await page.waitForFunction(() => document.querySelector('#agents [data-app="workbuddy"] .lib-switch.ag-conn').getAttribute('aria-checked') === 'false');
     wbSettings = JSON.parse(await fs.readFile(path.join(workBuddyRoot, 'settings.json'), 'utf8'));
     assert.equal(wbSettings.model, 'original-wb-model');
-    assert.equal(await wbMenuBtn.locator('.v').textContent(), 'gpt-4o, coding-hybrid');
+    assert.equal(await wbMenuBtn.locator('.v').textContent(), 'gpt-4o, 端云编程主力组');
 
     // 5. 409 host_config_unavailable keeps switch OFF and shows friendly prompt in #appStatus
     await page.route('**/api/hosts/auto', async (route) => {
@@ -363,6 +363,8 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       { name: 'neither installed', installed: [false, false], expected: [] },
       { name: 'installation unknown despite ready status', installed: [undefined, undefined], expected: [] },
       { name: 'saved missing Q8', installed: [true, false], saved: [q8], expected: [q4, q8] },
+      { name: 'saved Q4 and Q8', installed: [true, true], saved: [q4, q8], expected: [q4, q8] },
+      { name: 'unknown saved model', installed: [false, false], saved: ['local/unknown-model'], expected: ['local/unknown-model'] },
     ]) {
       localFixture = [q4, q8].map((selector, i) => ({ id: selector.slice('local/'.length), name: i ? 'Spark-X2.6-4B-Q8_0' : 'Spark-X2.6-4B-Q4_K_M', installed: scenario.installed[i], enabled: false, selected: true, status: 'ready' }));
       savedLocal = scenario.saved || [];
@@ -371,14 +373,24 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         await page.waitForFunction(() => !!managementToken && !!serviceInfo);
         await page.evaluate(() => window.routerAppsOpen());
         for (const host of ['loomy', 'workbuddy']) {
+          const row = page.locator(`#agents [data-app="${host}"]`);
+          const expectedLabel = ref => localFixture.find(model => `local/${model.id}` === ref)?.name || ref.slice(6);
+          if (savedLocal.length) {
+            assert.equal(await row.locator('.field.ag-menu .v').textContent(), savedLocal.map(expectedLabel).join(', '), `${language}/${host}: selected models keep their display names`);
+            if (!await row.locator('.field.ag-pick').isVisible()) await row.locator('.ag-link').click();
+            assert.equal(await row.locator('.field.ag-pick .v').textContent(), expectedLabel(savedLocal[0]), 'new sessions show the primary model name');
+          }
           await page.locator(`#agents [data-app="${host}"] .field.ag-menu`).click();
           assert.deepEqual(await page.locator('.am-mr[data-model^="local/"]').evaluateAll(rows => rows.map(row => row.dataset.model)), scenario.expected, `${language}/${host}/${scenario.name}`);
-          if (scenario.saved) {
+          for (const ref of scenario.expected) assert.equal(await page.locator(`.am-mr[data-model="${ref}"] .am-mn`).textContent(), expectedLabel(ref));
+          if (savedLocal.length) assert.ok((await page.locator('.am-foot .am-note').textContent()).endsWith(expectedLabel(savedLocal[0])), 'primary model hint uses its display name');
+          if (scenario.saved?.includes(q8)) {
             const savedRow = page.locator(`.am-mr[data-model="${q8}"]`);
             assert.equal(await savedRow.getAttribute('aria-selected'), 'true');
-            assert.ok((await savedRow.getAttribute('title')).includes(await page.evaluate(() => t('Saved model selection; availability is not verified'))));
+            if (!scenario.installed[1]) assert.ok((await savedRow.getAttribute('title')).includes(await page.evaluate(() => t('Saved model selection; availability is not verified'))));
           }
           await page.keyboard.press('Escape');
+          if (savedLocal.length) await row.locator('.ag-link').click();
         }
       }
     }

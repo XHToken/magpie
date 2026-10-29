@@ -62,13 +62,17 @@ type LocalInvoker interface {
 	Invoke(context.Context, routerruntime.Purpose, []byte, func(*http.Response) error) error
 }
 
-// RedactionRequest is the W5 boundary. Body is the final target-protocol bytes
-// after conversion and provider option expansion. Implementations return a
+// RedactionRequest is the W5 boundary. SourceBody is the original protocol;
+// Body and UserTarget describe the final target and its private source sidecar.
+// They follow conversion and provider option expansion. Implementations return a
 // private processed body and response restoration callbacks or an explicit
 // error. It is never a client supplied "already redacted" credential.
 type RedactionRequest struct {
-	RequestID string
-	AppID     string
+	SourceBody []byte
+	UserTarget *cloudcodec.UserTextTarget
+	CacheScope string // Server-owned final-target and effective policy namespace.
+	RequestID  string
+	AppID      string
 	// SourceProtocol identifies the client request. TargetProtocol and Body
 	// identify the exact protocol bytes that will be sent upstream.
 	SourceProtocol  string
@@ -92,12 +96,14 @@ type RedactionRequest struct {
 // source-compatible migration alias for older adapters; new adapters must
 // implement Close and leave Release nil.
 type PreparedCloudRequest struct {
-	Body            []byte
-	ObservationMeta *routerredact.ObservationMeta
-	Restore         func(context.Context, string, string, []byte) ([]byte, error)
-	RestoreSSE      func(context.Context, string, io.Reader, io.Writer) error
-	Close           func() error
-	Release         func()
+	ModelID, EngineVersion string
+	Versions               RoutingVersions // Binding actually used by the service.
+	Body                   []byte
+	ObservationMeta        *routerredact.ObservationMeta
+	Restore                func(context.Context, string, string, []byte) ([]byte, error)
+	RestoreSSE             func(context.Context, string, io.Reader, io.Writer) error
+	Close                  func() error
+	Release                func()
 }
 
 type Redactor interface {

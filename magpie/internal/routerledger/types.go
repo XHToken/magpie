@@ -99,6 +99,17 @@ type Outcome struct {
 
 // RedactionPolicy is optional for backward compatibility with historical records.
 type RedactionPolicy struct {
+	ScopeVersion        string `json:"scopeVersion,omitempty"`
+	ScanDisposition     string `json:"scanDisposition,omitempty"`
+	NewUserCharacters   int    `json:"newUserCharacters"`
+	NewUserChunks       int    `json:"newUserChunks"`
+	ReusedUserFragments int    `json:"reusedUserFragments"`
+	LocalInferenceCalls int    `json:"localInferenceCalls"`
+	PreparationMS       int64  `json:"preparationMs"`
+
+	ProfileRequired  bool     `json:"profileRequired,omitempty"`
+	ActualModelID    string   `json:"actualModelId,omitempty"`
+	EngineVersion    string   `json:"engineVersion,omitempty"`
 	SourceGroupCount int      `json:"sourceGroupCount"`
 	Required         bool     `json:"required"`
 	SourceGroupIDs   []string `json:"sourceGroupIds"`

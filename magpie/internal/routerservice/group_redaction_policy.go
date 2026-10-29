@@ -13,6 +13,7 @@ import (
 
 	"github.com/yetone/magpie/internal/routercloud"
 	"github.com/yetone/magpie/internal/routerconfig"
+	"github.com/yetone/magpie/internal/routerredact"
 	"github.com/yetone/magpie/internal/routerrequest"
 	"github.com/yetone/magpie/internal/routerruntime"
 )
@@ -35,11 +36,18 @@ type requestRedactionKey struct{}
 // requestRedactionWork is owned by the serial request executor. Every candidate
 // shares its preparation deadline and binding; retries cannot renew either.
 type requestRedactionWork struct {
-	plan     requestRedactionPlan
-	deadline time.Time
-	versions RoutingVersions
-	bound    bool
-	status   string
+	userSnapshot   *routerredact.UserSnapshot
+	sourceIdentity [32]byte
+	session        SessionInfo
+	meta           *routerredact.ObservationMeta
+	preparationMS  int64
+	plan           requestRedactionPlan
+	deadline       time.Time
+	versions       RoutingVersions
+	actualModelID  string
+	engineVersion  string
+	bound          bool
+	status         string
 }
 
 func redactionWork(ctx context.Context) *requestRedactionWork {
@@ -132,7 +140,17 @@ func redactionSnapshot(ctx context.Context, err error) *routercloud.RedactionPol
 			state = "not_sent"
 		}
 	}
-	return &routercloud.RedactionPolicy{Required: required, SourceGroupIDs: slices.Clone(work.plan.SourceGroupIDs[:min(8, len(work.plan.SourceGroupIDs))]), SourceGroupCount: len(work.plan.SourceGroupIDs), ModelID: work.plan.RequiredModelID, State: state}
+	policy := &routercloud.RedactionPolicy{ProfileRequired: work.plan.ProfileRequired, ActualModelID: work.actualModelID, EngineVersion: work.engineVersion, Required: required, SourceGroupIDs: slices.Clone(work.plan.SourceGroupIDs[:min(8, len(work.plan.SourceGroupIDs))]), SourceGroupCount: len(work.plan.SourceGroupIDs), ModelID: work.plan.RequiredModelID, State: state}
+	if m := work.meta; m != nil {
+		policy.ScopeVersion = m.ScopeVersion
+		policy.ScanDisposition = m.ScanDisposition
+		policy.NewUserCharacters = m.NewUserCharacters
+		policy.NewUserChunks = m.NewUserChunks
+		policy.ReusedUserFragments = m.ReusedUserFragments
+		policy.LocalInferenceCalls = m.LocalInferenceCalls
+		policy.PreparationMS = m.DurationMS
+	}
+	return policy
 }
 
 func prepareRequiredRedaction(ctx context.Context, options ModelOptions, redactor Redactor, versions RoutingVersions, req RedactionRequest) (PreparedCloudRequest, error) {
@@ -144,25 +162,43 @@ func prepareRequiredRedaction(ctx context.Context, options ModelOptions, redacto
 	if work == nil {
 		return redactor.Prepare(ctx, req)
 	}
-	if work.bound && work.versions != versions {
+	_, unified := redactor.(*RedactionService)
+	if !unified && work.bound && work.versions != versions {
 		work.status = "blocked"
 		return PreparedCloudRequest{}, ErrRedactionUnavailable
 	}
-	work.versions, work.bound = versions, true
-	if work.deadline.IsZero() {
-		budget := routerruntime.DefaultRedactionBudget
-		if options.LocalRuntime != nil && options.LocalRuntime.Manager != nil {
-			if configured := options.LocalRuntime.Manager.RedactionBudget(); configured > 0 && configured < budget {
-				budget = configured
-			}
-		}
-		work.deadline = time.Now().Add(budget)
+	if !unified {
+		work.versions, work.bound = versions, true
 	}
+	beginRedactionPreparation(ctx, options)
 	ctx, cancel := context.WithDeadline(ctx, work.deadline)
 	defer cancel()
+	scopeHash := sha256.Sum256([]byte(req.CacheScope + "\x00" + work.plan.ConfigIdentity))
+	req.CacheScope = hex.EncodeToString(scopeHash[:])
 	req.Context = ctx
+	started := time.Now()
 	work.status = "pending"
-	prepared, err := redactor.Prepare(ctx, req)
+	var prepared PreparedCloudRequest
+	var err error
+	if unified, ok := redactor.(*RedactionService); ok {
+		var expected *RoutingVersions
+		if work.bound {
+			expected = &work.versions
+		}
+		prepared, err = unified.prepare(ctx, req, expected)
+		if err == nil {
+			work.versions, work.bound = prepared.Versions, true
+			work.actualModelID, work.engineVersion = prepared.ModelID, prepared.EngineVersion
+			work.preparationMS += time.Since(started).Milliseconds()
+			if prepared.ObservationMeta != nil {
+				meta := *prepared.ObservationMeta
+				meta.DurationMS = work.preparationMS
+				work.meta = &meta
+			}
+		}
+	} else {
+		prepared, err = redactor.Prepare(ctx, req)
+	}
 	if err == nil {
 		if dynamic, ok := redactor.(interface{ RoutingVersions() RoutingVersions }); ok && work.versions != dynamic.RoutingVersions() {
 			err = ErrRedactionUnavailable
@@ -176,4 +212,20 @@ func prepareRequiredRedaction(ctx context.Context, options ModelOptions, redacto
 		work.status = "blocked"
 	}
 	return prepared, err
+}
+
+func beginRedactionPreparation(ctx context.Context, options ModelOptions) {
+	work := redactionWork(ctx)
+	if work == nil {
+		return
+	}
+	if work.deadline.IsZero() {
+		budget := routerruntime.DefaultRedactionBudget
+		if options.LocalRuntime != nil && options.LocalRuntime.Manager != nil {
+			if configured := options.LocalRuntime.Manager.RedactionBudget(); configured > 0 && configured < budget {
+				budget = configured
+			}
+		}
+		work.deadline = time.Now().Add(budget)
+	}
 }

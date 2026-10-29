@@ -1,7 +1,20 @@
 'use strict';
 (() => {
   for (const [key, zh, tw, ja, de] of [
-    ['Redaction requirement', '是否要求脱敏', '是否要求去識別化', '匿名化の要否', 'Anonymisierung erforderlich'],
+        ['User input redaction', '用户输入脱敏', '使用者輸入去識別化', 'ユーザー入力の匿名化', 'Anonymisierung der Benutzereingabe'],
+    ['System prompts and new information from tools are not scanned.', '系统提示词和工具产生的新信息不参与识别。', '系統提示詞與工具產生的新資訊不參與識別。', 'システムプロンプトとツールが生成した新しい情報は識別対象外です。', 'Systemanweisungen und neue Informationen aus Werkzeugen werden nicht geprüft.'],
+    ['User input scanned', '已识别用户输入', '已識別使用者輸入', 'ユーザー入力を識別済み', 'Benutzereingabe geprüft'],
+    ['User history reused', '已复用用户历史', '已重用使用者歷程', 'ユーザー履歴を再利用', 'Benutzerverlauf wiederverwendet'],
+    ['Known user values only', '仅复用已知用户值', '僅重用已知使用者值', '既知のユーザー値のみ再利用', 'Nur bekannte Benutzerwerte'],
+    ['No user input to scan', '没有可识别的用户输入', '沒有可識別的使用者輸入', '識別対象のユーザー入力なし', 'Keine Benutzereingabe zur Prüfung'],
+    ['New user characters', '新扫描用户字符数', '新掃描使用者字元數', '新規ユーザー文字数', 'Neue Benutzerzeichen'],
+    ['New user chunks', '新扫描用户块数', '新掃描使用者區塊數', '新規ユーザーブロック数', 'Neue Benutzerblöcke'],
+    ['Reused user fragments', '复用历史片段数', '重用歷程片段數', '再利用した履歴断片数', 'Wiederverwendete Benutzerfragmente'],
+    ['Local redaction calls', '本地脱敏推理次数', '本機去識別化推論次數', 'ローカル匿名化の推論回数', 'Lokale Anonymisierungsaufrufe'],
+    ['Redaction scope', '脱敏范围', '去識別化範圍', '匿名化の範囲', 'Anonymisierungsumfang'],
+    ['Redaction setting could not be saved. Check local model readiness.', '无法保存脱敏设置，请检查本地模型是否就绪。', '無法儲存去識別化設定，請檢查本機模型是否就緒。', '匿名化設定を保存できません。ローカルモデルの準備状態を確認してください。', 'Anonymisierungseinstellung konnte nicht gespeichert werden. Lokales Modell prüfen.'],
+['Redaction requirement', '是否要求脱敏', '是否要求去識別化', '匿名化の要否', 'Anonymisierung erforderlich'],
+    ['Application requirement', '应用要求', '應用要求', 'アプリの要件', 'Anwendungsanforderung'], ['Actual redaction model', '实际脱敏模型', '實際去識別化模型', '実際の匿名化モデル', 'Tatsächliches Anonymisierungsmodell'],
     ['Redaction sources', '脱敏要求来源', '去識別化要求來源', '匿名化要件の出所', 'Quellen der Anonymisierungsanforderung'],
     ['Redaction model', '脱敏模型', '去識別化模型', '匿名化モデル', 'Anonymisierungsmodell'],
     ['Redaction policy', '脱敏策略', '去識別化策略', '匿名化ポリシー', 'Anonymisierungsrichtlinie'],
@@ -216,10 +229,17 @@
     field(dl, 'Judgment status', purposeStatus('judgment')); field(dl, 'Execution status', purposeStatus('execution')); field(dl, 'Redaction status', purposeStatus('redaction'));
     field(dl, 'Judgment duration (ms)', milliseconds(selected.judgmentMs));
     const policy = selected.redactionPolicy;
+    if (policy?.scopeVersion) {
+      field(dl, 'Redaction scope', policy.scopeVersion === 'user-input-v1' ? t('User input redaction') : policy.scopeVersion);
+      const disposition = { scanned: 'User input scanned', cache_hit: 'User history reused', known_values_only: 'Known user values only', no_user_input: 'No user input to scan' };
+      field(dl, 'User input processing', label(disposition, policy.scanDisposition));
+      for (const [name, key] of [['New user characters','newUserCharacters'], ['New user chunks','newUserChunks'], ['Reused user fragments','reusedUserFragments'], ['Local redaction calls','localInferenceCalls']]) field(dl, name, num(policy[key]));
+    }
     field(dl, 'Redaction requirement', policy ? t(policy.required ? 'Yes' : 'No') : t('Unknown'));
     field(dl, 'Redaction policy', policy ? label({ not_required: 'No redaction required', not_sent: 'No outbound attempt', prepared: 'Redaction prepared', blocked: 'Cloud request blocked', pending: 'Processing' }, policy.state) : t('Unknown'));
-    field(dl, 'Redaction sources', policy ? (policy.sourceGroupIds || []).join(', ') + (policy.sourceGroupCount > (policy.sourceGroupIds || []).length ? ' …' : '') || '—' : t('Unknown'));
+    field(dl, 'Redaction sources', policy ? [...(policy.profileRequired ? [t('Application requirement')] : []), ...(policy.sourceGroupIds || [])].join(', ') + (policy.sourceGroupCount > (policy.sourceGroupIds || []).length ? ' …' : '') || '—' : t('Unknown'));
     field(dl, 'Redaction model', policy?.modelId || t('Unknown'));
+    if (policy?.actualModelId) field(dl, 'Actual redaction model', policy.actualModelId);
     const redactionCalls = selected.calls?.filter(call => call.purpose === 'redaction') || [], lastRedaction = redactionCalls[redactionCalls.length - 1];
     field(dl, 'Redaction call duration (ms)', redactionCalls.length ? milliseconds(lastRedaction?.timings?.totalMs) : t('Not observed'));
     const judgmentCalls = selected.calls?.filter(call => call.purpose === 'judgment') || [], judgment = judgmentCalls[judgmentCalls.length - 1];

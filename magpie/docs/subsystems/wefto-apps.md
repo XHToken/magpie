@@ -1,5 +1,11 @@
 # 端云协同 Application Profiles, Routing Groups, and Agent Onboarding
 
+Application and routing-group requirements now use the same
+[unified redaction service and engine](wefto-redaction.md). Both flags are
+retained; model binding, actual engine identity, strict preparation and shared
+statistics are independent of the source of a requirement.
+
+
 ## Purpose
 
 Manage per-application routing profiles (`AppProfile`), multi-model and
@@ -83,7 +89,7 @@ combining saved groups (`Config.Groups`) with cross-provider auto-merged groups
 `DELETE /api/routing-groups/{id}` removes or hides (`Hidden: true`) auto groups,
 and `POST /api/routing-groups/switch` switches the active manual member.
 
-When a request arrives (either via `X-Wefto-App` or an explicit `model`
+When a request arrives (either via `X-API-Router-App` or an explicit `model`
 parameter matching `group/<id>` or a group name), `resolveRuntimeGroupRoute` and
 `executeGroupRoute` resolve the candidate execution order:
 
@@ -133,6 +139,15 @@ removed without silently rewriting the Profile. Existing group members are
 also retained. The Local model page still lists uninstalled catalogue entries
 for downloading.
 
+Local model labels come from the provider listing's `name`, including the
+quantization, independently of the stable `selector` used in saved Profiles
+and group references. Routing-group cards, member pickers, editor members,
+rule targets and switch notices resolve that same label. Agent summaries,
+new-session defaults and primary-model hints use catalogue names too; groups
+use their saved names. A saved local selection keeps its catalogue name even
+when uninstalled. Unknown entries fall back to their ID without guessing a
+quantization. Request records retain their actual model IDs for diagnostics.
+
 - Renders two `.row.agent.conn` rows (`data-agent-id="loomy"` and
   `data-agent-id="workbuddy"`).
 - Each row provides a multi-select dropdown (`.field.solo.ag-menu` +
@@ -144,8 +159,23 @@ for downloading.
   `POST /api/hosts/auto` (`action: "connect"` or `"disconnect"`) to synchronize
   or restore the host configuration files without blocking upstream probes.
 
+User input redaction is configured in the routing-group editor. Application
+Details does not expose a redaction switch; the application flag defaults to
+false, while existing saved values remain compatible.
+
 Connection status requires agreement between the enabled Profile and actual
 host files. Stale model lists with empty, disabled or mismatched Profiles require
 reconnection. Failed host saves restore the previous UI selection; an explicitly
 empty Profile stays empty. Validation and host/Profile rollback are documented
 in [Loomy integration](wefto-loomy.md).
+
+## User input scope (2026-10-29)
+
+The production redactor uses the original-protocol `user-input-v1` view,
+request-owned identification snapshot and target provenance sidecar. System and
+tool context cannot consume user scanning blocks. Assistant/tool echoes reuse
+only known user values. Cache trust requires a server-issued app-bound session
+handle or a trusted internal adapter; client declarations are insufficient.
+See [user input redaction](wefto-redaction.md) for source, cache,
+restoration authority, safe workload fields and failure semantics. Existing
+saved requirements, providers, models and host connections are preserved.

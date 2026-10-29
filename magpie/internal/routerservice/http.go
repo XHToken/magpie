@@ -73,6 +73,9 @@ func handler(info Info, token string, stores ...*routerconfig.Store) http.Handle
 }
 
 func handlerWithModelOptions(info Info, token string, store *routerconfig.Store, options ModelOptions) http.Handler {
+	if options.Redaction == nil && options.Routing != nil {
+		options.Redaction, _ = options.Routing.Redactor.(*RedactionService)
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -158,10 +161,8 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 		if isRedaction {
 			var stats func() routerredact.Stats
 			var state func() redactionRuntimeState
-			if options.Routing != nil {
-				if production, ok := options.Routing.Redactor.(*runtimeRedactor); ok {
-					stats, state = production.Stats, production.state
-				}
+			if production := options.Redaction; production != nil {
+				stats, state = production.Stats, production.state
 			}
 			redactionAPI(w, r, store, stats, state)
 			return
@@ -181,13 +182,11 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 		}
 		if isApp {
 			capability := routerconfig.RedactionUnavailable
-			if options.Routing != nil {
-				if production, ok := options.Routing.Redactor.(*runtimeRedactor); ok {
-					state := production.state()
-					capability = state.Capability
-					if !state.RecognitionReady && !state.TrialReady {
-						capability = routerconfig.RedactionUnknown
-					}
+			if production := options.Redaction; production != nil {
+				state := production.state()
+				capability = state.Capability
+				if !state.RecognitionReady && !state.TrialReady {
+					capability = routerconfig.RedactionUnknown
 				}
 			}
 			appsAPI(w, r, store, token, capability)

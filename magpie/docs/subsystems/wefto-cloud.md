@@ -1,5 +1,11 @@
 # 端云协同 Cloud Protocol Translation and Execution
 
+Application and routing-group requirements now use the same
+[unified redaction service and engine](wefto-redaction.md). Both flags are
+retained; model binding, actual engine identity, strict preparation and shared
+statistics are independent of the source of a requirement.
+
+
 ## Purpose
 
 Normalize incoming agent requests across OpenAI Chat Completions, OpenAI
@@ -93,3 +99,14 @@ When a cloud target (`<providerId>/<model>`) is selected directly by an
   [Loomy title ownership](wefto-loomy.md#title-ownership-and-input).
 - Upstream API keys and custom provider auth headers are never echoed back to
   downstream callers or recorded in observation logs.
+
+## User input scope (2026-10-29)
+
+The production redactor uses the original-protocol `user-input-v1` view,
+request-owned identification snapshot and target provenance sidecar. System and
+tool context cannot consume user scanning blocks. Assistant/tool echoes reuse
+only known user values. Cache trust requires a server-issued app-bound session
+handle or a trusted internal adapter; client declarations are insufficient.
+See [user input redaction](wefto-redaction.md) for source, cache,
+restoration authority, safe workload fields and failure semantics. Existing
+saved requirements, providers, models and host connections are preserved.

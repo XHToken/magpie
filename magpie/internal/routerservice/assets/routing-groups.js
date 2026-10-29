@@ -167,6 +167,18 @@
   };
 
   [
+    ['User input redaction', '用户输入脱敏', '使用者輸入去識別化', 'ユーザー入力の匿名化', 'Anonymisierung der Benutzereingabe'],
+    ['System prompts and new information from tools are not scanned.', '系统提示词和工具产生的新信息不参与识别。', '系統提示詞與工具產生的新資訊不參與識別。', 'システムプロンプトとツールが生成した新しい情報は識別対象外です。', 'Systemanweisungen und neue Informationen aus Werkzeugen werden nicht geprüft.'],
+    ['User input scanned', '已识别用户输入', '已識別使用者輸入', 'ユーザー入力を識別済み', 'Benutzereingabe geprüft'],
+    ['User history reused', '已复用用户历史', '已重用使用者歷程', 'ユーザー履歴を再利用', 'Benutzerverlauf wiederverwendet'],
+    ['Known user values only', '仅复用已知用户值', '僅重用已知使用者值', '既知のユーザー値のみ再利用', 'Nur bekannte Benutzerwerte'],
+    ['No user input to scan', '没有可识别的用户输入', '沒有可識別的使用者輸入', '識別対象のユーザー入力なし', 'Keine Benutzereingabe zur Prüfung'],
+    ['New user characters', '新扫描用户字符数', '新掃描使用者字元數', '新規ユーザー文字数', 'Neue Benutzerzeichen'],
+    ['New user chunks', '新扫描用户块数', '新掃描使用者區塊數', '新規ユーザーブロック数', 'Neue Benutzerblöcke'],
+    ['Reused user fragments', '复用历史片段数', '重用歷程片段數', '再利用した履歴断片数', 'Wiederverwendete Benutzerfragmente'],
+    ['Local redaction calls', '本地脱敏推理次数', '本機去識別化推論次數', 'ローカル匿名化の推論回数', 'Lokale Anonymisierungsaufrufe'],
+    ['Redaction scope', '脱敏范围', '去識別化範圍', '匿名化の範囲', 'Anonymisierungsumfang'],
+    ['Redaction setting could not be saved. Check local model readiness.', '无法保存脱敏设置，请检查本地模型是否就绪。', '無法儲存去識別化設定，請檢查本機模型是否就緒。', '匿名化設定を保存できません。ローカルモデルの準備状態を確認してください。', 'Anonymisierungseinstellung konnte nicht gespeichert werden. Lokales Modell prüfen.'],
     ['This switch is off. Inherited and application redaction requirements still apply.', '此开关已关闭，继承及应用级脱敏要求仍然适用。', '此開關已關閉，繼承及應用程式去識別化要求仍然適用。', 'この設定はオフです。継承された要件とアプリの匿名化要件は適用されます。', 'Dieser Schalter ist aus. Geerbte und anwendungsbezogene Anonymisierungsregeln gelten weiterhin.'],
     ['Redaction policy', '脱敏策略', '去識別化策略', '匿名化ポリシー', 'Anonymisierungsrichtlinie'],
     ['Cloud requests require redaction; failures block outbound requests.', '云端请求必须脱敏成功，失败将阻断出站。', '雲端請求必須完成去識別化，失敗將阻擋傳送。', 'クラウド送信前に匿名化が必要です。失敗時は送信を遮断します。', 'Cloud-Anfragen erfordern Anonymisierung; Fehler blockieren die Übertragung.'],
@@ -359,12 +371,16 @@
     var rest = slash > 0 ? raw.slice(slash + 1) : raw;
 
     if (prefix === 'local') {
+      var localModel = state.localModels.find(function (m) {
+        var selector = m.selector || 'local/' + (m.id || m.modelId || '');
+        return selector.toLowerCase() === raw.toLowerCase();
+      });
       return {
         ref: raw,
         kind: 'local',
         providerId: 'local',
         providerName: tr('Local on-device'),
-        modelName: rest,
+        modelName: localModel && localModel.name ? localModel.name : rest,
         icon: resolveIcon(rest || 'ollama'),
         contextBadge: ''
       };

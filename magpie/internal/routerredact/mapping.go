@@ -147,12 +147,22 @@ type ReplacementMeta struct {
 }
 
 type ObservationMeta struct {
-	CacheHit     bool              `json:"cacheHit"`
-	DurationMS   int64             `json:"durationMs"`
-	Replacements []ReplacementMeta `json:"replacements"`
+	ScopeVersion        string            `json:"scopeVersion,omitempty"`
+	ScanDisposition     string            `json:"scanDisposition,omitempty"`
+	NewUserCharacters   int               `json:"newUserCharacters"`
+	NewUserChunks       int               `json:"newUserChunks"`
+	ReusedUserFragments int               `json:"reusedUserFragments"`
+	LocalInferenceCalls int               `json:"localInferenceCalls"`
+	CacheHit            bool              `json:"cacheHit"`
+	DurationMS          int64             `json:"durationMs"`
+	Replacements        []ReplacementMeta `json:"replacements"`
 }
 
 func applyEntities(texts []string, entities []Entity, mapping map[string]string, categories map[string]string, reserved []string, generalized ...map[string]string) ([]string, error) {
+	return applyEntitiesPolicy(texts, entities, mapping, categories, reserved, false, generalized...)
+}
+
+func applyEntitiesPolicy(texts []string, entities []Entity, mapping, categories map[string]string, reserved []string, reversibleAmounts bool, generalized ...map[string]string) ([]string, error) {
 	byEntity := make(map[string]string, len(mapping))
 	next := map[string]int{}
 	for token, value := range mapping {
@@ -160,7 +170,7 @@ func applyEntities(texts []string, entities []Entity, mapping map[string]string,
 	}
 	generalizedByIndex := make(map[int]string)
 	for idx, e := range entities {
-		if e.Category == "AMOUNT" {
+		if e.Category == "AMOUNT" && !reversibleAmounts {
 			if gen, ok := GeneralizeAmountValue(e.Text); ok {
 				generalizedByIndex[idx] = gen
 				if len(generalized) > 0 && generalized[0] != nil {

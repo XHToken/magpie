@@ -137,8 +137,6 @@ func executeBoundTarget(w http.ResponseWriter, prepared *http.Request, protocol,
 	strategy := strings.ToLower(strings.TrimSpace(g.Routing))
 	gOpts := &groupExecOptions{group: &g, matchedRule: matchedRule}
 	if plan.RequiredModelID != "" {
-		options = withGroupLocalRedaction(options, plan.RequiredModelID)
-		defer closeEphemeralGroupRedactor(options)
 		if g.LocalRedaction && !ruleHasTarget {
 			var clouds []string
 			for _, m := range ruleMembers {
@@ -577,11 +575,16 @@ func executeLocalCandidate(w http.ResponseWriter, prepared *http.Request, protoc
 	execBody := normReq.ExecutionBody()
 	var prep PreparedCloudRequest
 	work := redactionWork(prepared.Context())
-	if isGroupLocalRedaction(options) && options.Routing != nil && options.Routing.Redactor != nil && (work == nil || work.plan.RedactLocal) {
+	if work != nil && work.plan.RedactLocal {
+		beginRedactionPreparation(prepared.Context(), options)
+		if routing == nil || routing.Redactor == nil {
+			return res, ErrRedactionUnavailable
+		}
 		beforeBody := append([]byte(nil), execBody...)
 		sessionID, sessionVerified, seedSessionID := parseRedactionSessionMaterial(state.AppID, protocol, execBody)
 		var prepErr error
-		prep, prepErr = prepareRequiredRedaction(prepared.Context(), options, options.Routing.Redactor, options.Routing.Versions, RedactionRequest{
+		prep, prepErr = prepareRequiredRedaction(prepared.Context(), options, routing.Redactor, routing.Versions, RedactionRequest{
+			SourceBody:      execBody,
 			RequestID:       state.ID,
 			AppID:           state.AppID,
 			SourceProtocol:  protocol,
@@ -754,7 +757,7 @@ func executeCloudCandidate(w http.ResponseWriter, prepared *http.Request, protoc
 	if err != nil {
 		return routercloud.Result{Operation: operationFor(sub), Decision: string(DecisionCloud)}, err
 	}
-	if redactionRequired(prepared.Context(), state.Target.Profile.RedactionEnabled) || isGroupLocalRedaction(options) {
+	if redactionRequired(prepared.Context(), state.Target.Profile.RedactionEnabled) {
 		appTarget.Profile.RedactionEnabled = true
 	}
 	state.BeginMemberDispatch()

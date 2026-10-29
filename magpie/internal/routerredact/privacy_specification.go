@@ -67,10 +67,13 @@ type PrivacyRoutingVersions struct {
 // PrivacySpecification contains immutable material/binding only. Requests and
 // Unicode offset tables are local to Build/Parse; there is no shared input slot.
 type PrivacySpecification struct {
-	modelID      string
-	versions     Versions
-	fingerprints PrivacyFingerprints
-	experimental bool
+	unified                    bool
+	engineLabels               map[string]string
+	enginePrompt, engineSchema string
+	modelID                    string
+	versions                   Versions
+	fingerprints               PrivacyFingerprints
+	experimental               bool
 }
 
 func privacyHash(value []byte) string {
@@ -279,7 +282,7 @@ func (s *PrivacySpecification) Build(ctx context.Context, in Extraction) ([]byte
 		return nil, fail("redaction_specification_failed")
 	}
 	var schema map[string]any
-	if json.Unmarshal([]byte(PrivacySchema()), &schema) != nil {
+	if json.Unmarshal([]byte(s.schema()), &schema) != nil {
 		return nil, fail("redaction_specification_failed")
 	}
 	// b10828's schema-constrained JSON format constrains structure only. The
@@ -298,6 +301,6 @@ func (s *PrivacySpecification) Build(ctx context.Context, in Extraction) ([]byte
 		"max_tokens":           PrivacyMaxOutputTokens,
 		"response_format":      map[string]any{"type": "json_object", "schema": schema},
 		"chat_template_kwargs": map[string]any{"enable_thinking": false},
-		"messages":             []any{map[string]any{"role": "system", "content": PrivacyPrompt()}, map[string]any{"role": "user", "content": string(user)}},
+		"messages":             []any{map[string]any{"role": "system", "content": s.prompt()}, map[string]any{"role": "user", "content": string(user)}},
 	})
 }

@@ -86,7 +86,7 @@ func TestHTTPFailureBlocksEveryCloudComposition(t *testing.T) {
 		"execution failed":    {Extractor: ExtractorFunc(func(context.Context, Extraction) (Result, error) { return Result{}, errors.New("Alice secret") })},
 		"incomplete":          {Extractor: ExtractorFunc(func(context.Context, Extraction) (Result, error) { return Result{}, nil })},
 		"invalid": {Extractor: ExtractorFunc(func(context.Context, Extraction) (Result, error) {
-			return Result{true, []Entity{{0, 0, 1, "wrong", "PERSON"}}}, nil
+			return Result{Complete: true, Entities: []Entity{{0, 0, 1, "wrong", "PERSON"}}}, nil
 		})},
 		"timeout": {Budget: time.Millisecond, Extractor: ExtractorFunc(func(c context.Context, _ Extraction) (Result, error) { <-c.Done(); return Result{Complete: true}, nil })},
 	}

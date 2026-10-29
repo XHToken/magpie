@@ -34,7 +34,7 @@ func TestInheritedGroupRedactionSuccessRestoresAndProtectsFallback(t *testing.T)
 	}))
 	defer upstream.Close()
 	invoker := &dynamicPayloadInvoker{}
-	invoker.set(200, `{"choices":[{"finish_reason":"stop","message":{"content":"{\"entities\":[{\"label\":\"NAME\",\"value\":\"宁祁\"}]}"}}]}`)
+	invoker.set(200, `{"choices":[{"finish_reason":"stop","message":{"content":"{\"complete\":true,\"fields\":[{\"field\":0,\"complete\":true,\"findings\":[{\"label\":\"private_person\",\"start\":0,\"end\":2,\"text\":\"宁祁\",\"confidence\":1}]}]}","role":"assistant"},"index":0}]}`)
 	h, store := newGroupRoutingEnv(t, ModelOptions{Routing: &RoutingOptions{LocalInvoker: redactionOnlyInvoker{invoker}}})
 	p := saveTestCloudProvider(t, store, "FirstCloud", upstream.URL+"/v1", "probe")
 	q := saveTestCloudProvider(t, store, "SecondCloud", upstream.URL+"/v1", "probe")

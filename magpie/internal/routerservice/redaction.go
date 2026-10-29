@@ -114,13 +114,14 @@ func redactionAPI(w http.ResponseWriter, r *http.Request, store *routerconfig.St
 		for code, count := range v.Failures {
 			failures[routerredact.SafeFailureCode(code)] += count
 		}
-		statistics = map[string]any{"processed": v.Processed, "entities": v.Entities, "cacheHits": v.CacheHits, "blocked": v.Blocked, "durationMs": v.DurationMS, "failures": failures}
+		statistics = map[string]any{"newUserCharacters": v.NewUserCharacters, "newUserChunks": v.NewUserChunks, "reusedUserFragments": v.ReusedUserFragments, "localInferenceCalls": v.LocalInferenceCalls, "noUserInput": v.NoUserInput, "knownValuesOnly": v.KnownValuesOnly, "processed": v.Processed, "entities": v.Entities, "cacheHits": v.CacheHits, "blocked": v.Blocked, "durationMs": v.DurationMS, "failures": failures}
 	}
 	if !projection.Integrated {
 		projection.Statistics = stats != nil
 	}
 	providerJSON(w, 200, map[string]any{
 		"schemaVersion": 1, "capability": projection.Capability,
+		"scopeVersion": routerredact.ScopeVersion, "ready": projection.CloudActive, "engineVersion": projection.EngineVersion, "modelId": projection.ModelID,
 		"reason": projection.Reason, "productionIntegrated": projection.Integrated,
 		"modelReady": projection.ModelReady, "recognitionReady": projection.RecognitionReady,
 		"experimental": projection.Experimental, "trialReady": projection.TrialReady,

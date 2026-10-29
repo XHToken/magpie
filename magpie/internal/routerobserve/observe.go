@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/yetone/magpie/internal/routercloud"
 	"github.com/yetone/magpie/internal/routerledger"
@@ -44,6 +45,7 @@ type Request struct {
 	finishErr       error
 	localCallID     string
 	localModel      string
+	localEndedAt    time.Time
 	localUsage      *routerledger.Usage
 	cloudProviderID string
 	cloudModel      string
@@ -66,19 +68,22 @@ func (r *Request) SetCloudTarget(providerID, model string, price *routerledger.R
 	r.cloudPrice = price
 }
 
-// ObserveLocalCall captures the execution's safe actual result in memory. The
-// final routercloud.Result remains authoritative whenever it reports usage.
+// ObserveLocalCall captures the latest execution's safe actual result in memory.
+// Retries can change the executed model; delayed duplicates cannot replace a
+// newer completion. The final Result remains authoritative for reported usage.
 func (r *Request) ObserveLocalCall(v routerruntime.LocalCallObservation) {
 	if r == nil || v.Check || v.RequestID != r.metadata.RequestID || v.Purpose != routerruntime.LocalCallExecution || !v.Attempted {
 		return
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.finishing || r.localCallID != "" {
+	if r.finishing || v.CallID == r.localCallID || v.EndedAt.Before(r.localEndedAt) {
 		return
 	}
 	r.localCallID = v.CallID
 	r.localModel = v.ModelID
+	r.localEndedAt = v.EndedAt
+	r.localUsage = nil
 	if v.Usage != nil {
 		r.localUsage = &routerledger.Usage{InputTokens: copyCount(v.Usage.InputTokens), OutputTokens: copyCount(v.Usage.OutputTokens), TotalTokens: copyCount(v.Usage.TotalTokens)}
 	}
@@ -291,7 +296,7 @@ func (r *Request) finish(result routercloud.Result, err error, status, code, sta
 	outcome := routerledger.Outcome{Status: status, Destination: destination, Attempts: count, OutputCommitted: committed, SafeErrorCode: code, FailureStage: stage, AttemptDetails: attempts, Decision: result.Decision, JudgmentMS: nonnegative(result.JudgmentDuration.Milliseconds()), CapabilityState: routerledger.SafeCapabilityState(result.CapabilityState), ResolvedProviderID: cloudProviderID, ResolvedModel: cloudModel, ResolvedReferencePrice: cloudPrice}
 	outcome.LocalModel = localModel
 	if policy := result.Redaction; policy != nil {
-		outcome.Redaction = &routerledger.RedactionPolicy{Required: policy.Required, SourceGroupIDs: append([]string(nil), policy.SourceGroupIDs...), SourceGroupCount: policy.SourceGroupCount, ModelID: policy.ModelID, State: policy.State}
+		outcome.Redaction = &routerledger.RedactionPolicy{ScopeVersion: policy.ScopeVersion, ScanDisposition: policy.ScanDisposition, NewUserCharacters: policy.NewUserCharacters, NewUserChunks: policy.NewUserChunks, ReusedUserFragments: policy.ReusedUserFragments, LocalInferenceCalls: policy.LocalInferenceCalls, PreparationMS: policy.PreparationMS, ProfileRequired: policy.ProfileRequired, ActualModelID: policy.ActualModelID, EngineVersion: policy.EngineVersion, Required: policy.Required, SourceGroupIDs: append([]string(nil), policy.SourceGroupIDs...), SourceGroupCount: policy.SourceGroupCount, ModelID: policy.ModelID, State: policy.State}
 	}
 	if r.metadata.Operation == "generate" && destination == "local" {
 		outcome.Usage = localUsage
