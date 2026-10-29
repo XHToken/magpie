@@ -113,7 +113,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         await page.locator('#requestRecords .request-pages button').click();
         await page.waitForFunction(() => document.querySelectorAll('#requestRecords tbody tr').length === 50);
         // Status chips: all, processing, succeeded, failed.
-        await page.locator('#requestStatuses button').nth(3).click(); await page.locator('#requestApply').click();
+        await page.locator('#requestStatuses button').nth(3).click();
         await page.waitForFunction(() => document.querySelectorAll('#requestRecords tbody tr').length === 1);
         await page.locator('#requestRecords tbody button').click();
         await page.waitForFunction(() => !!document.querySelector('#requestRecords [data-request-detail]'));
@@ -146,12 +146,71 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       }
     }
     assert.deepEqual(errors, []);
+    // Explicit management projections cover statuses that the local upstream
+    // cannot produce. Filter the response by the query actually sent by the UI.
+    const filterStatuses = ['processing', 'succeeded', 'failed', 'canceled', 'timed_out', 'interrupted'];
+    const filterRecords = filterStatuses.flatMap((status, index) => ['generate', 'count_tokens'].map((operation, op) => ({
+      ...failed, requestId: (index * 2 + op + 1).toString(16).padStart(32, '0'), status, operation,
+      appId: op ? 'loomy' : 'codex', appName: op ? 'Loomy' : 'Codex', destination: op ? 'cloud' : 'local'
+    })));
+    for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) for (const width of [1600, 375]) {
+      const filterPage = await browser.newPage({ locale: 'en-US' });
+      filterPage.on('pageerror', error => errors.push(error.message));
+      const queries = [];
+      await filterPage.route('**/api/requests?*', route => {
+        const query = new URL(route.request().url()).searchParams;
+        queries.push(Object.fromEntries(query));
+        const matches = filterRecords.filter(record => ['status', 'operation', 'appId'].every(key => !query.has(key) || record[key] === query.get(key)));
+        const offset = query.has('before') ? 6 : 0;
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+          schemaVersion: 2, ledger: { available: true }, requests: matches.slice(offset, offset + 6), nextCursor: matches.length > offset + 6 ? 'older-filter-records' : ''
+        }) });
+      });
+      await authenticate(filterPage, language, width);
+      async function choose(selector, index, expected) {
+        const count = queries.length;
+        await filterPage.locator(`${selector} button`).nth(index).click();
+        await filterPage.waitForFunction(() => !document.querySelector('#requestApply').disabled);
+        assert.equal(queries.length, count + 1, `${language} ${width}: clicking ${selector}[${index}] queries immediately`);
+        const rows = await filterPage.locator('#requestRecords tbody tr').evaluateAll(nodes => nodes.map(node => node.dataset.request));
+        assert.deepEqual(rows, expected.map(record => record.requestId));
+        assert.equal(await filterPage.locator(`${selector} button[aria-pressed=true]`).count(), 1);
+        assert.equal(await filterPage.locator(`${selector} button`).nth(index).getAttribute('aria-pressed'), 'true');
+        assert.equal(queries.at(-1).before, undefined, 'a changed filter starts at the latest page');
+      }
+      await filterPage.locator('#requestRecords .request-pages button').click();
+      await filterPage.waitForFunction(() => !document.querySelector('#requestApply').disabled);
+      assert.equal(queries.at(-1).before, 'older-filter-records');
+      for (const [index, status] of filterStatuses.entries()) {
+        await choose('#requestStatuses', index + 1, filterRecords.filter(record => record.status === status));
+        assert.equal(queries.at(-1).status, status);
+      }
+      const interrupted = filterRecords.filter(record => record.status === 'interrupted');
+      await choose('#requestOperations', 2, interrupted.filter(record => record.operation === 'count_tokens'));
+      assert.equal(queries.at(-1).operation, 'count_tokens');
+      await choose('#requestOperations', 1, interrupted.filter(record => record.operation === 'generate'));
+      await choose('#requestOperations', 0, interrupted);
+      await filterPage.locator('#requestApp').fill('loomy');
+      await filterPage.locator('#requestApply').click();
+      await filterPage.waitForFunction(() => !document.querySelector('#requestApply').disabled);
+      await choose('#requestOperations', 1, []);
+      assert.equal(await filterPage.locator('#requestRecords').textContent(), await filterPage.evaluate(() => t('No matching requests')));
+      await choose('#requestOperations', 2, interrupted.filter(record => record.appId === 'loomy'));
+      assert.equal(queries.at(-1).appId, 'loomy');
+      await filterPage.locator('#requestApp').fill('');
+      await choose('#requestStatuses', 0, filterRecords.filter(record => record.operation === 'count_tokens'));
+      assert.equal(queries.at(-1).status, undefined);
+      await choose('#requestOperations', 0, filterRecords.slice(0, 6));
+      assert.equal(queries.at(-1).operation, undefined);
+      await filterPage.close();
+    }
+    assert.deepEqual(errors, []);
     const heldResponse = generate('held'); let heldTimer;
     const processingPage = await browser.newPage({ locale: 'en-US' });
     try {
       await Promise.race([heldStarted, new Promise((_, reject) => { heldTimer = setTimeout(() => reject(new Error('held upstream was not reached')), 10000); })]);
       clearTimeout(heldTimer); await authenticate(processingPage);
-      await processingPage.locator('#requestStatuses button').nth(1).click(); await processingPage.locator('#requestApply').click();
+      await processingPage.locator('#requestStatuses button').nth(1).click();
       await processingPage.waitForFunction(() => document.querySelectorAll('#requestRecords tbody tr').length === 1);
       assert.equal(await processingPage.locator('#requestRecords tbody td').nth(5).textContent(), 'Processing');
       await processingPage.locator('#requestRecords tbody button').click();

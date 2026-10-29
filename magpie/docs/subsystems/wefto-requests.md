@@ -93,6 +93,20 @@ telemetry:
      opens `#obsDrawer` showing route decision details, redaction/restore
      counters, token/cost metrics, and the per-attempt execution timeline.
 
+### Persistent request filters
+
+The persistent request list (`#requestRecords` in `observations.js`) queries
+`GET /api/requests` with exact `status`, `operation` and `appId` filters.
+Selecting a status or operation chip immediately reloads the latest page with
+all current query filters, clearing the previous pagination cursor and detail.
+Selecting the corresponding All chip removes that query filter. The application
+ID input applies on form submission or the next status/operation selection.
+Destination chips filter the currently loaded page in the browser.
+
+`internal/routerservice/tests/observations.test.cjs` verifies direct chip clicks,
+all six statuses, both operations, combined application filters and pagination
+reset in five languages at desktop and mobile widths in Chromium and WebKit.
+
 ## Invariants
 
 - Raw prompts, completions, and secret credentials are never stored in

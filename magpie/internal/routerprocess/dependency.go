@@ -175,6 +175,11 @@ func dependencyPath(path string, directory bool) (os.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	if directory && runtime.GOOS == "darwin" && (path == "/var" || path == "/tmp" || path == "/etc") {
+		if st, err := os.Stat(path); err == nil && st.IsDir() {
+			info = st
+		}
+	}
 	if info.Mode()&os.ModeSymlink != 0 || directory && !info.IsDir() || !directory && !info.Mode().IsRegular() {
 		return nil, errors.New("dependency path is a link or has the wrong file type")
 	}

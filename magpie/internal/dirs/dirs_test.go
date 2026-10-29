@@ -50,6 +50,7 @@ func TestDirectoryOverrides(t *testing.T) {
 		keys []string
 	}{
 		{"linux", []string{"XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"}},
+		{"darwin", []string{"XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"}},
 		{"windows", []string{"APPDATA", "LOCALAPPDATA"}},
 	} {
 		vars := map[string]string{}
@@ -76,6 +77,21 @@ func TestDirectoryOverrides(t *testing.T) {
 			}
 			vars[k] = old
 		}
+	}
+	nativeDarwin, err := resolve("darwin", home, exe, func(string) string { return "" })
+	if err != nil {
+		t.Fatal(err)
+	}
+	roundTrip, err := resolve("darwin", home, exe, func(k string) string {
+		return map[string]string{
+			"XDG_CONFIG_HOME": filepath.Dir(nativeDarwin.Config),
+			"XDG_DATA_HOME":   filepath.Dir(nativeDarwin.Data),
+			"XDG_CACHE_HOME":  filepath.Dir(nativeDarwin.Cache),
+			"XDG_STATE_HOME":  filepath.Dir(nativeDarwin.State),
+		}[k]
+	})
+	if err != nil || roundTrip != nativeDarwin {
+		t.Fatalf("darwin StartCommand round-trip = %+v (%v); want %+v", roundTrip, err, nativeDarwin)
 	}
 }
 

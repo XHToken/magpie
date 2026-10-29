@@ -464,8 +464,8 @@
     $('#period').textContent = t('Retained requests');
     $('#requestScope').textContent = t('Final local and cloud destinations. One business request is counted once; retries and internal calls do not add requests.') + ' ' + t('Actual reported usage. Missing fields remain unknown; explicit zero stays zero.');
     $('#requestAppLabel').textContent = t('Application ID filter'); $('#requestApply').textContent = t('Apply filters'); $('#requestApply').disabled = loading;
-    choices('#requestStatuses', statuses, status, id => { status = id; render(); }, 'All statuses');
-    choices('#requestOperations', operations, operation, id => { operation = id; render(); }, 'All operations');
+    choices('#requestStatuses', statuses, status, id => { status = id; load(''); }, 'All statuses');
+    choices('#requestOperations', operations, operation, id => { operation = id; load(''); }, 'All operations');
     choices('#requestDestinations', destinations, destinationFilter, id => { destinationFilter = id; render(); }, 'All destinations');
     $('#requestSummary').replaceChildren(overview()); $('#requestRecords').replaceChildren(list());
     if ($('#redactionObsScope')) {

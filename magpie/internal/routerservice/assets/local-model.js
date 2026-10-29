@@ -139,7 +139,7 @@
   ]) for (const [lang, text] of [['zh', zh], ['zh-TW', tw], ['ja', ja], ['de', de]]) (I18N[lang] ||= {})[key] = text;
 
   let data = null, device = null, working = false;
-  let stream, refreshController, retryTimer, readGeneration = 0, retryDelay = 1000, redactionKey = '';
+  let stream, refreshController, retryTimer, readGeneration = 0, retryDelay = 1000;
   let detectionAttempted = false, detecting = false, detectionFailed = false, connection = 0, selectedModelId = '';
   let operationError = '', checking = false, checkCompleted = false, failedCheck = false;
   function setOperationError(message = '', isCheck = false) {
@@ -528,14 +528,6 @@
     retryTimer = setTimeout(open, retryDelay);
     retryDelay = Math.min(retryDelay * 2, 30000);
   }
-  async function refreshRedaction(status, force = false) {
-    // Progress, queue occupancy and busy/idle transitions do not change privacy
-    // readiness. Keep these out of the key so downloads do not query redaction.
-    const key = JSON.stringify([status.intent, status.installation, status.dependencies, status.capabilities?.redaction, status.performance?.state, status.runtime === 'fault']);
-    if (!force && key === redactionKey) return;
-    await window.routerRedactionRefresh?.();
-    redactionKey = key;
-  }
   function watchStatus() {
     if (stream || !canObserve() || !isChanging(data?.status)) return;
     const controller = new AbortController(), current = connection;
@@ -573,7 +565,6 @@
               return;
             }
             data.status = value.status; render();
-            await refreshRedaction(value.status);
           }
         }
       } catch {
@@ -605,7 +596,6 @@
       window.routerLocalSkipDetectionOnce = false;
       if (!skipDetection && !detectionAttempted && !working && ['not_installed', 'canceled', 'failed'].includes(data.status.installation)) await detectDevice();
       if (current !== connection || generation !== readGeneration || !canObserve()) return;
-      await refreshRedaction(data.status, true);
       if (generation === readGeneration) watchStatus();
     }
     catch {
@@ -756,7 +746,7 @@
   }
   window.routerLocalOpen = open;
   window.routerLocalRender = render;
-  window.routerLocalDisconnected = () => { stopObserving(); connection++; operationError = ''; checking = false; checkCompleted = false; failedCheck = false; data = null; device = null; working = false; detectionAttempted = false; detecting = false; detectionFailed = false; selectedModelId = ''; redactionKey = ''; render(); };
+  window.routerLocalDisconnected = () => { stopObserving(); connection++; operationError = ''; checking = false; checkCompleted = false; failedCheck = false; data = null; device = null; working = false; detectionAttempted = false; detecting = false; detectionFailed = false; selectedModelId = ''; render(); };
   document.addEventListener('visibilitychange', () => { if (document.hidden) stopObserving(); else if (canObserve()) void open(); });
   window.addEventListener('pagehide', stopObserving);
   window.addEventListener('pageshow', event => { if (event.persisted && canObserve()) void open(); });

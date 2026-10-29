@@ -118,8 +118,8 @@
       const sourceLabel = !raw.length ? 'Saved model selection; availability is not verified' : p.modelListError && source === 'discovered' ? 'Cached models; refresh failed' : source === 'discovered' ? 'Discovered model list' : source === 'preset' ? 'Preset models; availability is not verified' : 'Provider models; source is unknown';
       if (items.length) sections.push({ key: `provider-${p.id}`, title: p.name || p.id, items, sourceLabel });
     }
-    const localRaw = (localModels || []).filter((m) => m && (m.id || m.fullModelId)).map((m) => ({ id: m.fullModelId || `local/${m.id}`, label: m.name || m.id || shortModel(m.fullModelId), tag: 'local' }));
-    for (const m of selected.filter((x) => x.startsWith('local/'))) if (!localRaw.some((r) => r.id === m)) localRaw.push({ id: m, label: shortModel(m), tag: 'local' });
+    const localRaw = (localModels || []).filter((m) => m?.installed === true && (m.id || m.fullModelId)).map((m) => ({ id: m.fullModelId || `local/${m.id}`, label: m.name || m.id || shortModel(m.fullModelId), tag: 'local' }));
+    for (const m of selected.filter((x) => x.startsWith('local/'))) if (!localRaw.some((r) => r.id === m)) localRaw.push({ id: m, label: shortModel(m), tag: 'local', savedOnly: true });
     for (const item of localRaw) covered.add(item.id);
     if (localRaw.length) sections.push({ key: 'local-models', title: t('Local models'), items: localRaw });
     const custom = selected.filter((m) => !covered.has(m)).map((m) => ({ id: m, label: m, tag: 'custom' }));

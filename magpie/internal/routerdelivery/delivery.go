@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 )
 
@@ -394,6 +395,11 @@ func checkPath(name string) error {
 		i, err := os.Lstat(p)
 		if err == nil {
 			if i.Mode()&os.ModeSymlink != 0 {
+				if runtime.GOOS == "darwin" && (p == "/var" || p == "/tmp" || p == "/etc") {
+					if st, statErr := os.Stat(p); statErr == nil && st.IsDir() {
+						goto next
+					}
+				}
 				return errors.New("installation paths must not contain links or reparse points")
 			}
 			if err := checkPlatformPath(p); err != nil {
@@ -402,6 +408,7 @@ func checkPath(name string) error {
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
+	next:
 		if filepath.Dir(p) == p {
 			return nil
 		}

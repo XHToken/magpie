@@ -20,7 +20,9 @@ TARGETS  = darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64 windo
 ifeq ($(shell uname -s),Darwin)
   export CGO_CFLAGS  = -mmacosx-version-min=12.0
   export CGO_LDFLAGS = -mmacosx-version-min=12.0
+  ROUTER_CGO        ?= 1
 endif
+ROUTER_CGO ?= 0
 # On Linux, GTK 3 and WebKitGTK 4.1: older distributions have them, where
 # Wails' default GTK 4 and WebKitGTK 6 would leave them out.
 ifeq ($(shell uname -s),Linux)
@@ -40,7 +42,7 @@ ROUTER_VERSION ?= 0.1.0-dev+i0
 .DEFAULT_GOAL := wefto
 .PHONY: wefto test-router vet-router test-router-ui test-product
 wefto:
-	CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -X main.version=$(ROUTER_VERSION)' -o dist/wefto ./cmd/wefto
+	CGO_ENABLED=$(ROUTER_CGO) go build -trimpath -ldflags='-s -w -X main.version=$(ROUTER_VERSION)' -o dist/wefto$(shell go env GOEXE) ./cmd/wefto
 
 # Serialize packages: retained host-format tests include wall-clock bounds.
 test-router:

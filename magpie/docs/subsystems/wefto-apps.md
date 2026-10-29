@@ -124,6 +124,15 @@ an unverified-selection tooltip. Catalogue/cache state is defined in
 [providers](wefto-providers.md); it neither changes application selections
 nor proves generation access.
 
+Agent and routing-group member pickers offer local models only when the
+provider listing reports `installed: true`. Installation is independent of
+enablement and runtime selection: an installed, disabled model remains a
+candidate. A previously saved Agent selection whose local installation is
+missing remains visible with the unverified-selection tooltip so it can be
+removed without silently rewriting the Profile. Existing group members are
+also retained. The Local model page still lists uninstalled catalogue entries
+for downloading.
+
 - Renders two `.row.agent.conn` rows (`data-agent-id="loomy"` and
   `data-agent-id="workbuddy"`).
 - Each row provides a multi-select dropdown (`.field.solo.ag-menu` +

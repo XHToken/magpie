@@ -127,6 +127,12 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       assert.equal(await row.locator('.ag-exp').count(), 0);
     }
 
+    for (const id of ['loomy', 'workbuddy']) {
+      await page.locator(`#agents [data-app="${id}"] .field.ag-menu`).click();
+      assert.deepEqual(await page.locator('.am-mr[data-model^="local/"]').evaluateAll(rows => rows.map(row => row.dataset.model)), ['local/spark-x2.6-4b'], `${id}: only the installed Q4 model is offered`);
+      await page.keyboard.press('Escape');
+    }
+
     // 2. Multi-select popover & Routing Groups top section assertions on Loomy
     const loomyMenuBtn = page.locator('#agents [data-app="loomy"] .field.ag-menu');
     assert.equal(await loomyMenuBtn.evaluate(el => el.classList.contains('empty')), true);
@@ -334,6 +340,43 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
           for (let i = 1; i < folded.length; i++) {
             assert.ok(Math.abs(folded[i].left - folded[0].left) < 1 && Math.abs(folded[i].right - folded[0].right) < 1, 'folded headers keep the same columns');
             assert.ok(folded[i].top >= folded[i - 1].bottom, 'folded headers remain in separate rows');
+          }
+          await page.keyboard.press('Escape');
+        }
+      }
+    }
+    await page.unroute('**/api/cloud-providers');
+    await page.unroute('**/api/apps');
+    const q4 = 'local/spark-x2.6-4b', q8 = 'local/spark-x2.6-4b-q8_0';
+    let localFixture = [], savedLocal = [];
+    await page.route('**/api/cloud-providers', route => route.fulfill({ json: { providers: [], localModels: localFixture } }));
+    await page.route('**/api/apps', async route => {
+      assert.equal(route.request().method(), 'GET', 'inspecting installation status must not save selections');
+      const response = await route.fetch(), data = await response.json();
+      for (const app of data.apps) { app.models = savedLocal; app.cloud = {}; app.enabled = false; }
+      await route.fulfill({ response, json: data });
+    });
+    for (const scenario of [
+      { name: 'only Q4 installed but disabled', installed: [true, false], expected: [q4] },
+      { name: 'only Q8 installed', installed: [false, true], expected: [q8] },
+      { name: 'both installed', installed: [true, true], expected: [q4, q8] },
+      { name: 'neither installed', installed: [false, false], expected: [] },
+      { name: 'installation unknown despite ready status', installed: [undefined, undefined], expected: [] },
+      { name: 'saved missing Q8', installed: [true, false], saved: [q8], expected: [q4, q8] },
+    ]) {
+      localFixture = [q4, q8].map((selector, i) => ({ id: selector.slice('local/'.length), name: i ? 'Spark-X2.6-4B-Q8_0' : 'Spark-X2.6-4B-Q4_K_M', installed: scenario.installed[i], enabled: false, selected: true, status: 'ready' }));
+      savedLocal = scenario.saved || [];
+      for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) {
+        await page.goto(`http://${address}/?locale=${language}&view=agents`);
+        await page.waitForFunction(() => !!managementToken && !!serviceInfo);
+        await page.evaluate(() => window.routerAppsOpen());
+        for (const host of ['loomy', 'workbuddy']) {
+          await page.locator(`#agents [data-app="${host}"] .field.ag-menu`).click();
+          assert.deepEqual(await page.locator('.am-mr[data-model^="local/"]').evaluateAll(rows => rows.map(row => row.dataset.model)), scenario.expected, `${language}/${host}/${scenario.name}`);
+          if (scenario.saved) {
+            const savedRow = page.locator(`.am-mr[data-model="${q8}"]`);
+            assert.equal(await savedRow.getAttribute('aria-selected'), 'true');
+            assert.ok((await savedRow.getAttribute('title')).includes(await page.evaluate(() => t('Saved model selection; availability is not verified'))));
           }
           await page.keyboard.press('Escape');
         }

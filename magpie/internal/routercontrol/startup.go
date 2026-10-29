@@ -61,6 +61,11 @@ func archiveExitedLock(l dirs.Layout) error {
 		return err
 	}
 	exe, err := os.Executable()
+	if err == nil {
+		if real, linkErr := filepath.EvalSymlinks(exe); linkErr == nil {
+			exe = real
+		}
+	}
 	if err != nil || !samePath(exe, r.Executable) {
 		return errors.New("another executable owns this layout; use its own installed CLI")
 	}

@@ -18,7 +18,7 @@ func loomyOpencodeExecutableName() string {
 func terminateExecutableProcesses(targetExe string, matchLoomyBundled bool) {
 	cleanTarget := filepath.Clean(targetExe)
 	if st, err := os.Stat(cleanTarget); err == nil && st.Mode().IsRegular() {
-		_ = proc.Command("pkill", "-f", cleanTarget).Run()
+		_ = proc.Command("pkill", "-f", "^"+regexp.QuoteMeta(cleanTarget)+"([[:space:]]|$)").Run()
 	}
 	if matchLoomyBundled {
 		_ = proc.Command("pkill", "-f", "/Loomy.app/Contents/Resources/opencode/").Run()

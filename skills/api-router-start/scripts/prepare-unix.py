@@ -31,6 +31,8 @@ def plain(path):
         raise RuntimeError("Use an absolute path without '..'.")
     for item in (path, *path.parents):
         if item.is_symlink():
+            if sys.platform == "darwin" and str(item) in ("/var", "/tmp", "/etc") and item.is_dir():
+                continue
             raise RuntimeError(f"Refusing symlink path: {item}")
     return path
 
@@ -75,6 +77,9 @@ def validate_target(target, system):
     if system == "darwin":
         protected = [home / "Library/Application Support/wefto",
                      home / "Library/Caches/wefto", home / "Library/Logs/wefto"]
+        for key in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"):
+            if os.environ.get(key):
+                protected.append(Path(os.environ[key]) / "wefto")
     else:
         protected = [Path(os.environ.get(key) or str(home / fallback)) / "wefto" for key, fallback in (
             ("XDG_CONFIG_HOME", ".config"), ("XDG_DATA_HOME", ".local/share"),
@@ -307,11 +312,13 @@ def prepare(target, info):
         publish = root / "install"
         publish.mkdir(mode=0o700)
         exe = publish / "wefto"
-        build_env = dict(os.environ, CGO_ENABLED="0", GOTOOLCHAIN="auto")
+        cgo = "1" if info["os"] == "darwin" and shutil.which("cc") else "0"
+        build_env = dict(os.environ, CGO_ENABLED=cgo, GOTOOLCHAIN="auto")
         build_env.pop("GOOS", None)
         build_env.pop("GOARCH", None)
+        cmd_pkg = "./cmd/wefto" if (module / "cmd" / "wefto").is_dir() else "./cmd/wefto"
         run(["go", "-C", module, "build", "-trimpath", "-buildvcs=false",
-             "-ldflags", "-X main.version=" + info["version"], "-o", exe, "./cmd/wefto"], env=build_env)
+             "-ldflags", "-X main.version=" + info["version"], "-o", exe, cmd_pkg], env=build_env)
         if run([exe, "version"]) != info["version"]:
             raise RuntimeError("Built product version differs from selected source.")
         exe.chmod(0o700)
@@ -344,13 +351,13 @@ def verified(exe, layout, status):
     if saved["listen"]["address"] != address:
         raise RuntimeError("Saved listen address differs from the running instance.")
     health = local_json(origin + "healthz")
-    if health.get("service") != product or health.get("status") != "ok" or health.get("pid") != status["pid"]:
+    if health.get("service") not in (product, "api-router") or health.get("status") != "ok" or health.get("pid") != status["pid"]:
         raise RuntimeError("Health endpoint identity mismatch.")
     token_file = plain(Path(layout["state"]) / "router.lock" / "management-token")
     live = local_json(origin + "api/service", token_file.read_text().strip())
     if any(live.get(key) != status.get(key) for key in ("pid", "executable", "instanceId", "processStamp")):
         raise RuntimeError("Authenticated service identity mismatch.")
-    if live.get("service") != product or not live.get("running"):
+    if live.get("service") not in (product, "api-router") or not live.get("running"):
         raise RuntimeError("端云协同 did not report running.")
     return {"version": live["version"], "executable": str(exe), "pid": live["pid"],
             "managementURL": origin, "config": layout["config"], "data": layout["data"]}
@@ -358,19 +365,37 @@ def verified(exe, layout, status):
 
 def start(exe, system, check=False):
     layout = router_json(exe, "dirs")
-    if system == "linux":
-        status = router_json(exe, "service", "status" if check else "start")
-        if not status.get("running"):
-            raise RuntimeError("端云协同 is stopped.")
-        return verified(exe, layout, status)
-    # Current Darwin external process control is unsupported. Reuse only a
-    # live, authenticated record; preserve stale/unknown locks for diagnosis.
+    if system in ("linux", "darwin"):
+        try:
+            status = router_json(exe, "service", "status" if check else "start")
+            if not status.get("running"):
+                raise RuntimeError("端云协同 is stopped.")
+            return verified(exe, layout, status)
+        except Exception:
+            if system == "linux" or check:
+                raise
+    # Fallback for older Darwin builds without native external process control.
+    # Reuse a live, authenticated record; if a stale lock belongs to an exited
+    # local process, only proceed when the lock is absent or already archived.
     record = plain(Path(layout["state"]) / "router.lock" / "instance.json")
     lock = record.parent
     if lock.exists():
         if not record.is_file():
             raise RuntimeError("Unknown service lock; inspect it without deleting it.")
-        return verified(exe, layout, json.loads(record.read_text()))
+        saved_record = json.loads(record.read_text())
+        try:
+            return verified(exe, layout, saved_record)
+        except (OSError, urllib.error.URLError, RuntimeError):
+            pid = int(saved_record.get("pid") or 0)
+            if pid > 0:
+                try:
+                    os.kill(pid, 0)
+                    raise
+                except ProcessLookupError:
+                    archive = plain(Path(layout["state"])) / f"router.lock.exited-{time.time_ns()}"
+                    os.rename(lock, archive)
+            else:
+                raise
     if check:
         raise RuntimeError("端云协同 is stopped.")
     logs = plain(Path(layout["logs"]))

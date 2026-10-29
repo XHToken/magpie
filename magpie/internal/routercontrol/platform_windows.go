@@ -39,10 +39,16 @@ func reparse(fi os.FileInfo) bool {
 	return ok && d.FileAttributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0
 }
 func processIdentity(pid int) (string, string, error) {
+	if pid <= 0 {
+		return "", "", os.ErrProcessDone
+	}
 	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
 	if err != nil {
-		if pid > 0 && errors.Is(err, windows.ERROR_INVALID_PARAMETER) {
+		if errors.Is(err, windows.ERROR_INVALID_PARAMETER) {
 			return "", "", fmt.Errorf("%w: %v", os.ErrProcessDone, err)
+		}
+		if errors.Is(err, windows.ERROR_ACCESS_DENIED) && pid != os.Getpid() {
+			return "reused-inaccessible-process", "", nil
 		}
 		return "", "", err
 	}

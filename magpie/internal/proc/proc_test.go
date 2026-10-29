@@ -21,7 +21,7 @@ func TestNoCommandBypassesProc(t *testing.T) {
 			return err
 		}
 		if d.IsDir() {
-			if path != root && (strings.HasPrefix(d.Name(), ".") || d.Name() == "node_modules" || path == filepath.Join(root, "internal", "proc") || path == filepath.Join(root, "internal", "testenv")) {
+			if path != root && (strings.HasPrefix(d.Name(), ".") || d.Name() == "node_modules" || path == filepath.Join(root, "dist") || path == filepath.Join(root, "internal", "proc") || path == filepath.Join(root, "internal", "testenv")) {
 				return filepath.SkipDir
 			}
 			return nil

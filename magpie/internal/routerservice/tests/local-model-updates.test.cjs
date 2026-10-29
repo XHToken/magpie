@@ -40,6 +40,7 @@ test(`local model push updates (${process.env.BROWSER || 'chromium'})`, { timeou
   const original = await (await fetch(base + '/api/local-model', { headers: { Authorization: 'Bearer ' + token } })).json();
   browser = await (process.env.BROWSER === 'webkit' ? webkit : chromium).launch({ headless: true });
   for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) {
+    // WSL's C.UTF-8 default may expose en-US@posix, an invalid Intl tag.
     const page = await browser.newPage({ locale: 'en-US' });
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     // Keep transport delivery under test control while exercising the real
@@ -86,6 +87,7 @@ test(`local model push updates (${process.env.BROWSER || 'chromium'})`, { timeou
     // download/backoff assertions; its network timeout is not a simulated event.
     await page.clock.install();
     const initialReads = reads, initialPrivacyReads = privacyReads;
+    assert.equal(initialPrivacyReads, 0, 'the local-model page does not fetch the removed privacy panel');
     await page.clock.runFor(15000);
     assert.equal(reads, initialReads, 'a healthy download stream never polls full model state');
     assert.equal(privacyReads, initialPrivacyReads, 'download waiting never polls redaction');

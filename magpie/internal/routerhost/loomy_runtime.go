@@ -3,6 +3,7 @@ package routerhost
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/yetone/magpie/internal/edit"
@@ -143,12 +144,33 @@ func isRealLoomyConfigRoot(cleanRoot string) bool {
 	if !nativeRoot && !strings.Contains(slashed, "/loomy/") && !strings.Contains(slashed, "/.loomy/") {
 		return false
 	}
+	for _, marker := range []string{"/tmp/", "/private/tmp/", "/var/folders/", "/private/var/folders/", "/appdata/local/temp/"} {
+		if strings.Contains(slashed, marker) {
+			return false
+		}
+	}
 	tempDir := filepath.Clean(os.TempDir())
 	if tempDir != "" && tempDir != "." {
-		rel, err := filepath.Rel(tempDir, cleanRoot)
-		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		if isUnderDir(cleanRoot, tempDir) {
+			return false
+		}
+		realTemp, err1 := filepath.EvalSymlinks(tempDir)
+		realRoot, err2 := filepath.EvalSymlinks(cleanRoot)
+		if err1 == nil && isUnderDir(cleanRoot, realTemp) {
+			return false
+		}
+		if err1 == nil && err2 == nil && isUnderDir(realRoot, realTemp) {
 			return false
 		}
 	}
 	return true
+}
+
+func isUnderDir(child, parent string) bool {
+	if runtime.GOOS == "windows" {
+		child = strings.ToLower(filepath.Clean(child))
+		parent = strings.ToLower(filepath.Clean(parent))
+	}
+	rel, err := filepath.Rel(parent, child)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }

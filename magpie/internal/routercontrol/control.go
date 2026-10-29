@@ -183,6 +183,14 @@ func readRegular(p string) ([]byte, error) {
 	return os.ReadFile(p)
 }
 
+func isDarwinSystemRootLink(p string) bool {
+	if runtime.GOOS != "darwin" || (p != "/var" && p != "/tmp" && p != "/etc") {
+		return false
+	}
+	st, err := os.Stat(p)
+	return err == nil && st.IsDir()
+}
+
 // safePath rejects links and Windows reparse points in all existing ancestors.
 func safePath(p string) error {
 	if !filepath.IsAbs(p) {
@@ -193,7 +201,7 @@ func safePath(p string) error {
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
-		if err == nil && (fi.Mode()&os.ModeSymlink != 0 || reparse(fi)) {
+		if err == nil && (fi.Mode()&os.ModeSymlink != 0 || reparse(fi)) && !isDarwinSystemRootLink(p) {
 			return fmt.Errorf("product path must not cross a link or reparse point: %s", p)
 		}
 		parent := filepath.Dir(p)
@@ -264,6 +272,9 @@ func Current(ctx context.Context, l dirs.Layout) (Status, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return Status{}, err
+	}
+	if real, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = real
 	}
 	s := Status{StartCommand: StartCommand(l, exe)}
 	s.Autostart, err = AutostartStatus(l, exe)
@@ -414,6 +425,9 @@ func Start(ctx context.Context, l dirs.Layout, trial *bool) (result Status, fail
 	exe, err := os.Executable()
 	if err != nil {
 		return s, err
+	}
+	if real, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = real
 	}
 	args := []string{"serve"}
 	if selected {
@@ -572,6 +586,9 @@ func SpawnRestart(l dirs.Layout) (<-chan error, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
+	}
+	if real, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = real
 	}
 	if err := safePath(l.Logs); err != nil {
 		return nil, err

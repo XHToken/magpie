@@ -21,7 +21,11 @@ reversibly restore placeholders in both non-streaming and streaming responses.
     (`RestoreWireResponse`), and SSE stream wrapping (`WrapSSEStream`)
 - Service HTTP handlers: `internal/routerservice/redaction.go`
   (`handleRedaction`, `handleRedactionPreview`)
-- Frontend UI: `internal/routerservice/assets/redaction.js` (`#view-redaction`)
+- Frontend UI: `internal/routerservice/assets/routing-groups-editor.js` for
+  group redaction settings and `observations.js` for request observations.
+  The local-model page does not display redaction diagnostics/acceptance or
+  provide a bulk intent-disable action. The authenticated `/api/redaction`
+  management API and saved application/group redaction requirements remain.
 
 ## Architecture
 

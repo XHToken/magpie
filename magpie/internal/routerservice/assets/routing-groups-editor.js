@@ -314,13 +314,6 @@
         '<div class="hint">' + rg.esc(rg.tr('First model defines the group\'s capabilities; tried top-to-bottom in In-order mode.')) + '</div>' +
       '</div>' +
 
-      // 5. Model list
-      '<label>' + rg.esc(rg.tr('Model list')) + '</label>' +
-      '<div>' +
-        '<div>' + rg.esc(rg.tr('Group only')) + '</div>' +
-        '<div class="hint">' + rg.esc(rg.tr('Member models are hidden from model pickers; only this group is listed.')) + '</div>' +
-      '</div>' +
-
       // 6. Routing
       '<label>' + rg.esc(rg.tr('Routing')) + '</label>' +
       '<div id="rgRoutingSection">' +
@@ -475,7 +468,8 @@
     // 2. Local runtime models
     var localItems = [];
     (rg.state.localModels || []).forEach(function (m) {
-      var id = m && (m.id || m.name);
+      if (!m || m.installed !== true) return;
+      var id = m.id || m.name;
       if (!id) return;
       var ref = 'local/' + id;
       var info = rg.describeMember(ref);

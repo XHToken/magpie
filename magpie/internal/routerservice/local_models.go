@@ -46,13 +46,15 @@ func newLocalModelsWithTrial(ctx context.Context, l dirs.Layout, store *routerco
 	if len(observed) > 0 {
 		onStart = observed[0]
 	}
+	detector := routerdevice.Native()
+	arch := routerdevice.NativeArchitecture()
 	manager, err := routerruntime.New(ctx, routerruntime.Options{BeforeStart: func(ctx context.Context, id, backend string) error {
 		return local.admitModel(ctx, id, "load", backend == "cpu")
-	}, PerformanceRequired: true, AutoBackend: true, Catalog: catalog, RuntimeID: routerruntime.PlatformRuntime(catalog, runtime.GOOS, runtime.GOARCH), Store: routerruntime.ConfigIntentStore{Store: store, StandardSettings: true}, Installer: &routerruntime.FileInstaller{Layout: l, Downloader: &routerdownload.Downloader{}}, Factory: routerprocess.NativeFactory{OnStart: onStart}, ExperimentalRedaction: experimental})
+	}, PerformanceRequired: true, AutoBackend: true, Catalog: catalog, RuntimeID: routerruntime.PlatformRuntime(catalog, runtime.GOOS, arch), Store: routerruntime.ConfigIntentStore{Store: store, StandardSettings: true}, Installer: &routerruntime.FileInstaller{Layout: l, Downloader: &routerdownload.Downloader{}}, Factory: routerprocess.NativeFactory{OnStart: onStart}, ExperimentalRedaction: experimental})
 	if err != nil {
 		return nil, err
 	}
-	local = &LocalModels{SampleDelay: time.Second, Manager: manager, Detector: routerdevice.Native(), Layout: l, Catalog: catalog, AutoLoad: true, dynamicChecks: true, checkFactory: localCapabilityChecks}
+	local = &LocalModels{SampleDelay: time.Second, Manager: manager, Detector: detector, Layout: l, Catalog: catalog, AutoLoad: true, dynamicChecks: true, checkFactory: localCapabilityChecks}
 	return local, nil
 }
 func (l *LocalModels) detect(ctx context.Context, path string) routerdevice.Report {

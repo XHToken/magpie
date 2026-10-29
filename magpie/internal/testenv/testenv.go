@@ -111,6 +111,9 @@ func Isolate() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if real, err := filepath.EvalSymlinks(home); err == nil && filepath.IsAbs(real) {
+		home = real
+	}
 	for k, v := range map[string]string{
 		"HOME": home, "USERPROFILE": home,
 		"XDG_CONFIG_HOME": filepath.Join(home, ".config"),
@@ -252,6 +255,21 @@ var warming sync.WaitGroup
 
 // within says whether path lies in dir.
 func within(path, dir string) bool {
+	if withinClean(path, dir) {
+		return true
+	}
+	realPath, err1 := filepath.EvalSymlinks(path)
+	realDir, err2 := filepath.EvalSymlinks(dir)
+	if err1 == nil && err2 == nil {
+		return withinClean(realPath, realDir)
+	}
+	if err2 == nil {
+		return withinClean(path, realDir)
+	}
+	return false
+}
+
+func withinClean(path, dir string) bool {
 	rel, err := filepath.Rel(dir, path)
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
@@ -259,7 +277,16 @@ func within(path, dir string) bool {
 // remove deletes the temporary home Isolate made, and nothing else: a
 // folder in the temporary folder, named as Isolate names them.
 func remove(home string) {
-	if filepath.IsAbs(home) && filepath.Dir(home) == filepath.Clean(os.TempDir()) && strings.HasPrefix(filepath.Base(home), prefix) {
+	if !filepath.IsAbs(home) || !strings.HasPrefix(filepath.Base(home), prefix) {
+		return
+	}
+	tmp := filepath.Clean(os.TempDir())
+	parent := filepath.Dir(home)
+	if parent == tmp {
+		os.RemoveAll(home)
+		return
+	}
+	if realTmp, err := filepath.EvalSymlinks(tmp); err == nil && parent == filepath.Clean(realTmp) {
 		os.RemoveAll(home)
 	}
 }

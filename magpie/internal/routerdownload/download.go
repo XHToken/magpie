@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -544,6 +545,14 @@ func regularOrMissing(path string) error {
 	return nil
 }
 
+func isDarwinSystemRootLink(dir string) bool {
+	if runtime.GOOS != "darwin" || (dir != "/var" && dir != "/tmp" && dir != "/etc") {
+		return false
+	}
+	st, err := os.Stat(dir)
+	return err == nil && st.IsDir()
+}
+
 func safeParents(dir string) error {
 	if !filepath.IsAbs(dir) {
 		return errors.New("artifact destination must be absolute")
@@ -558,7 +567,7 @@ func safeParents(dir string) error {
 	if err != nil {
 		return err
 	}
-	if !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 {
+	if (!fi.IsDir() || fi.Mode()&os.ModeSymlink != 0) && !isDarwinSystemRootLink(dir) {
 		return fmt.Errorf("unsafe destination parent: %s", dir)
 	}
 	if parent := filepath.Dir(dir); parent != dir {
@@ -575,7 +584,7 @@ func checkParents(dir string) error {
 	if err != nil {
 		return err
 	}
-	if !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 {
+	if (!fi.IsDir() || fi.Mode()&os.ModeSymlink != 0) && !isDarwinSystemRootLink(dir) {
 		return fmt.Errorf("unsafe destination parent: %s", dir)
 	}
 	if parent := filepath.Dir(dir); parent != dir {

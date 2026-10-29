@@ -94,7 +94,7 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 			return
 		}
 		switch r.URL.EscapedPath() {
-		case "/", "/icons/favicon.svg", "/app.js", "/provider.js", "/profiles.js", "/observations.js", "/loomy.js", "/local-model.js", "/redaction.js", "/service-control.js", "/tutorial.js", "/routing-groups.js", "/routing-groups-editor.js", "/provider-presets.json", "/router.css", "/healthz":
+		case "/", "/icons/favicon.svg", "/app.js", "/provider.js", "/profiles.js", "/observations.js", "/loomy.js", "/local-model.js", "/service-control.js", "/tutorial.js", "/routing-groups.js", "/routing-groups-editor.js", "/provider-presets.json", "/router.css", "/healthz":
 		default:
 			if _, ok := visualAssets[r.URL.EscapedPath()]; !ok && !allowedAPIPath(r.URL.EscapedPath()) && !requestAPIPath(r) && !localModelPath(r) {
 				http.NotFound(w, r)
@@ -219,7 +219,7 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 		jsAssets := map[string][]byte{
 			"/app.js": script, "/service-control.js": serviceControlScript, "/tutorial.js": tutorialScript,
 			"/profiles.js": profilesScript, "/loomy.js": loomyScript, "/observations.js": observationsScript,
-			"/provider.js": providerScript, "/local-model.js": localModelScript, "/redaction.js": redactionScript,
+			"/provider.js": providerScript, "/local-model.js": localModelScript,
 			"/routing-groups.js": routingGroupsScript, "/routing-groups-editor.js": routingGroupsEditorScript,
 		}
 		switch r.URL.Path {
@@ -229,7 +229,7 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 			writeAsset("image/svg+xml", favicon)
 		case "/":
 			writeAsset("text/html; charset=utf-8", index)
-		case "/app.js", "/service-control.js", "/tutorial.js", "/profiles.js", "/loomy.js", "/observations.js", "/provider.js", "/local-model.js", "/redaction.js", "/routing-groups.js", "/routing-groups-editor.js":
+		case "/app.js", "/service-control.js", "/tutorial.js", "/profiles.js", "/loomy.js", "/observations.js", "/provider.js", "/local-model.js", "/routing-groups.js", "/routing-groups-editor.js":
 			writeAsset("text/javascript; charset=utf-8", jsAssets[r.URL.Path])
 		case "/provider-presets.json":
 			writeAsset("application/json", providerPresets)

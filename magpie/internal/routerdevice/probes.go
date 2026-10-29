@@ -7,9 +7,16 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
+
+var nativeArch = func() string { return runtime.GOARCH }
+
+// NativeArchitecture returns the host CPU architecture, resolving translation
+// layers such as Rosetta 2 on Apple Silicon.
+func NativeArchitecture() string { return nativeArch() }
 
 // Probes allows each platform read to be replaced independently, including
 // partial errors and cancellation. Error values always discard accompanying

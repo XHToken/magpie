@@ -544,10 +544,11 @@ retain the last state, show a connection error and retry with exponential delay
 up to 30 seconds. Observation never owns or cancels installation. Slow readers
 have a bounded write deadline and never block Manager notifications.
 
-Progress and queue changes do not refresh `/api/redaction`. The page refreshes
-privacy state after explicit/full reads and changes to model intent,
-installation, dependencies, redaction capability, performance readiness or fault
-state; download byte updates share the existing privacy projection.
+The local-model page manages model installation and runtime lifecycle. It has no
+redaction diagnostic/acceptance panel and does not query `/api/redaction`.
+Routing-group redaction controls and request redaction observations remain
+separate; removing the panel does not change saved application/group intent or
+cloud preparation requirements.
 
 When the selected model has no verified installation (`not_installed`, `canceled`
 or `failed`), the authenticated local-model page requests one device probe per

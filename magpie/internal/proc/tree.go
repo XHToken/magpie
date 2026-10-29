@@ -39,8 +39,8 @@ func (t *Tree) Wait() error {
 	if !t.done {
 		t.done = true
 		close(t.waited)
+		t.sweep(t.cmd)
 	}
-	t.sweep(t.cmd)
 	return err
 }
 

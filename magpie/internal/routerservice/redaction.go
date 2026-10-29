@@ -2,7 +2,6 @@ package routerservice
 
 import (
 	"context"
-	_ "embed"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -15,9 +14,6 @@ import (
 	"github.com/yetone/magpie/internal/routerledger"
 	"github.com/yetone/magpie/internal/routerredact"
 )
-
-//go:embed assets/redaction.js
-var redactionScript []byte
 
 type redactionIntent struct {
 	ID       string `json:"id"`

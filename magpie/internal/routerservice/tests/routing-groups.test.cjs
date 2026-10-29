@@ -180,6 +180,7 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   const cloudCand = page.locator('#rgPickerList [data-picker-ref="openai/gpt-4o"]');
   await localCand.waitFor({ state: 'visible' });
   await cloudCand.waitFor({ state: 'visible' });
+  assert.deepEqual(await page.locator('#rgPickerList [data-picker-ref^="local/"]').evaluateAll(rows => rows.map(row => row.dataset.pickerRef)), ['local/spark-x2.6-4b'], 'the group picker only offers the installed Q4 model');
 
   await cloudCand.click();
   assert.equal(await page.locator('#rgLocalRedactionLabel').isHidden(), true);

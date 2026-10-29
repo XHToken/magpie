@@ -190,7 +190,6 @@ button:disabled { cursor: default; opacity: .45; }
 .request-filters input { width: 180px; max-width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; color: var(--text); }
 .request-choices { display: flex; flex-wrap: wrap; gap: 4px; }
 .routing-filters { margin: 12px 0; }
-.redaction-metrics { padding: 12px 14px; border-top: 1px solid var(--line); margin: 4px 0 0; }
 .request-table-wrap { overflow-x: auto; }
 .request-table { width: 100%; min-width: 1420px; table-layout: fixed; text-align: left; border-collapse: collapse; font-size: 12px; }
 .request-table th, .request-table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; min-width: 78px; }

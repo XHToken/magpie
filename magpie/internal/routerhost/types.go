@@ -173,6 +173,14 @@ func sum(b []byte) string               { s := sha256.Sum256(b); return hex.Enco
 func equal(a, b []byte) bool            { return bytes.Equal(a, b) }
 func hostPath(root, name string) string { return filepath.Join(root, name) }
 
+func isDarwinSystemRootLink(p string) bool {
+	if runtime.GOOS != "darwin" || (p != "/var" && p != "/tmp" && p != "/etc") {
+		return false
+	}
+	st, err := os.Stat(p)
+	return err == nil && st.IsDir()
+}
+
 func validateRoot(p string) error {
 	if !filepath.IsAbs(p) || filepath.Clean(p) != p {
 		return fmt.Errorf("use a clean absolute directory path")
@@ -182,7 +190,7 @@ func validateRoot(p string) error {
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("cannot inspect directory %s", at)
 		}
-		if err == nil && !st.IsDir() {
+		if err == nil && !st.IsDir() && !isDarwinSystemRootLink(at) {
 			return fmt.Errorf("directory must not contain symlinks or non-directories: %s", at)
 		}
 		if filepath.Dir(at) == at {

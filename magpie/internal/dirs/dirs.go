@@ -132,11 +132,27 @@ func resolveProduct(goos, home, exe string, getenv func(string) string, id strin
 		}
 		l.Logs = filepath.Join(l.State, "logs")
 	case "darwin":
-		l.Config = filepath.Join(home, "Library", "Application Support", id)
-		l.Data = l.Config
-		l.Cache = filepath.Join(home, "Library", "Caches", id)
-		l.State = filepath.Join(l.Data, "state")
-		l.Logs = filepath.Join(home, "Library", "Logs", id)
+		if l.Config, err = base("XDG_CONFIG_HOME", filepath.Join(home, "Library", "Application Support")); err != nil {
+			return Layout{}, err
+		}
+		if l.Data, err = base("XDG_DATA_HOME", filepath.Join(home, "Library", "Application Support")); err != nil {
+			return Layout{}, err
+		}
+		if l.Cache, err = base("XDG_CACHE_HOME", filepath.Join(home, "Library", "Caches")); err != nil {
+			return Layout{}, err
+		}
+		if stateHome := getenv("XDG_STATE_HOME"); stateHome != "" && filepath.Clean(stateHome) != filepath.Clean(l.Data) {
+			if l.State, err = base("XDG_STATE_HOME", ""); err != nil {
+				return Layout{}, err
+			}
+			l.Logs = filepath.Join(l.State, "logs")
+		} else {
+			if stateHome != "" && !filepath.IsAbs(stateHome) {
+				return Layout{}, fmt.Errorf("XDG_STATE_HOME must be an absolute directory, got %q", stateHome)
+			}
+			l.State = filepath.Join(l.Data, "state")
+			l.Logs = filepath.Join(home, "Library", "Logs", id)
+		}
 	case "windows":
 		if l.Config, err = base("APPDATA", ""); err != nil {
 			return Layout{}, err
