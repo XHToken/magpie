@@ -117,6 +117,15 @@ Original snapshots reside at
 first baseline. A legacy baseline can itself contain Router entries, so a
 restored journal alone does not establish a current connection.
 
+When switching from Wefto's known Loomy adapter v3 to this checkout's v2,
+[`checkConnectionJournalContract`](../../internal/routerhost/loomy_reconnect.go)
+allows a fresh connection only if the v3 journal is marked `restored` and every
+declared host file exactly matches its original bytes and existence. The new
+connection captures that same baseline under the current contract in the
+normal host/Profile transaction; failed Profile saves retain the v3 record and
+host bytes. Active v3 records, changed snapshots and unknown contracts remain
+blocked. Offline restoration of v3 records still requires the matching adapter.
+
 `routerhost.SynchronizePorts` follows the actual service address for managed
 hosts without inventing bindings or changing models. See
 [host configuration](wefto-host-config.md).
@@ -155,9 +164,20 @@ restricted to Loomy's Chat Completions entry. Normal chat bodies are unchanged.
 The ordinary authentication, complete input validation, model binding, routing
 group policy, redaction, cancellation and attempt budget still apply.
 
-Router removes the known memory-index block and system reminders from title
-input, excludes assistant suggestions and bounds each user turn to 500 Unicode
-characters. One shared prompt asks the selected model/group to describe the
+Title generation is a business request even though its purpose is `chat.title`.
+Its local calls keep the request ID and actual model identity in the request
+ledger; only explicit management checks use the separate diagnostic scope.
+Missing historical model identity remains unknown rather than being replaced by
+the model selected today.
+
+Router selects only the latest human prompt from that envelope, using the same
+Loomy projection as a main request to exclude memory, reminders and other host
+preludes. It passes the prompt directly as user text, without the JSON envelope
+or earlier turns, and retains its exact fragments so recognition can reuse the
+main request's current-prompt cache. Context-only or malformed latest input
+never falls back to older prompts. Ordinary request/model capacity limits still
+apply; source text is not truncated before privacy recognition.
+One shared prompt asks the selected model/group to describe the
 actual interaction, with no invented task, and to return one short line in the
 user's language. Every title, including greetings, invokes the model; there are
 no fixed input-to-title mappings. Chinese titles are limited to 20 characters

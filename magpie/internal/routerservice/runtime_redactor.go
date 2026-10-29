@@ -2,14 +2,15 @@ package routerservice
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"strings"
 	"sync"
 	"time"
 
-	"crypto/sha256"
-	"encoding/json"
 	"github.com/yetone/magpie/internal/cloudcodec"
 	"github.com/yetone/magpie/internal/routerredact"
 	"github.com/yetone/magpie/internal/routerruntime"
@@ -29,8 +30,47 @@ type RedactionService struct {
 	activeSP     *routerredact.PrivacySpecification
 	retired      []*routerredact.Pipeline
 	refs         map[*routerredact.Pipeline]int
+	promptGates  map[[32]byte]*promptScanGate
 	totals       routerredact.Stats
 	closed       bool
+}
+
+type promptScanGate struct {
+	slot chan struct{}
+	refs int
+}
+
+func (r *RedactionService) acquirePromptScan(ctx context.Context, key [32]byte) (func(), error) {
+	r.mu.Lock()
+	if r.promptGates == nil {
+		r.promptGates = map[[32]byte]*promptScanGate{}
+	}
+	gate := r.promptGates[key]
+	if gate == nil {
+		if len(r.promptGates) >= 128 {
+			r.mu.Unlock()
+			return nil, ErrRedactionUnavailable
+		}
+		gate = &promptScanGate{slot: make(chan struct{}, 1)}
+		r.promptGates[key] = gate
+	}
+	gate.refs++
+	r.mu.Unlock()
+	drop := func() {
+		r.mu.Lock()
+		gate.refs--
+		if gate.refs == 0 {
+			delete(r.promptGates, key)
+		}
+		r.mu.Unlock()
+	}
+	select {
+	case gate.slot <- struct{}{}:
+		return func() { <-gate.slot; drop() }, nil
+	case <-ctx.Done():
+		drop()
+		return nil, ctx.Err()
+	}
 }
 
 func newRedactionService(local *LocalModels, experimental ...bool) *RedactionService {
@@ -178,7 +218,7 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 		if len(source) == 0 && client == target {
 			source = req.Body
 		}
-		view, e := cloudcodec.NewUserTextView(string(client), source)
+		view, e := cloudcodec.NewUserTextViewForApp(string(client), source, req.AppID)
 		noInput := e == nil
 		if noInput {
 			for _, text := range view.Texts() {
@@ -242,7 +282,7 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 		if client != target {
 			return PreparedCloudRequest{}, ErrRedactionUnavailable
 		}
-		view, e := cloudcodec.NewUserTextView(string(client), source)
+		view, e := cloudcodec.NewUserTextViewForApp(string(client), source, req.AppID)
 		if e != nil {
 			return PreparedCloudRequest{}, ErrRedactionUnavailable
 		}
@@ -257,7 +297,7 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 		req.SessionID = work.session.ID
 		req.SessionVerified = true
 	}
-	view, e := cloudcodec.NewUserTextView(string(client), source)
+	view, e := cloudcodec.NewUserTextViewForApp(string(client), source, req.AppID)
 	if e != nil {
 		return PreparedCloudRequest{}, ErrRedactionUnavailable
 	}
@@ -266,12 +306,28 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 	}
 	material, _ := json.Marshal([]any{req.AppID, client, view.Identities(), view.Texts()})
 	sourceIdentity := sha256.Sum256(material)
+	if req.AppID == "workbuddy" || req.AppID == "loomy" {
+		// Each entry contains only the exact current prompt already supplied by
+		// this authenticated app, never another turn's undisclosed values.
+		// The Pipeline also checks fingerprints, material and target literals.
+		req.SessionID = "prompt:" + hex.EncodeToString(sourceIdentity[:])
+		req.SessionVerified = true
+	}
 	if work != nil && work.userSnapshot != nil {
 		if work.sourceIdentity != sourceIdentity {
 			return PreparedCloudRequest{}, ErrRedactionUnavailable
 		}
 		user = work.userSnapshot
 	} else {
+		if req.AppID == "workbuddy" || req.AppID == "loomy" {
+			// Coalesce only identical prompts. A cached prompt must not wait
+			// behind an unrelated auxiliary request from the same application.
+			release, acquireErr := r.acquirePromptScan(ctx, sourceIdentity)
+			if acquireErr != nil {
+				return PreparedCloudRequest{}, acquireErr
+			}
+			defer release()
+		}
 		user, err = p.ScanUserInput(ctx, routerredact.Input{RequestID: req.RequestID, AppID: req.AppID, Protocol: client, Operation: req.Operation, SessionID: req.SessionID, SessionVerified: req.SessionVerified, Versions: s.Versions(), Body: source, ReservedBody: req.Body})
 		if err != nil {
 			return PreparedCloudRequest{}, err
@@ -297,6 +353,13 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 		return PreparedCloudRequest{}, err
 	}
 	meta, _ := prepared.ObservationMeta()
+	if len(meta.Replacements) > 0 {
+		body, err = addRedactionTaskInstruction(req.TargetProtocol, body)
+		if err != nil || ctx.Err() != nil {
+			prepared.Close()
+			return PreparedCloudRequest{}, ErrRedactionUnavailable
+		}
+	}
 	meta.DurationMS = time.Since(started).Milliseconds()
 	var once sync.Once
 	ok = true

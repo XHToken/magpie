@@ -268,8 +268,10 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
             installation: trialFixture.downloading ? 'downloading' : 'installed',
             progress: trialFixture.downloading ? { artifact: 'model', downloaded: 52428800, total: 104857600 } : result.status.progress,
             runtime: trialFixture.runtime || (trialFixture.loaded ? 'ready' : 'unloaded'),
-            pid: trialFixture.loaded ? 4242 : 0,
-            dependencies: { state: 'ready', version: '14.50.35717.0' },
+            pid: trialFixture.pid ?? (trialFixture.loaded ? 4242 : 0),
+            healthy: Boolean(trialFixture.loaded),
+            backend: trialFixture.backend || result.status.backend,
+            dependencies: trialFixture.dependencies || { state: 'ready', version: '14.50.35717.0' },
             intent: { ...result.status.intent, selected: trialFixture.selected || result.status.intent.selected, enabled: trialFixture.loaded, trial: { judgment: trialFixture.enabled, execution: trialFixture.enabled } },
             capabilities: { ...result.status.capabilities, judgment: capability(trialFixture.enabled), execution: capability(trialFixture.enabled) },
           };
@@ -280,6 +282,30 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
         }
         await route.fulfill({ response, json: result });
       });
+      const installButton = page.locator('#localModelContent [data-action=install]');
+      for (const fallbackReason of ['accelerator_not_installed', 'accelerator_install_failed']) {
+        trialFixture = { loaded: false, enabled: false, backend: { mode: 'auto', state: 'cpu', fallbackReason } };
+        await page.evaluate(() => window.routerLocalOpen());
+        assert.equal(await installButton.isDisabled(), true, `${language}/${width}: optional GPU components do not reopen installation of an installed CPU model`);
+        trialFixture.loaded = true;
+        await page.evaluate(() => window.routerLocalOpen());
+        assert.equal(await installButton.isDisabled(), true, 'a healthy CPU model with missing optional GPU components cannot be reinstalled');
+        for (const runtime of ['loading', 'ready', 'busy', 'idle', 'unloading']) {
+          trialFixture.runtime = runtime;
+          trialFixture.pid = runtime === 'loading' ? 0 : 4242;
+          trialFixture.dependencies = { state: 'corrupt', error: 'local_model_dependency_corrupt' };
+          await page.evaluate(() => window.routerLocalOpen());
+          assert.equal(await installButton.isDisabled(), true, `${language}/${width}/${runtime}: a loaded or transitioning model cannot be reinstalled even when required dependencies need repair`);
+        }
+        trialFixture.runtime = 'fault';
+        await page.evaluate(() => window.routerLocalOpen());
+        assert.equal(await installButton.isDisabled(), true, 'a faulted process still owned by the runtime blocks repair');
+        trialFixture.pid = 0;
+        await page.evaluate(() => window.routerLocalOpen());
+        assert.equal(await installButton.isEnabled(), true, 'required dependency repair is available after the model process exits');
+      }
+      trialFixture = null;
+      assert.deepEqual(actions, [], 'installation guards never submit lifecycle operations');
       if (language === 'zh' && width === 1600) {
         trialFixture = { loaded: false, enabled: false, unavailable: false, downloading: false, enables: 0, disables: 0, loads: 0 };
         await page.route('**/api/local-model/enable', async route => {

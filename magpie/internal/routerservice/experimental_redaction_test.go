@@ -109,13 +109,15 @@ func TestExperimentalProductionAdmissionPreservesUnknownAndBlocksInvalidResults(
 			t.Fatal("trial did not restore response", stream, w.Code, w.Body.String())
 		}
 	}
-	if upstream.Load() != 2 || generated.Load() != 2 {
-		t.Fatal("trial transport escaped the unique manager", upstream.Load(), generated.Load())
+	if upstream.Load() != 2 || generated.Load() != 1 {
+		t.Fatal("trial did not reuse the exact prompt through the unique manager", upstream.Load(), generated.Load())
 	}
 	invalid.Store(true)
-	w := call("POST", "/app/workbuddy/v1/chat/completions", `{"model":"trial-model","messages":[{"role":"user","content":"邮箱：synthetic@example.test"}]}`, false)
-	if w.Code == 200 || upstream.Load() != 2 {
-		t.Fatal("invalid trial result reached upstream", w.Code, upstream.Load())
+	// Change the prompt so this probes a fresh invalid generation, rather than
+	// reusing the already validated result of the identical cached prompt.
+	w := call("POST", "/app/workbuddy/v1/chat/completions", `{"model":"trial-model","messages":[{"role":"user","content":"邮件：synthetic@example.test"}]}`, false)
+	if w.Code == 200 || upstream.Load() != 2 || generated.Load() != 2 {
+		t.Fatal("fresh invalid trial result was not blocked", w.Code, upstream.Load(), generated.Load())
 	}
 	if err := manager.Require(routerruntime.Redaction); err == nil || manager.Status().Capabilities[routerruntime.Redaction].State != "unknown" {
 		t.Fatal("trial forged formal acceptance")

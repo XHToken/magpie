@@ -13,6 +13,21 @@ import (
 const titleMemoryFixture = "## 可用记忆条目\n\n- [古籍修复偏好](memory/book.md) SECRET_MEMORY_BOOK_RESTORATION\n\n只在条目与当前请求明确相关时读取对应文件。不要向用户提及这些条目、路径或读取过程。"
 const nativeTitleFixture = "You are a title generator. You output ONLY a thread title. Nothing else.\nGenerate a title."
 
+func TestLoomyTitleLatestContextDoesNotFallBackToHistory(t *testing.T) {
+	for _, latest := range []string{"", titleMemoryFixture, "<system-reminder>unclosed"} {
+		envelope, _ := json.Marshal(map[string]any{"api_router_title": 1, "user_messages": []string{"OLD_USER", latest}})
+		body, _ := json.Marshal(map[string]any{"messages": []map[string]string{{"role": "user", "content": string(envelope)}}})
+		var input loomyTitleInput
+		if err := json.Unmarshal(body, &input); err != nil {
+			t.Fatal(err)
+		}
+		texts, err := input.sources()
+		if err == nil && len(texts) != 0 {
+			t.Fatal("title fell back to history or scanned host-only text", texts)
+		}
+	}
+}
+
 func TestLoomyTitleUsesModelWithVisibleConversation(t *testing.T) {
 	var mu sync.Mutex
 	var upstreamBodies []string
@@ -72,8 +87,11 @@ func TestLoomyTitleUsesModelWithVisibleConversation(t *testing.T) {
 		if strings.Contains(body, "SECRET_") || strings.Contains(body, "古籍修复偏好") || strings.Contains(body, "memory/book.md") {
 			t.Fatal("hidden context influenced title request:", body)
 		}
-		if !strings.Contains(body, "你好") || !strings.Contains(body, `"stream":false`) {
+		if (!strings.Contains(body, "你好") && !strings.Contains(body, "请整理会议纪要")) || !strings.Contains(body, `"stream":false`) {
 			t.Fatal("visible user content missing from canonical request:", body)
+		}
+		if strings.Contains(body, "api_router_title") || strings.Contains(body, "user_messages") || strings.Contains(body, "你好") && strings.Contains(body, "请整理会议纪要") {
+			t.Fatal("title request included its JSON envelope or earlier user prompt:", body)
 		}
 	}
 }

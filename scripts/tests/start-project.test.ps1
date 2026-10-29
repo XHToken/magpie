@@ -32,6 +32,13 @@ try {
     Assert-WorkBuddyRouterAddress $routerTestHost $routerTestApps 'http://127.0.0.1:13145/'
     Write-Host 'PASS: both WorkBuddy configuration shapes match the live endpoint'
 
+    $routerAliasApps = '{"apps":[{"id":"workbuddy","configured":true,"models":["group/ttt"],"modelAliases":{"ttt":"group/ttt"}}]}' | ConvertFrom-Json
+    [IO.File]::WriteAllText($routerTestModels, '[{"id":"ttt","url":"http://127.0.0.1:13145/app/workbuddy/v1"}]')
+    Assert-WorkBuddyRouterAddress $routerTestHost $routerAliasApps 'http://127.0.0.1:13145/'
+    [IO.File]::WriteAllText($routerTestModels, '[{"id":"ttt","url":"http://127.0.0.1:58116/app/workbuddy/v1"}]')
+    Assert-Fails { Assert-WorkBuddyRouterAddress $routerTestHost $routerAliasApps 'http://127.0.0.1:13145/' } 'endpoint differs'
+    Write-Host 'PASS: readable WorkBuddy model aliases resolve to their saved target and reject stale endpoints'
+
     [IO.File]::WriteAllText($routerTestModels, '[{"id":"fixture-model","url":"http://127.0.0.1:58116/app/workbuddy/v1"}]')
     $routerTestBefore = [IO.File]::ReadAllText($routerTestModels)
     Assert-Fails { Assert-WorkBuddyRouterAddress $routerTestHost $routerTestApps 'http://127.0.0.1:13145/' } 'endpoint differs'

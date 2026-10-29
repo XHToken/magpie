@@ -58,8 +58,43 @@ only `role=user` content strings/direct text blocks; Responses selects string
 `input` or ordinary `message` items explicitly marked `role=user`; Anthropic
 selects direct user text, excluding nested `tool_result` content. All user turns
 participate, including earlier turns when the request ends with a tool callback.
-User-pasted code, attachments represented as text and host context concatenated
-into that same string are scanned in full.
+For authenticated WorkBuddy and Loomy applications,
+[`NewUserTextViewForApp`](../../internal/cloudcodec/user_prompt.go) instead selects
+only the current user message's actual prompt. Historical user turns do not
+enter new recognition. WorkBuddy's attributed `system-reminder` envelope is
+retained while only the outer `user_query` payload is scanned. Loomy's generated
+reminders, attachment metadata, gateway profile/memory preludes and forced-skill
+instructions are excluded; separate prelude parts and concatenated text are
+supported. Malformed recognized framing blocks preparation instead of sending
+the context to the local model. Empty/context-only current messages never fall
+back to historical prompts. Other applications retain the protocol user-text
+scope above. User-pasted code inside an actual prompt remains input.
+
+The authenticated application chooses this projection; generic text tags do not
+change other applications' scope. Byte ranges preserve excluded context in the
+outbound request, and private provenance markers cover only prompt ranges
+through protocol conversion. The host projection version participates in the
+engine material fingerprint, invalidating earlier evidence and caches.
+
+For these two host projections, the server derives a bounded current-prompt
+cache identity from authenticated app, prompt positions and exact prompt text;
+the Pipeline additionally binds model/material and validates all fingerprints.
+Every cached mapping value was therefore already supplied in that exact prompt;
+the identity grants no access to other historical prompts. Context changes do
+not invalidate it, including the current prompt's absolute position in history.
+A cancellable admission gate for each exact prompt lets duplicate requests reuse
+a completed scan. Unrelated prompts cannot hold up a cache hit. Gates are bounded
+to 128 concurrent prompt identities, wait outside the service mutex, share the
+preparation deadline and are removed after their last waiter leaves.
+
+After recognition, a request with replacements receives a short business-model
+instruction: issued tokens are supplied opaque values to use verbatim in answers
+and tool arguments, rather than missing fields requiring the original values.
+This instruction enters only the prepared business request, never the local
+recognition request. It does not change the response's restoration authority.
+Operations that need hidden properties of a value may still be impossible;
+the instruction requires describing that specific limitation without inventing
+originals or asking the user to resend sensitive data.
 
 System/developer/instructions, tools/schema/keys, host/accounting metadata,
 assistant messages, tool arguments and tool outputs never enter rules,
@@ -209,6 +244,8 @@ continues to retain original text, redacted text and replacement values in
 `<state>/redaction_observations.sqlite`, at most 500 request IDs / seven days.
 It does not display the entire scanned request. Pruning and clear operations
 retain existing secure-delete behavior. Ordinary logs contain safe metadata.
+For WorkBuddy and Loomy, the comparison stores the actual current prompt rather
+than the host envelope or injected context.
 
 Close stops new work, cancels in-flight preparation and closes pipeline expiry
 loops. Prepared snapshots close after response restoration; repeated Close is

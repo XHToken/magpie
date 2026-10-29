@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yetone/magpie/internal/cloudcodec"
 	"github.com/yetone/magpie/internal/routerconfig"
 	"github.com/yetone/magpie/internal/routerledger"
 	"github.com/yetone/magpie/internal/routerredact"
@@ -166,7 +167,15 @@ func extractUserContentText(content any) (string, bool) {
 // extractLatestUserInput extracts only the latest turn's user role text.
 // If the trailing turn is a tool result, assistant message, or has no user text,
 // it returns ("", false) so tool-callback loops do not duplicate history.
-func extractLatestUserInput(protocol string, body []byte) (string, bool) {
+func extractLatestUserInput(protocol string, body []byte, appIDs ...string) (string, bool) {
+	if len(appIDs) > 0 && (appIDs[0] == "workbuddy" || appIDs[0] == "loomy") {
+		view, err := cloudcodec.NewUserTextViewForApp(protocol, body, appIDs[0])
+		if err != nil {
+			return "", false
+		}
+		text := strings.Join(view.Texts(), "\n")
+		return text, strings.TrimSpace(text) != ""
+	}
 	if len(body) == 0 {
 		return "", false
 	}
@@ -230,8 +239,8 @@ func recordRedactionObservation(
 	if store == nil {
 		return
 	}
-	origText, okOrig := extractLatestUserInput(protocol, beforeBody)
-	redactedText, okRed := extractLatestUserInput(protocol, afterBody)
+	origText, okOrig := extractLatestUserInput(protocol, beforeBody, appID)
+	redactedText, okRed := extractLatestUserInput(protocol, afterBody, appID)
 	if !okOrig || !okRed {
 		return
 	}

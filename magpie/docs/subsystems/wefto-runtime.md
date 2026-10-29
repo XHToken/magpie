@@ -312,7 +312,14 @@ order; they never establish that acceleration works.
 An explicit install/repair prepares CPU first and then hinted GPU packages.
 Optional GPU download failure leaves verified CPU files usable and records a
 fallback reason. Startup, status, enable and load never download missing files.
-Existing CPU installations can use install/repair to add GPU components.
+Runtime install/repair can add GPU components to an existing CPU installation.
+The management page does not reopen **Download and install** solely because
+optional GPU components are missing or failed: an installed model with ready or
+unnecessary required dependencies remains installed. Installation and required
+dependency repair are disabled for the selected model while it is loading,
+loaded (including ready/idle), unloading, or still owns a process after a fault.
+Required dependency repair remains available after that process exits; downloading
+another uninstalled catalog model can proceed while the selected model runs.
 Apple Silicon CPU and Metal reuse the same pinned archive with different
 runtime identities and launch flags.
 

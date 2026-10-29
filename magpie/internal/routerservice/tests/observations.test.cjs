@@ -249,6 +249,9 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     const settings = { contextTokens: 65536, judgmentQueueSeconds: 15, judgmentInferenceSeconds: 30, executionQueueSeconds: 30, executionSeconds: 300, loadSeconds: 90, requestSeconds: 600, cloudReserveSeconds: 60 };
     const fallback = { ...failed, redactionPolicy: { required: true, profileRequired: true, sourceGroupIds: ['privacy'], sourceGroupCount: 1, modelId: 'spark-x2.6-4B-Q8_0', actualModelId: 'spark-x2.6-4B-Q8_0', engineVersion: 'privacy-user-input-v1', scopeVersion: 'user-input-v1', scanDisposition: 'known_values_only', newUserCharacters: 0, newUserChunks: 0, reusedUserFragments: 2, localInferenceCalls: 0, state: 'prepared' }, decision: 'cloud', capabilityState: 'judgment_inference_timeout', judgmentMs: 30000 };
     const failedJudgment = { ...callDetail, purpose: 'judgment', result: 'failed', safeErrorCode: 'local_judgment_inference_timeout', settings, settingsFingerprint: 'a'.repeat(64), contextUsage: { inputTokens: 128, outputTokens: 32, contextTokens: 65536 }, httpStatus: 400 };
+    const blocked = { ...failed, requestId: 'd'.repeat(32), destination: 'none', model: '', localModel: '', attempts: 0, safeErrorCode: 'redaction_unavailable', localModels: [{ purpose: 'redaction', modelId: 'spark-x2.6-4B' }] };
+    const pending = { ...blocked, requestId: 'e'.repeat(32), status: 'processing', localModels: [{ purpose: 'judgment', modelId: 'spark-x2.6-4B-Q8_0' }] };
+    const unobserved = { ...blocked, requestId: 'f'.repeat(32), localModels: [], redactionPolicy: { modelId: 'configured-but-not-executed', required: true, state: 'blocked' } };
     for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) for (const width of [1600, 375]) {
       const fixturePage = await browser.newPage({ locale: 'en-US' }); fixturePage.on('pageerror', error => errors.push(error.message));
       let cloudDetail = fallback, cloudCalls = [failedJudgment];
@@ -293,6 +296,15 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       await fixturePage.locator('#requestDestinations button').nth(1).click(); assert.equal(await fixturePage.locator('#requestRecords tbody tr').count(), 3);
       await fixturePage.locator('#requestDestinations button').nth(2).click(); assert.equal(await fixturePage.locator('#requestRecords tbody tr').count(), 1);
       await fixturePage.locator('#requestDestinations button').nth(0).click(); assert.equal(await fixturePage.locator('#requestRecords tbody tr').count(), 4);
+      await fixturePage.route('**/api/requests?*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 1, ledger: { available: true }, requests: [blocked, pending, unobserved, { ...local, localModels: [{ purpose: 'execution', modelId: local.localModel }] }, { ...failed, localModels: blocked.localModels }], nextCursor: '' }) }));
+      await fixturePage.locator('#usageReload').click();
+      await fixturePage.waitForFunction(() => document.querySelectorAll('#requestRecords tbody tr').length === 5);
+      const modelCell = id => fixturePage.locator(`#requestRecords [data-request="${id}"] td`).nth(1);
+      assert.equal(await modelCell(blocked.requestId).textContent(), await fixturePage.evaluate(() => 'spark-x2.6-4B (' + t('Redaction') + ')'));
+      assert.equal(await modelCell(pending.requestId).textContent(), await fixturePage.evaluate(() => 'spark-x2.6-4B-Q8_0 (' + t('Judgment') + ')'));
+      assert.equal(await modelCell(unobserved.requestId).textContent(), await fixturePage.evaluate(() => t('Unknown')));
+      assert.equal(await modelCell(local.requestId).textContent(), local.localModel, 'final local execution is not duplicated');
+      assert.equal(await modelCell(failed.requestId).textContent(), model + ' · ' + await fixturePage.evaluate(() => 'spark-x2.6-4B (' + t('Redaction') + ')'), 'cloud generation and local redaction keep their own identities');
       const overviewTab = fixturePage.locator(width >= 1024 ? '.nav-s[data-of=usageTab-usage]' : '#usageTab-usage'); await overviewTab.click();
       await fixturePage.locator('#requestSummary [data-currency=USD]').waitFor();
       assert.equal(await fixturePage.locator('#requestSummary .kpi b').first().textContent(), '4');

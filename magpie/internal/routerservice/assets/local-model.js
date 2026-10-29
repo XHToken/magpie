@@ -488,7 +488,9 @@
     const buttons = el('div', 'request-choices local-model-actions');
     const assessment = device?.advice?.assessments?.find(item => item.id === choiceModelId);
     const resourceBlocked = (assessment?.download || assessment?.manual) === 'failed';
-    const installDisabled = resourceBlocked || !choiceModelId || status.installation === 'downloading' || (choiceInstallation === 'installed' && ['ready', 'not_required'].includes(dependencies.state) && !['accelerator_install_failed', 'accelerator_not_installed'].includes(status.backend?.fallbackReason));
+    const choiceIsSelected = String(choiceModelId).toLowerCase() === String(status.intent?.selected || '').toLowerCase();
+    const choiceRuntimeBusy = choiceIsSelected && (status.pid > 0 || ['loading', 'ready', 'busy', 'idle', 'unloading'].includes(status.runtime));
+    const installDisabled = resourceBlocked || !choiceModelId || status.installation === 'downloading' || choiceRuntimeBusy || (choiceInstallation === 'installed' && ['ready', 'not_required'].includes(dependencies.state));
     for (const [name, endpoint, disabled, handler] of [
       ['Download and install', 'install', installDisabled, installModel],
       ['Cancel download', 'cancel', status.installation !== 'downloading', () => action('cancel')],

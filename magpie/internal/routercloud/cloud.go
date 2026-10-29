@@ -68,8 +68,12 @@ func (p PreparedRequest) WithBody(body []byte) PreparedRequest {
 // UserInputTarget derives private source positions through the same conversion
 // and ExtraBody expansion. Failure is a privacy scope conflict, never permission
 // to use a partially transformed body.
-func (p PreparedRequest) UserInputTarget() (*cloudcodec.UserTextTarget, error) {
-	view, err := cloudcodec.NewUserTextView(p.protocol, p.sourceBody)
+func (p PreparedRequest) UserInputTarget(appIDs ...string) (*cloudcodec.UserTextTarget, error) {
+	appID := ""
+	if len(appIDs) > 0 {
+		appID = appIDs[0]
+	}
+	view, err := cloudcodec.NewUserTextViewForApp(p.protocol, p.sourceBody, appID)
 	if err != nil {
 		return nil, err
 	}

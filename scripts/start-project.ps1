@@ -43,7 +43,14 @@ function Assert-WorkBuddyRouterAddress {
         $routerTarget = @($routerModels | Where-Object id -eq $routerApp[0].cloud.model)
     }
     if (-not $routerTarget.Count -and $routerApp[0].models -and @($routerApp[0].models).Count) {
-        $routerTarget = @($routerModels | Where-Object id -eq ([string]@($routerApp[0].models)[0]))
+        $routerPrimary = [string]@($routerApp[0].models)[0]
+        $routerTarget = @($routerModels | Where-Object id -eq $routerPrimary)
+        if (-not $routerTarget.Count -and $routerApp[0].modelAliases) {
+            $routerTarget = @($routerModels | Where-Object {
+                $routerAlias = $routerApp[0].modelAliases.PSObject.Properties[[string]$_.id]
+                $routerAlias -and $routerAlias.Value -eq $routerPrimary
+            })
+        }
     }
     if (-not $routerTarget.Count -and $routerApp[0].modelAliases) {
         $routerPrimary = if ($routerApp[0].models -and @($routerApp[0].models).Count) { [string]@($routerApp[0].models)[0] } else { [string]$routerApp[0].cloud.model }

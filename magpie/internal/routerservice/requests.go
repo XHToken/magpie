@@ -172,7 +172,26 @@ func requestsAPI(w http.ResponseWriter, r *http.Request, ledger *routerledger.St
 		fail(503, "ledger_unavailable", "request ledger unavailable")
 		return
 	}
-	requestJSON(w, r, 200, map[string]any{"schemaVersion": 1, "requests": page.Records, "total": page.Total, "nextCursor": page.NextCursor, "ledger": ledger.Status()})
+	ids := make([]string, len(page.Records))
+	for i, record := range page.Records {
+		ids[i] = record.RequestID
+	}
+	models, err := ledger.ObservedModels(ids)
+	if err != nil {
+		fail(503, "ledger_unavailable", "request ledger unavailable")
+		return
+	}
+	// This is a read-time projection of the call ledger, not another persisted
+	// execution result. Late observations enrich historical rows on refresh.
+	type listedRequest struct {
+		routerledger.Record
+		LocalModels []routerledger.ObservedModel `json:"localModels,omitempty"`
+	}
+	listed := make([]listedRequest, len(page.Records))
+	for i, record := range page.Records {
+		listed[i] = listedRequest{Record: record, LocalModels: models[record.RequestID]}
+	}
+	requestJSON(w, r, 200, map[string]any{"schemaVersion": 1, "requests": listed, "total": page.Total, "nextCursor": page.NextCursor, "ledger": ledger.Status()})
 }
 
 func validRequestID(id string) bool {

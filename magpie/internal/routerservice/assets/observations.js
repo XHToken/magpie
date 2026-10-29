@@ -96,7 +96,16 @@
   function empty(message) { const box = el('div', 'list router-empty'), inner = el('div', 'empty-state'); inner.setAttribute('role', 'status'); inner.append(el('b', '', t(message))); box.append(inner); return box; }
   function field(list, name, value) { list.append(el('dt', '', t(name)), el('dd', '', value)); }
   const destination = value => t(value === 'local' ? 'Local' : value === 'cloud' ? 'Cloud' : value === 'none' ? 'No outbound attempt' : 'Unknown');
-  const actualModel = record => record.destination === 'local' ? record.localModel || t('Unknown') : record.destination === 'cloud' ? record.model || t('Unknown') : t('Unknown');
+  const actualModel = record => {
+    const finalModel = record.destination === 'local' ? record.localModel : record.destination === 'cloud' ? record.model : '';
+    const models = finalModel ? [finalModel] : [];
+    for (const call of record.localModels || []) {
+      if (!call.modelId || !callPurposes[call.purpose] || (call.purpose === 'execution' && record.destination === 'local' && call.modelId === finalModel)) continue;
+      const value = call.modelId + ' (' + t(callPurposes[call.purpose]) + ')';
+      if (!models.includes(value)) models.push(value);
+    }
+    return models.join(' · ') || t('Unknown');
+  };
   const amount = value => typeof value === 'string' && /^(0|[1-9]\d*)(\.\d+)?$/.test(value) && value.length <= 256 ? value : t('Unknown');
   const priceNumber = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value.toLocaleString(routerIntlLang(), { maximumFractionDigits: 20 }) : t('Unknown');
   function section(name, className = '') { const box = el('section', 'list request-stat-section ' + className); box.append(el('h2', '', t(name))); return box; }

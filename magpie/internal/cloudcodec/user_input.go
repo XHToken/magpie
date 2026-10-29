@@ -20,6 +20,8 @@ var ErrUserInputScope = errors.New("redaction user input source conflict")
 // UserTextView is derived only from the original validated wire protocol.
 // Its positions are server-owned; no client field can declare provenance.
 type UserTextView struct {
+	appID             string
+	latestUser        int
 	protocol          string
 	root              map[string]any
 	body              []byte
@@ -27,8 +29,9 @@ type UserTextView struct {
 	slots             []userTextSlot
 }
 type userTextSlot struct {
-	object map[string]any
-	key    string
+	object           map[string]any
+	key              string
+	start, end, user int
 }
 
 func userObject(body []byte) (map[string]any, error) {
@@ -45,10 +48,10 @@ func NewUserTextView(protocol string, body []byte) (*UserTextView, error) {
 	if err != nil {
 		return nil, err
 	}
-	v := &UserTextView{protocol: protocol, root: root, body: bytes.Clone(body)}
+	v := &UserTextView{protocol: protocol, root: root, body: bytes.Clone(body), latestUser: -1}
 	add := func(o map[string]any, key string, u, p int) {
 		if s, ok := o[key].(string); ok {
-			v.slots = append(v.slots, userTextSlot{o, key})
+			v.slots = append(v.slots, userTextSlot{object: o, key: key, end: len(s), user: u})
 			v.texts = append(v.texts, s)
 			v.identities = append(v.identities, fmt.Sprintf("%s/%d/%d", UserInputSourceVersion, u, p))
 		}
@@ -72,6 +75,7 @@ func NewUserTextView(protocol string, body []byte) (*UserTextView, error) {
 	switch protocol {
 	case "responses":
 		if _, ok := root["input"].(string); ok {
+			v.latestUser = 0
 			add(root, "input", 0, 0)
 			break
 		}
@@ -80,6 +84,7 @@ func NewUserTextView(protocol string, body []byte) (*UserTextView, error) {
 		for _, raw := range items {
 			o, _ := raw.(map[string]any)
 			if o["role"] == "user" && (o["type"] == nil || o["type"] == "message") {
+				v.latestUser = u
 				content(o, "content", u)
 				u++
 			}
@@ -90,6 +95,7 @@ func NewUserTextView(protocol string, body []byte) (*UserTextView, error) {
 		for _, raw := range items {
 			o, _ := raw.(map[string]any)
 			if o["role"] == "user" {
+				v.latestUser = u
 				content(o, "content", u)
 				u++
 			}
@@ -105,12 +111,14 @@ func (v *UserTextView) Rewrite(texts []string) ([]byte, error) {
 	if len(texts) != len(v.slots) {
 		return nil, ErrUserInputScope
 	}
-	fresh, err := NewUserTextView(v.protocol, v.body)
+	fresh, err := NewUserTextViewForApp(v.protocol, v.body, v.appID)
 	if err != nil {
 		return nil, err
 	}
-	for i, s := range fresh.slots {
-		s.object[s.key] = texts[i]
+	for i := len(fresh.slots) - 1; i >= 0; i-- {
+		s := fresh.slots[i]
+		original := s.object[s.key].(string)
+		s.object[s.key] = original[:s.start] + texts[i] + original[s.end:]
 	}
 	return json.Marshal(fresh.root)
 }

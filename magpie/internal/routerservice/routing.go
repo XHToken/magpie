@@ -1094,7 +1094,7 @@ func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protoco
 		sessionID, sessionVerified, seedSessionID := parseRedactionSessionMaterial(state.AppID, protocol, body)
 		var userTarget *cloudcodec.UserTextTarget
 		if _, ok := routing.Redactor.(*RedactionService); ok {
-			userTarget, prepareErr = wire.UserInputTarget()
+			userTarget, prepareErr = wire.UserInputTarget(state.AppID)
 			if prepareErr != nil {
 				return routercloud.Result{Operation: operation}, ErrRedactionUnavailable
 			}

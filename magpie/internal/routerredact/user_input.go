@@ -54,7 +54,7 @@ func (p *Pipeline) ScanUserInput(ctx context.Context, in Input) (*UserSnapshot, 
 	if !userInputMediaSupported(tree) {
 		return nil, fail("wire_unsupported")
 	}
-	view, err := cloudcodec.NewUserTextView(string(in.Protocol), in.Body)
+	view, err := cloudcodec.NewUserTextViewForApp(string(in.Protocol), in.Body, in.AppID)
 	if err != nil {
 		return nil, fail("wire_invalid")
 	}

@@ -131,7 +131,7 @@ func (e Engine) prepareConnection(o Options) (*portGroup, AdapterContract, error
 	if err != nil {
 		return nil, contract, err
 	}
-	if err := checkJournalContract(j, contract); err != nil {
+	if err := checkConnectionJournalContract(j, contract, input); err != nil {
 		return nil, contract, err
 	}
 	if j != nil && j.Status != "applied" && j.Status != "restored" {

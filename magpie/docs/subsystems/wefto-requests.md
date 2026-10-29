@@ -106,6 +106,16 @@ Selecting the corresponding All chip removes that query filter. The application
 ID input applies on form submission or the next status/operation selection.
 Destination chips filter the currently loaded page in the browser.
 
+The list API enriches each row with optional `localModels` (`purpose`, `modelId`)
+through [`Store.ObservedModels`](../../internal/routerledger/observed_models.go),
+using retained internal calls whose inference actually started. One bounded call
+query covers the page; repeated model/purpose pairs are shown once. The Model
+column shows the final generation model and these purpose-labeled local models,
+including failed redaction before cloud dispatch. Configured policy models and
+calls rejected before inference are not evidence of execution. This projection
+does not change `localModel`, destination, attempt counts, usage or savings, and
+late terminal observations become visible on refresh without rewriting history.
+
 `internal/routerservice/tests/observations.test.cjs` verifies direct chip clicks,
 all six statuses, both operations, combined application filters and pagination
 reset in five languages at desktop and mobile widths in Chromium and WebKit.

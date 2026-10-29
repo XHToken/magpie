@@ -116,3 +116,5 @@ Authenticated `GET /api/local-model/events` streams schema-1 status snapshots as
 The local-model page omits the redaction diagnostic panel and its private status polling. Application and routing-group redaction intent remain available; request-time redaction continues to use the existing runtime checks. The legacy `/api/local-redaction` snapshot is empty, and `/api/local-model` no longer attaches private redaction status.
 
 Unix source checkouts can use `scripts/start-project.sh` for ordinary start or a read-only `--check-only` inspection. It preserves recorded installation ownership and uses the management address returned by the authenticated service. Known macOS system temporary-directory links are resolved narrowly; user-controlled linked paths remain rejected.
+
+The Windows source entry resolves readable WorkBuddy model aliases to saved model targets before comparing their endpoints with the authenticated service address. A stale endpoint still fails without changing host configuration.

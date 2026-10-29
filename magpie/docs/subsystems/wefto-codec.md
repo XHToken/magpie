@@ -6,6 +6,17 @@ encoders, reply collectors and bounded cloud codec. Its import graph contains
 only standard-library packages. It imports no gateway, provider, catalog, settings, plugin, process or
 application-store package and has no `init` function.
 
+[`user_prompt.go`](../../internal/cloudcodec/user_prompt.go) adds an explicit
+authenticated-app projection for WorkBuddy and Loomy. It selects only the current
+user prompt, strips their generated context using the observed host envelopes,
+and retains exact source byte ranges for rewriting. `UserTextView.Rewrite`
+replaces ranges from right to left so surrounding host context survives native
+and cross-protocol requests. The generic user-text projection remains available
+for other applications. The Loomy framing contract follows its
+`electron/conversation/prompt-assembler.js`, `src/lib/message-parts.js`,
+`src/lib/prompt-attachments.js` and `src/lib/prompt-skills.js`; WorkBuddy framing
+was observed in the installed client's 2026-10-29 conversation serializer.
+
 The cloud executor imports this package directly. `routercloud.Request`,
 `Target`, `Result`, `Event` and `ExecutePath` keep their contracts. `Result.Usage`
 is now declared as `*cloudcodec.Usage`; `gateway.Usage` remains an alias of that

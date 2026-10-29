@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/yetone/magpie/internal/cloudcodec"
 	"github.com/yetone/magpie/internal/routerruntime"
 )
 
@@ -45,7 +46,8 @@ func NewEngineSpecification(binding ModelBinding, experimental bool) (*PrivacySp
 	s.engineSchema = string(rawSchema)
 	builtins, _ := json.Marshal(defaultRuleDefinitions)
 	policy, _ := json.Marshal(map[string]any{
-		"scope": "user-input-v1", "source": "original-user-text-v1", "knownValues": "exact-longest-boundary-v1", "cache": "verified-user-prefix-v1", "session": "service-hmac-app-15min-instance-v1", "secondaryScope": "assistant-text-tool-output-string-arguments-v1", "literalTokens": "source-and-target-reserved-allowlisted-emitted-v1",
+		"hostPromptProjection": cloudcodec.UserPromptSourceVersion,
+		"scope":                "user-input-v1", "source": "original-user-text-v1", "knownValues": "exact-longest-boundary-v1", "cache": "verified-user-prefix-v1", "session": "service-hmac-app-15min-instance-v1", "secondaryScope": "assistant-text-tool-output-string-arguments-v1", "literalTokens": "source-and-target-reserved-allowlisted-emitted-v1",
 		"revision": EngineVersion, "experimental": experimental,
 		"labels": labels, "pass": []string{"public_information", "job_title"},
 		"rules":      string(defaultPolicyYAML) + string(rulesZhYAML),
