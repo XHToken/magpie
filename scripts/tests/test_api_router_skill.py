@@ -128,6 +128,23 @@ class SelectionTests(unittest.TestCase):
 
 
 class StartupTests(unittest.TestCase):
+    def test_old_darwin_check_reuses_authenticated_record_without_start(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            lock = root / 'state' / 'router.lock'
+            lock.mkdir(parents=True)
+            (lock / 'instance.json').write_text('{"pid":123}')
+            layout = {'state': str(root / 'state')}
+            def router(exe, *args):
+                if args == ('dirs',):
+                    return layout
+                self.assertEqual(args, ('service', 'status'))
+                raise RuntimeError('older Darwin external control unavailable')
+            with patch.object(skill, 'router_json', side_effect=router), patch.object(skill, 'verified', return_value={'running': True}), patch.object(skill.subprocess, 'Popen') as launch:
+                self.assertEqual(skill.start(root / 'wefto', 'darwin', check=True), {'running': True})
+                self.assertEqual((lock / 'instance.json').read_text(), '{"pid":123}')
+                launch.assert_not_called()
+
     def test_old_darwin_fallback_preserves_unverified_lock(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()

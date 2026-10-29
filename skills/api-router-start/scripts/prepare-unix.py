@@ -372,7 +372,7 @@ def start(exe, system, check=False):
                 raise RuntimeError("端云协同 is stopped.")
             return verified(exe, layout, status)
         except Exception:
-            if system == "linux" or check:
+            if system == "linux":
                 raise
     # Fallback for older Darwin builds without native external process control.
     # Reuse only a live, authenticated record. Native service control owns stale
