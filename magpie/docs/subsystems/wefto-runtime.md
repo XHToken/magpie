@@ -1,5 +1,7 @@
 # Local model installation and runtime
 
+On macOS, downloader destination, runtime dependency and installation path checks accept the known system directory links `/var`, `/tmp` and `/etc` when they resolve to directories. Other filesystem links remain rejected; archive alias materialization and file integrity checks retain their existing constraints. Runtime selection uses the native architecture described in [device detection](wefto-device.md), including Apple Silicon under Rosetta.
+
 `routermanifest`, `routerdownload`, `routerprocess` and `routerruntime` implement
 T3.2–T3.8. The [management adapter](../../internal/routerservice/local_models.go)
 owns HTTP/UI integration. Host adapters, provider credentials, routing decisions

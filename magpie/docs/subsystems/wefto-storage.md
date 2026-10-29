@@ -12,6 +12,8 @@
 
 Models and inference runtimes live in `data/models` and `data/runtime`. Configuration and credentials are `config/config.json` and `config/credentials.json`. `state/router.lock` is the single-instance directory; `instance.json` and the private `management-token` live inside. `Layout.Install` is the executable directory, separate from writable state. Environment directory overrides must be absolute.
 
+macOS also honors absolute `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME` overrides. With no override it retains the native Library paths above. Passing the resolved roots back through a service start command preserves that layout, including its state and log locations.
+
 `Resolve` checks the equivalent `api-router` layout using `Lstat`. If only legacy storage exists, it returns that entire layout in place, including models, cache, state and logs. It never creates new configuration while retaining credentials or backups elsewhere. If both layouts exist, or an observed root is unreadable, a link or a non-directory, resolution fails for explicit reconciliation. No automatic copying, moving, merging or deletion occurs. See the [upgrade guide](../wefto-upgrade.md).
 
 ## Configuration and secrets

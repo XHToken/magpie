@@ -13,7 +13,7 @@ import (
 )
 
 func TestStartupFailureCleanupOwnsExactChild(t *testing.T) {
-	if runtime.GOOS != "windows" && runtime.GOOS != "linux" {
+	if runtime.GOOS != "windows" && runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		t.Run("unsupported-process-identity-retains-unknown-lock", func(t *testing.T) {
 			stamp, executable, err := processIdentity(os.Getppid())
 			if err == nil || stamp != "" || executable != "" {

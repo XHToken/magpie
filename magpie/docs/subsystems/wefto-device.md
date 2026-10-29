@@ -7,6 +7,8 @@ client or process runner. Constructing `Native()` does no detection. The local-m
 service calls detection for checks, installation, enablement and startup model
 selection; this package itself owns no lifecycle.
 
+On macOS, native architecture detection checks Apple Silicon capability and Rosetta translation rather than relying only on the executable architecture. Device reports and local runtime selection use that detected architecture. Intel Macs report no discrete GPU adapter and use CPU backends; Apple Silicon uses its existing Metal/unified-memory observations.
+
 ## Product quantization advice
 
 The product service uses [`AdviseModels`](../../internal/routerdevice/model_advice.go),

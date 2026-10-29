@@ -92,6 +92,8 @@ owner.
 
 ## Verification
 
+Host-root validation accepts the known macOS system directory links `/var`, `/tmp` and `/etc` when they resolve to directories; other linked roots and ancestors remain rejected. Loomy runtime refresh excludes temporary fixture paths, including their resolved macOS aliases, so acceptance fixtures do not trigger refreshes in an installed host.
+
 Run `internal/routerhost` and `internal/routerservice` Go suites and the
 Chromium/WebKit Agents and Loomy host browser suites. Isolated host roots cover
 model changes, first-baseline preservation, Profile-write rollback, stale
