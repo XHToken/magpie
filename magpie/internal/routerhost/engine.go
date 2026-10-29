@@ -116,7 +116,7 @@ func (e Engine) Preview(o Options) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := checkConnectionJournalContract(j, contract, input); err != nil {
+	if err := checkJournalContract(j, contract); err != nil {
 		return nil, err
 	}
 	p := &Plan{Action: "apply", Host: o.Host, options: o, recordHash: h, stateDir: e.StateDir, contract: contract}

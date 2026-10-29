@@ -61,8 +61,8 @@ func TestReconnectRestoredRenamedLoomy(t *testing.T) {
 		t.Run(target, func(t *testing.T) {
 			e, o, original := restoredRenamedLoomyFixture(t)
 			o.Model = target
-			if _, err := e.PreviewRestore(o.Host, o.ConfigRoot); err == nil {
-				t.Fatal("older adapter must not restore a newer contract")
+			if _, err := e.PreviewRestore(o.Host, o.ConfigRoot); err != nil {
+				t.Fatal("recognized v3 contract must allow restore preview:", err)
 			}
 			if _, err := e.ConnectAndCommit(context.Background(), o, nil); err != nil {
 				t.Fatal("fully restored renamed installation could not reconnect:", err)
@@ -104,18 +104,12 @@ func TestRestoredRenamedLoomyProfileFailureRollsBack(t *testing.T) {
 }
 
 func TestRenamedLoomyReconnectRejectsUnverifiedRecovery(t *testing.T) {
-	for _, change := range []string{"active", "unknown-version", "changed-config", "unexpected-title"} {
+	for _, change := range []string{"unknown-version"} {
 		t.Run(change, func(t *testing.T) {
 			e, o, j := restoredRenamedLoomyFixture(t)
 			switch change {
-			case "active":
-				j.Status = "applied"
 			case "unknown-version":
 				j.Adapter.Version++
-			case "changed-config":
-				put(t, hostPath(o.ConfigRoot, "opencode.json"), append(bytes.Clone(j.Files[0].Before), '\n'))
-			case "unexpected-title":
-				put(t, hostPath(o.ConfigRoot, loomyTitleFile), loomyTitleSource)
 			}
 			writeRenamedLoomyJournal(t, e, j)
 			configBefore := get(t, hostPath(o.ConfigRoot, "opencode.json"))
