@@ -127,6 +127,30 @@ class SelectionTests(unittest.TestCase):
                 thread.join()
 
 
+class StartupTests(unittest.TestCase):
+    def test_old_darwin_fallback_preserves_unverified_lock(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            state = root / 'state'
+            lock = state / 'router.lock'
+            lock.mkdir(parents=True)
+            record = lock / 'instance.json'
+            original = b'{"pid":2147483647}'
+            record.write_bytes(original)
+            layout = {'state': str(state), 'logs': str(root / 'logs')}
+            def router(exe, *args):
+                if args == ('dirs',):
+                    return layout
+                raise RuntimeError('older Darwin external control unavailable')
+            with patch.object(skill, 'router_json', side_effect=router), patch.object(skill, 'verified', side_effect=RuntimeError('unverified record')), patch.object(skill.os, 'kill', side_effect=ProcessLookupError), patch.object(skill.subprocess, 'Popen') as launch:
+                with self.assertRaises(RuntimeError):
+                    skill.start(root / 'wefto', 'darwin')
+                self.assertTrue(lock.is_dir(), 'unknown lock must not be archived')
+                self.assertEqual(record.read_bytes(), original)
+                self.assertEqual(list(state.iterdir()), [lock])
+                launch.assert_not_called()
+
+
 class ArchiveTests(unittest.TestCase):
     def bundle(self, directory, system="linux", arch="amd64", bad_path=None, wrong_cpu=False, link=False):
         info = {"action": "release-package", "tag": "wefto-v1.0.0", "version": "1.0.0", "os": system,

@@ -316,7 +316,7 @@ def prepare(target, info):
         build_env = dict(os.environ, CGO_ENABLED=cgo, GOTOOLCHAIN="auto")
         build_env.pop("GOOS", None)
         build_env.pop("GOARCH", None)
-        cmd_pkg = "./cmd/wefto" if (module / "cmd" / "wefto").is_dir() else "./cmd/wefto"
+        cmd_pkg = "./cmd/wefto" if (module / "cmd" / "wefto").is_dir() else "./cmd/api-router"
         run(["go", "-C", module, "build", "-trimpath", "-buildvcs=false",
              "-ldflags", "-X main.version=" + info["version"], "-o", exe, cmd_pkg], env=build_env)
         if run([exe, "version"]) != info["version"]:
@@ -375,27 +375,14 @@ def start(exe, system, check=False):
             if system == "linux" or check:
                 raise
     # Fallback for older Darwin builds without native external process control.
-    # Reuse a live, authenticated record; if a stale lock belongs to an exited
-    # local process, only proceed when the lock is absent or already archived.
+    # Reuse only a live, authenticated record. Native service control owns stale
+    # lock recognition; this fallback preserves any record it cannot verify.
     record = plain(Path(layout["state"]) / "router.lock" / "instance.json")
     lock = record.parent
     if lock.exists():
         if not record.is_file():
             raise RuntimeError("Unknown service lock; inspect it without deleting it.")
-        saved_record = json.loads(record.read_text())
-        try:
-            return verified(exe, layout, saved_record)
-        except (OSError, urllib.error.URLError, RuntimeError):
-            pid = int(saved_record.get("pid") or 0)
-            if pid > 0:
-                try:
-                    os.kill(pid, 0)
-                    raise
-                except ProcessLookupError:
-                    archive = plain(Path(layout["state"])) / f"router.lock.exited-{time.time_ns()}"
-                    os.rename(lock, archive)
-            else:
-                raise
+        return verified(exe, layout, json.loads(record.read_text()))
     if check:
         raise RuntimeError("端云协同 is stopped.")
     logs = plain(Path(layout["logs"]))
