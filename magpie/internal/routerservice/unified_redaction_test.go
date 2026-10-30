@@ -131,7 +131,7 @@ func TestUnifiedRedactionApplicationGroupAndCombinedUseSameEngine(t *testing.T) 
 					}
 					defer ledger.Close()
 					models := &LocalModels{Manager: manager, Layout: layout, Catalog: catalog}
-					service := newRedactionService(models, true)
+					service := newFixtureRedactionService(models, true)
 					defer service.Close()
 					h, store := newGroupRoutingEnv(t, ModelOptions{Ledger: ledger, Redaction: service, LocalRuntime: models, ExperimentalRedaction: true, Routing: &RoutingOptions{LocalInvoker: manager}})
 					provider := saveTestCloudProvider(t, store, "UnifiedFixture", cloud.URL+"/v1", "fixture")

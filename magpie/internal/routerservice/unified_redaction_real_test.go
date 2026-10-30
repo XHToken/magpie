@@ -70,7 +70,7 @@ func TestRealUnifiedRedactionWithInstalledArtifacts(t *testing.T) {
 	}))
 	defer cloud.Close()
 	models := &LocalModels{Manager: manager, Layout: artifactLayout, Catalog: catalog}
-	service := newRedactionService(models, true)
+	service := newFixtureRedactionService(models, true)
 	defer service.Close()
 	h, appStore := newGroupRoutingEnv(t, ModelOptions{Redaction: service, LocalRuntime: models, ExperimentalRedaction: true, Routing: &RoutingOptions{LocalInvoker: manager}})
 	provider := saveTestCloudProvider(t, appStore, "RealUnifiedFixture", cloud.URL+"/v1", "fixture")

@@ -8,6 +8,8 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+func resultKeyFile() string { return "keys.dpapi" }
+
 func checkResultPath(path string) error {
 	for {
 		p, e := windows.UTF16PtrFromString(path)

@@ -21,15 +21,38 @@ macOS also honors absolute `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` 
 [`routerredact.ResultStore`](../../internal/routerredact/result_store.go) now stores
 per-user-message recognition evidence in `<state>/redaction-results/`, separately
 from request records and observations. It uses the resolved complete legacy or
-current `dirs.Layout`; it never selects another configuration root. Windows is
-the only implemented key-protection backend. Other platforms block production
-redaction with `redaction_store_platform_unsupported`.
+current `dirs.Layout`; it never selects another configuration root. Windows,
+Linux and macOS implement system key protection; other operating systems return
+`redaction_store_platform_unsupported`.
 
 The new directory has a protected DACL granting only the current user and SYSTEM
 access; elevated Windows owners may be Administrators. Directory/file DACLs are
 checked, and all path ancestors reject reparse points. Current-user DPAPI with
-UI forbidden wraps a persistent random master key in `keys.dpapi`. HMAC index and
-AES-256-GCM data keys are independently derived. Query keys contain no original
+UI forbidden wraps a persistent random master key in `keys.dpapi`.
+
+On Linux, [`result_store_linux.go`](../../internal/routerredact/result_store_linux.go)
+uses the session D-Bus Secret Service's unlocked default collection (GNOME
+Keyring or another compatible service). On macOS,
+[`result_store_darwin.go`](../../internal/routerredact/result_store_darwin.go)
+calls Security.framework/CoreFoundation directly through purego, including in
+CGO-disabled portable builds, and uses the user's unlocked default Keychain.
+Neither backend sends secret bytes in process arguments. The vault item is a
+random per-store account under `org.xhtoken.wefto.redaction-results.v1`.
+`keys.vault` stores only the backend, account and digest; the complete key bundle
+remains in the OS vault. A read-back must succeed before initial DB creation.
+Missing/locked/unavailable vaults return `redaction_store_key_unavailable`; there
+is no plaintext fallback or automatic overwrite of an existing vault item.
+Unlock the keyring/Keychain in the user session, then restart the service to
+retry. Headless Linux requires a provisioned, unlocked Secret Service session.
+
+Unix directories/files require current-user ownership and 0700/0600 modes;
+multiply linked files and unsafe path components are rejected. Linux ACLs are
+bounded by the required zero group permission mask. macOS clears inherited ACLs
+on a newly created store and rejects extended ACLs on existing store files.
+Only Apple's root-owned `/var`, `/tmp`, `/etc` aliases to `/private` are allowed;
+application symlinks remain rejected. Nonblocking `flock` excludes a second writer.
+
+HMAC index and AES-256-GCM data keys are independently derived. Query keys contain no original
 text. Encrypted payloads contain entity coordinates/category/necessary originals,
 block coverage, complete state, content/material/scope/revision metadata; AAD binds
 the store, schema, key version and result key. Complete zero-hit records are also
@@ -46,6 +69,9 @@ partial initialization, corrupt payloads, unknown schema, unexpected files and
 permissions errors preserve the directory and block redaction. Automatic partial
 initialization recovery, key rotation, backups, and per-record quarantine/recovery
 commands are still pending; do not delete or recreate the directory to repair it.
+An empty private directory containing at most `owner.lock` can retry initial vault
+connection after it becomes available; existing key/database files are never
+reinitialized by that retry.
 
 Application recognition scope is derived from the service-resolved Profile's
 `authorizationGeneration` (legacy absent value means 1). New registrations,
@@ -53,6 +79,17 @@ credential-mode changes and application revocation advance it; provider/model
 changes do not. The broader [history plan](../redaction-history-protection-plan-20261030.md)
 and [implementation record](../redaction-history-implementation-20261030.md) describe
 remaining session/revision and recovery requirements.
+
+Verification: `go test -race ./internal/routerredact ./internal/routerservice`
+uses synthetic protected keys for ordinary history/service fixtures and never
+reads the login vault. Native Linux acceptance runs
+`sh scripts/test-redaction-secret-service.sh` with `GO_EXE` and Go caches pinned;
+it requires `dbus-run-session` and `gnome-keyring-daemon`, creates a private bus
+and disposable password-protected keyring, and checks actual HTTP egress,
+response restoration, cross-process reopening and locked-vault preservation.
+On macOS, `go test -run TestMacNativeKeychainRoundTripAndLock ./internal/routerredact`
+uses a temporary native keychain, never the login keychain. Cross compilation
+does not replace running this test on a Mac.
 
 [`routerconfig.Store`](../../internal/routerconfig/config.go) owns schema-1 configuration with a nonempty instance identity and listen, apps, providers, redaction and runtime objects. Unknown JSON fields round-trip. Updates retain previous `.bak` files and write atomically through [`steady`](../../internal/steady); a private configuration lock serializes transactions.
 

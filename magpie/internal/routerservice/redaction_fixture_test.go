@@ -7,6 +7,7 @@ import (
 	"github.com/yetone/magpie/internal/routermanifest"
 	"github.com/yetone/magpie/internal/routerredact"
 	"github.com/yetone/magpie/internal/routerruntime"
+	"github.com/yetone/magpie/internal/testkeyvault"
 	"os"
 	"regexp"
 	"runtime"
@@ -18,6 +19,12 @@ import (
 type redactionFixtureInvoker struct {
 	LocalInvoker
 	spec *routerredact.PrivacySpecification
+}
+
+func newFixtureRedactionService(local *LocalModels, experimental ...bool) *RedactionService {
+	return newRedactionServiceWithStore(local, func(l dirs.Layout) (*routerredact.ResultStore, error) {
+		return routerredact.OpenResultStoreWithKeyProtector(l, testkeyvault.Protector{})
+	}, experimental...)
 }
 
 var issuedFixtureToken = regexp.MustCompile(`<([A-Z][A-Z0-9_]*):v1[a-f0-9]{32}:([0-9]+)>`)
@@ -84,13 +91,13 @@ func redactionTestOptions(t *testing.T, opts ModelOptions) ModelOptions {
 		opts.Redaction, _ = opts.Routing.Redactor.(*RedactionService)
 		return opts
 	}
-	r := newRedactionService(opts.LocalRuntime, opts.ExperimentalRedaction)
+	r := newFixtureRedactionService(opts.LocalRuntime, opts.ExperimentalRedaction)
 	if r.results == nil && r.resultsError == nil {
 		state := t.TempDir()
 		if err := os.Chmod(state, 0700); err != nil {
 			t.Fatal(err)
 		}
-		r.results, r.resultsError = routerredact.OpenResultStore(dirs.Layout{State: state})
+		r.results, r.resultsError = routerredact.OpenResultStoreWithKeyProtector(dirs.Layout{State: state}, testkeyvault.Protector{})
 	}
 	if (opts.LocalRuntime == nil || opts.LocalRuntime.Manager == nil) && opts.Routing != nil && opts.Routing.LocalInvoker != nil {
 		r.binding = routerredact.ModelBinding{ModelID: "spark-x2.6-4B", RuntimeID: routerruntime.PlatformRuntime(routermanifest.Fixed(), runtime.GOOS, runtime.GOARCH)}

@@ -71,7 +71,7 @@ func TestRuntimeRedactorContextReloadRebindsCacheAndPreservesPreparedSnapshot(t 
 	if err := manager.Enable(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	redactor := newRedactionService(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, true)
+	redactor := newFixtureRedactionService(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, true)
 	defer redactor.close()
 	oldPipeline, oldSpec, err := redactor.current()
 	if err != nil {

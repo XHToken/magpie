@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/yetone/magpie/internal/cloudcodec"
+	"github.com/yetone/magpie/internal/dirs"
 	"github.com/yetone/magpie/internal/routerredact"
 	"github.com/yetone/magpie/internal/routerrequest"
 	"github.com/yetone/magpie/internal/routerruntime"
@@ -79,10 +80,14 @@ func (r *RedactionService) acquirePromptScan(ctx context.Context, key [32]byte) 
 }
 
 func newRedactionService(local *LocalModels, experimental ...bool) *RedactionService {
+	return newRedactionServiceWithStore(local, routerredact.OpenResultStore, experimental...)
+}
+
+func newRedactionServiceWithStore(local *LocalModels, open func(dirs.Layout) (*routerredact.ResultStore, error), experimental ...bool) *RedactionService {
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &RedactionService{ctx: ctx, cancel: cancel, local: local, experimental: len(experimental) > 0 && experimental[0], refs: map[*routerredact.Pipeline]int{}}
 	if local != nil && local.Layout.State != "" {
-		r.results, r.resultsError = routerredact.OpenResultStore(local.Layout)
+		r.results, r.resultsError = open(local.Layout)
 	}
 	return r
 }

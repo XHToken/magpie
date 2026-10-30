@@ -156,7 +156,7 @@ func TestProductionHTTPW4W5UsesTargetWireAndRestoresClientResponse(t *testing.T)
 					t.Fatal("redaction intent was not persisted")
 				}
 
-				redactor := newRedactionService(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, experimental)
+				redactor := newFixtureRedactionService(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, experimental)
 				defer redactor.close()
 				h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "management-token", store, ModelOptions{
 					ExperimentalRedaction: experimental,

@@ -69,7 +69,7 @@ func TestUserInputRequestSnapshotReusedAcrossTargets(t *testing.T) {
 	}
 }
 func TestUserInputSessionHandleCannotBeForgedOrShared(t *testing.T) {
-	r := newRedactionService(nil)
+	r := newFixtureRedactionService(nil)
 	defer r.Close()
 	first := r.requestSession("app-a", "")
 	if !first.Verified {
@@ -87,7 +87,7 @@ func TestUserInputSessionHandleCannotBeForgedOrShared(t *testing.T) {
 	if forged.ID == "arbitrary-session" {
 		t.Fatal("unverified declaration accepted")
 	}
-	otherService := newRedactionService(nil)
+	otherService := newFixtureRedactionService(nil)
 	defer otherService.Close()
 	if otherService.requestSession("app-a", first.ID).ID == first.ID {
 		t.Fatal("restarted service inherited a handle")

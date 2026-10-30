@@ -17,11 +17,12 @@ import (
 
 	"github.com/yetone/magpie/internal/cloudcodec"
 	"github.com/yetone/magpie/internal/dirs"
+	"github.com/yetone/magpie/internal/testkeyvault"
 )
 
 func historyStore(t *testing.T, l dirs.Layout) *ResultStore {
 	t.Helper()
-	s, err := OpenResultStore(l)
+	s, err := OpenResultStoreWithKeyProtector(l, testkeyvault.Protector{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +278,7 @@ func TestResultStoreRestartTamperingAndNoPlaintext(t *testing.T) {
 			t.Fatal("authorization scope crossed")
 		}
 	}
-	for _, file := range []string{"keys.dpapi", "results.sqlite"} {
+	for _, file := range []string{resultKeyFile(), "results.sqlite"} {
 		raw, e := os.ReadFile(filepath.Join(l.RedactionResults(), file))
 		if e != nil {
 			t.Fatal(e)

@@ -76,7 +76,7 @@ func TestX26VariantsUseExistingGroupRedactionPath(t *testing.T) {
 				t.Fatal(err)
 			}
 			localModels := &LocalModels{Manager: manager, Layout: layout, Catalog: catalog}
-			redactor := newRedactionService(localModels, true)
+			redactor := newFixtureRedactionService(localModels, true)
 			defer redactor.close()
 			h := handlerWithModelOptions(Info{Service: "api-router", Address: "127.0.0.1:13145"}, "mgmt-secret-token", store, ModelOptions{
 				LocalRuntime: localModels, Redaction: redactor, ExperimentalRedaction: true, Routing: &RoutingOptions{LocalInvoker: manager},

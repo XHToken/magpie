@@ -235,7 +235,7 @@ func TestRedactionMultiTurnSessionCacheHitAndIncrementalExtraction(t *testing.T)
 		t.Fatal(err)
 	}
 
-	redactor := newRedactionService(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, false)
+	redactor := newFixtureRedactionService(&LocalModels{Manager: manager, Layout: layout, Catalog: catalog}, false)
 	defer redactor.close()
 	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "management-token", store, ModelOptions{
 		LocalRuntime: &LocalModels{Manager: manager, Layout: layout, Catalog: catalog},
@@ -356,7 +356,7 @@ func TestRedactionManagementAPIReportsActualBudgetInNormalAndExperimentalModes(t
 			}
 			defer mgr.Close(context.Background())
 			localModels := &LocalModels{Manager: mgr, Layout: layout, Catalog: catalog}
-			redactor := newRedactionService(localModels, tc.experimental)
+			redactor := newFixtureRedactionService(localModels, tc.experimental)
 			defer redactor.close()
 			const token = "redaction-budget-test-token"
 			h := handlerWithModelOptions(Info{Address: "127.0.0.1:13145"}, token, store, ModelOptions{

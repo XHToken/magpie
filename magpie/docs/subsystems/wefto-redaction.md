@@ -218,7 +218,8 @@ Previously prepared response snapshots remain independent of cache rotation.
 ## Cache, observations and shutdown
 
 [`ResultStore`](../../internal/routerredact/result_store.go) owns the independent
-SQLite database under `Layout.RedactionResults()`. Its Windows DPAPI/ACL backend,
+SQLite database under `Layout.RedactionResults()`. Its Windows DPAPI/ACL,
+Linux Secret Service and macOS Keychain backends,
 256 MiB limit and fail-closed recovery behavior are documented in
 [storage](wefto-storage.md). There is no recognition TTL or automatic eviction.
 Requests load only their supplied message keys. Observations cannot authorize

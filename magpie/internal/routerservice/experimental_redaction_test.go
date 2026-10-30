@@ -64,7 +64,7 @@ func TestExperimentalProductionAdmissionPreservesUnknownAndBlocksInvalidResults(
 		t.Fatal(err)
 	}
 	localModels := &LocalModels{Manager: manager, Layout: layout, Catalog: catalog}
-	redactor := newRedactionService(localModels, true)
+	redactor := newFixtureRedactionService(localModels, true)
 	defer redactor.close()
 	options := ModelOptions{ExperimentalRedaction: true, LocalRuntime: localModels, Routing: &RoutingOptions{Judge: RuntimeJudge{Manager: manager, PromptVersion: defaultPromptVersion}, LocalInvoker: manager, Redactor: redactor, PromptVersion: defaultPromptVersion}}
 	h := handlerWithModelOptions(Info{Service: "wefto", Address: address}, "management-token", store, options)
@@ -122,7 +122,7 @@ func TestExperimentalProductionAdmissionPreservesUnknownAndBlocksInvalidResults(
 	if err := manager.Require(routerruntime.Redaction); err == nil || manager.Status().Capabilities[routerruntime.Redaction].State != "unknown" {
 		t.Fatal("trial forged formal acceptance")
 	}
-	defaultRedactor := newRedactionService(localModels)
+	defaultRedactor := newFixtureRedactionService(localModels)
 	defer defaultRedactor.close()
 	if _, _, err := defaultRedactor.current(); err != nil {
 		t.Fatal(err)

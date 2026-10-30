@@ -65,6 +65,30 @@ func deriveResultKey(master []byte, purpose string) []byte {
 // OpenResultStore must be called by the layout's service owner. A separate file
 // lock additionally excludes offline or accidental second writers.
 func OpenResultStore(l dirs.Layout) (_ *ResultStore, err error) {
+	return OpenResultStoreWithKeyProtector(l, nativeResultKeyProtector{})
+}
+
+// ResultKeyProtector is a trusted embedding dependency, never request input.
+// Integration tests supply an isolated protector instead of touching a user's
+// login keychain. Ordinary services always use OpenResultStore's OS protector.
+type ResultKeyProtector interface {
+	ProtectResultKey([]byte) ([]byte, error)
+	UnprotectResultKey([]byte) ([]byte, error)
+}
+
+type nativeResultKeyProtector struct{}
+
+func (nativeResultKeyProtector) ProtectResultKey(raw []byte) ([]byte, error) {
+	return protectResultKey(raw)
+}
+func (nativeResultKeyProtector) UnprotectResultKey(raw []byte) ([]byte, error) {
+	return unprotectResultKey(raw)
+}
+
+func OpenResultStoreWithKeyProtector(l dirs.Layout, keys ResultKeyProtector) (_ *ResultStore, err error) {
+	if keys == nil {
+		return nil, fail("redaction_store_key_unavailable")
+	}
 	dir := l.RedactionResults()
 	if !filepath.IsAbs(l.State) {
 		return nil, fail("redaction_store_permissions")
@@ -93,7 +117,7 @@ func OpenResultStore(l dirs.Layout) (_ *ResultStore, err error) {
 	}
 	for _, entry := range entries {
 		switch entry.Name() {
-		case "owner.lock", "keys.dpapi", "results.sqlite", "results.sqlite-journal":
+		case "owner.lock", resultKeyFile(), "results.sqlite", "results.sqlite-journal":
 		default:
 			return nil, fail("redaction_store_corrupt")
 		}
@@ -105,6 +129,11 @@ func OpenResultStore(l dirs.Layout) (_ *ResultStore, err error) {
 			return nil, fail("redaction_store_permissions")
 		}
 	}
+	// A failed first keychain connection leaves no key or database. Retrying
+	// only that unambiguous empty state is safe; partial key/DB files stay intact.
+	if len(entries) == 0 || (len(entries) == 1 && entries[0].Name() == "owner.lock") {
+		created = true
+	}
 	owner, e := lockResultStore(filepath.Join(dir, "owner.lock"))
 	if e != nil {
 		return nil, e
@@ -115,7 +144,7 @@ func OpenResultStore(l dirs.Layout) (_ *ResultStore, err error) {
 			s.Close()
 		}
 	}()
-	keyPath, dbPath := filepath.Join(dir, "keys.dpapi"), filepath.Join(dir, "results.sqlite")
+	keyPath, dbPath := filepath.Join(dir, resultKeyFile()), filepath.Join(dir, "results.sqlite")
 	var bundle resultKeyBundle
 	if created {
 		master := make([]byte, 32)
@@ -128,7 +157,7 @@ func OpenResultStore(l dirs.Layout) (_ *ResultStore, err error) {
 		}
 		bundle = resultKeyBundle{resultSchema, hex.EncodeToString(id), master}
 		raw, _ := json.Marshal(bundle)
-		wrapped, e := protectResultKey(raw)
+		wrapped, e := keys.ProtectResultKey(raw)
 		if e != nil {
 			return nil, e
 		}
@@ -163,7 +192,7 @@ func OpenResultStore(l dirs.Layout) (_ *ResultStore, err error) {
 		if e != nil || len(raw) > 16384 {
 			return nil, fail("redaction_store_key_unavailable")
 		}
-		unwrapped, e := unprotectResultKey(raw)
+		unwrapped, e := keys.UnprotectResultKey(raw)
 		if e != nil {
 			return nil, e
 		}

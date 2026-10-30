@@ -202,7 +202,10 @@ func TestHostOnlyCurrentPromptReachesModelAndRestores(t *testing.T) {
 				}
 				body, _ := json.Marshal(map[string]any{"model": "fixture", "messages": []any{
 					map[string]any{"role": "system", "content": strings.Repeat("NON_USER_SYSTEM ", 1000)},
-					map[string]any{"role": "user", "content": strings.Repeat("NON_USER_HISTORY ", 500)},
+					// History now has its own explicit recognition step. Keep this
+					// projection fixture bounded; large-history preparation has
+					// dedicated batching and budget tests.
+					map[string]any{"role": "user", "content": strings.Repeat("NON_USER_HISTORY ", 32)},
 					map[string]any{"role": "assistant", "content": "NON_USER_ASSISTANT"},
 					map[string]any{"role": "user", "content": current},
 				}})

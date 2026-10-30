@@ -1,8 +1,10 @@
-//go:build !windows
+//go:build !windows && !linux && !darwin
 
 package routerredact
 
 import "os"
+
+func resultKeyFile() string { return "keys.vault" }
 
 // Other platforms require an accepted system key and permissions backend. A
 // plaintext key file or chmod-only fallback must never silently enable egress.
