@@ -117,8 +117,11 @@ wrapped or fabricated number.
 `Start(Metadata)` commits a processing row with SQLite synchronous FULL before
 returning. A duplicate ID returns a conflict without replacing its snapshot.
 `Finish(id, Outcome)` commits one terminal outcome. Subsequent terminal updates
-are idempotent and preserve the first result. The service should end every
-started record on all return paths, and must independently handle a ledger
+are idempotent and preserve the first result. A successful outcome clears its
+terminal `safeErrorCode` and `failureStage`, including after provider failover;
+per-attempt errors and the separate local routing reason remain diagnostic data.
+The service should end every started record on all return paths, and must
+independently handle a ledger
 write failure without appending another protocol envelope to an existing SSE
 response. The adapter owns conversion of final errors/statuses and actual
 executor results; the store does not run requests or change retry budgets.

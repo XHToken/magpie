@@ -389,6 +389,11 @@ func (s *Store) Finish(id string, o Outcome) error {
 	if !identifier(id, 128, false) || !validOutcome(o, false) {
 		return s.failure(ErrInvalid)
 	}
+	// Terminal success supersedes errors from earlier attempts. Keep those
+	// diagnostics on the attempts, separate from the business result.
+	if o.Status == "succeeded" {
+		o.SafeErrorCode, o.FailureStage = "", ""
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return s.failure(ErrUnavailable)

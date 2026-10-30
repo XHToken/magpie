@@ -78,8 +78,9 @@
   };
   const reason = code => { const key = routingReasons[code] || routingReasons[String(code || '').replace(/^local_/, '')]; return key ? t(key) : code ? t('Unknown') : '—'; };
   const recordReason = record => {
-    if (record.capabilityState) return reason(record.capabilityState);
+    if (record.status === 'succeeded') return '—';
     if (record.safeErrorCode) { const key = routingReasons[record.safeErrorCode] || routingReasons[String(record.safeErrorCode).replace(/^local_/, '')]; return key ? t(key) : record.safeErrorCode; }
+    if (record.capabilityState) return reason(record.capabilityState);
     return '—';
   };
   const timingFields = { queueLoadMs: 'Queue and load (ms)', queueMs: 'Queue (ms)', loadMs: 'Load (ms)', requestHeadersMs: 'Request headers (ms)', consumeMs: 'Response consumption (ms)', inferenceMs: 'Inference (ms)', totalMs: 'Total time (ms)' };
@@ -231,7 +232,7 @@
       ['Request ID', selected.requestId], ['Application ID', selected.appId], ['Provider ID', selected.providerId || t('Unknown')], ['Configured cloud model', selected.model || t('Unknown')], ['Actual local model', selected.localModel || t('Unknown')], ['Application path', selected.path],
       ['Operation', label(operations, selected.operation)], ['Status', label(statuses, selected.status)], ['Request start', date(selected.startedAt)], ['Request end', selected.executionKnown === false ? t('Unknown') : date(selected.endedAt)], ['Duration (ms)', requestDuration(selected)],
       ['Destination', selected.executionKnown === false ? t('Unknown') : destination(selected.destination)], ['Attempts', num(selected.executionKnown === false ? null : selected.attempts)], ['Output committed', t(selected.executionKnown === false ? 'Unknown' : selected.outputCommitted ? 'Yes' : 'No')],
-      ['Error code', selected.safeErrorCode || '—'], ['Failure stage', selected.failureStage ? label(stages, selected.failureStage) : '—'], ['Reported tokens', tokenText(selected.usage)],
+      ['Error code', selected.status === 'succeeded' ? '—' : selected.safeErrorCode || '—'], ['Failure stage', selected.status !== 'succeeded' && selected.failureStage ? label(stages, selected.failureStage) : '—'], ['Reported tokens', tokenText(selected.usage)],
     ]) field(dl, name, value);
     field(dl, 'Routing decision', selected.decision ? destination(selected.decision) : t('Unknown'));
     const purposeStatus = purpose => { const calls = selected.calls?.filter(call => call.purpose === purpose); return calls?.length ? label(callResults, calls[calls.length - 1].result) : t('Not observed'); };

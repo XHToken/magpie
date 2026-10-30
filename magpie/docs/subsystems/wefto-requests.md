@@ -106,6 +106,12 @@ Selecting the corresponding All chip removes that query filter. The application
 ID input applies on form submission or the next status/operation selection.
 Destination chips filter the currently loaded page in the browser.
 
+The list's Routing / failure reason column follows the terminal request outcome:
+success displays `—`, including historical success records with stale error
+fields. Failed requests show the final safe error before any local routing reason.
+Successful request details also omit terminal errors and failure stages, while
+individual attempt errors and the separate local routing details remain visible.
+
 The list API enriches each row with optional `localModels` (`purpose`, `modelId`)
 through [`Store.ObservedModels`](../../internal/routerledger/observed_models.go),
 using retained internal calls whose inference actually started. One bounded call

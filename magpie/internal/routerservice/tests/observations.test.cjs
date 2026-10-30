@@ -327,6 +327,27 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
         await fixturePage.setViewportSize({ width, height: 2600 });
         for (const [name, selector] of [['local', '[data-destination=local]'], ['cloud', '[data-destination=cloud]'], ['savings', '.request-savings'], ['judgment', '.request-internal [data-purpose=judgment]'], ['execution', '.request-internal [data-purpose=execution]']]) await fixturePage.locator(`#requestSummary ${selector}`).screenshot({ path: path.join(process.env.ARTIFACT_DIR, `statistics-projection-${name}-${engine}-${language}-${width}.png`) });
       }
+      // Historical projections may carry a stale process error beside a final
+      // success. The summary follows the terminal outcome; attempts retain it.
+      const failoverAttempts = [
+        { number: 1, startedAt: failed.startedAt, httpStatus: 200, errorCode: 'cloud_response_error', retried: true },
+        { number: 2, startedAt: failed.startedAt, httpStatus: 200, errorCode: '', outputCommitted: true }
+      ];
+      const failoverSuccess = { ...failed, requestId: '1'.repeat(32), status: 'succeeded', capabilityState: '', safeErrorCode: 'cloud_response_error', failureStage: 'cloud', attempts: 2, attemptDetails: failoverAttempts };
+      const failoverFailure = { ...failed, requestId: '2'.repeat(32), capabilityState: 'judgment_failed', safeErrorCode: 'cloud_auth_error', attempts: 2, attemptDetails: [failoverAttempts[0], { ...failoverAttempts[1], errorCode: 'cloud_auth_error', httpStatus: 401 }] };
+      await fixturePage.route('**/api/requests?*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 2, ledger: { available: true }, requests: [failoverSuccess, failoverFailure], nextCursor: '' }) }));
+      for (const request of [failoverSuccess, failoverFailure]) await fixturePage.route('**/api/requests/' + request.requestId, route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schemaVersion: 2, request }) }));
+      await fixturePage.locator(width >= 1024 ? '.nav-s[data-of=usageTab-requests]' : '#usageTab-requests').click();
+      await fixturePage.locator('#usageReload').click();
+      await fixturePage.locator(`#requestRecords [data-request="${failoverSuccess.requestId}"]`).waitFor();
+      const reasonCell = id => fixturePage.locator(`#requestRecords [data-request="${id}"] td`).nth(10);
+      assert.equal(await reasonCell(failoverSuccess.requestId).textContent(), '—', 'final success has no failure reason');
+      assert.equal(await reasonCell(failoverFailure.requestId).textContent(), 'cloud_auth_error', 'final failure takes precedence over an earlier local routing reason');
+      await fixturePage.locator(`#requestRecords [data-request="${failoverSuccess.requestId}"] button`).click();
+      await fixturePage.locator('#requestRecords .request-detail').waitFor();
+      assert.equal(await detailValue(fixturePage, 'Error code'), '—');
+      assert.equal(await detailValue(fixturePage, 'Failure stage'), '—');
+      assert.ok((await fixturePage.locator('#requestRecords .request-attempt').first().textContent()).includes('cloud_response_error'), 'per-attempt diagnostics remain visible');
       await fixturePage.close();
     }
     assert.deepEqual(errors, []);
