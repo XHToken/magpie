@@ -1,6 +1,6 @@
-# 端云协同 beta.14 Unix 后端修复验证
+# 端云协同 beta.14 Unix 后端发布验证
 
-当前草稿的候选包已由 `80965ca0f712395503e26e06658fdd56a05fe04c` 重新构建，该提交及其打包输入为干净状态。后续发布记录仅更新本文件和 Release 说明，不改变 Go 源码、页面、打包脚本或包内用户说明。
+本次预发布包已由 `80965ca0f712395503e26e06658fdd56a05fe04c` 重新构建，该提交及其打包输入为干净状态。后续发布记录仅更新本文件和 Release 说明，不改变 Go 源码、页面、打包脚本或包内用户说明。
 
 ## 已通过
 
@@ -20,6 +20,8 @@
 - macOS Intel/Apple Silicon 和 Linux ARM64 包仅完成交叉构建及静态校验。未验证真实模型识别质量、付费云端请求、完整宿主编辑/删除、断电恢复或 Windows 离线安装流程。
 - 可信宿主编辑/删除生命周期、源历史被删除后的旧回显保护、密钥轮换及完整备份恢复仍是发布限制。Linux 无桌面环境时需要配置可用且已解锁的 Secret Service；macOS 默认 Keychain 也必须可用且已解锁。
 
-Windows/macOS 包未签名，macOS 未公证。beta.14 保持 Release 草稿，没有发布公开 tag；beta.13 继续公开。准确源码、构建配置和实际检查见附件 BUILD-INFO.json，SHA256SUMS 覆盖其他 13 个附件。上传后核对全部 14 个附件的大小与 GitHub SHA256。
+Windows/macOS 包未签名，macOS 未公证。GitHub Actions 已被仓库禁用，原生 CI dispatch 返回 HTTP 422，不能把交叉检查当作 Mac 原生验收。
+
+用户在知悉以上验证范围与已知限制后要求公开发布 beta.14。本版本以预发布形式公开，标签为 `wefto-v0.1.0-beta.14`，指向包含本记录的公开 main 提交。上述缺口继续保留，不宣称完整验收通过。准确源码、构建配置和实际检查见附件 BUILD-INFO.json，SHA256SUMS 覆盖其他 13 个附件。发布前后均核对全部 14 个附件的大小与 GitHub SHA256。
 
 本地日志与机器可读结果：`D:/api-router/.git/cross-platform-redaction-oct30/`；重构建包及静态验证：`D:/api-router/.git/unix-backend-beta14/`。
