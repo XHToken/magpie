@@ -4,9 +4,19 @@
 
 端云协同 is a local service for routing AI model requests. Manage cloud APIs, local models, and routing policies in one web console, then connect WorkBuddy and Loomy to the same service. It is derived from a fixed Magpie source snapshot; the product entry point is `magpie/cmd/wefto`.
 
-**[Download for macOS / Linux / Windows](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.13)** · [Browse the 端云协同 source](https://github.com/XHToken/magpie/tree/main)
+**[Download for macOS / Linux / Windows](https://github.com/XHToken/magpie/releases/tag/wefto-v0.1.0-beta.13)** · [Browse the 端云协同 source](https://github.com/XHToken/magpie/tree/main) · [端云一体 Skill on SkillHub](https://skillhub.cn/skills/user_b6a972a8/api-router-start)
 
 The current version is **0.1.0-beta.13**, with initial support focused on WorkBuddy and Loomy running on the same machine. Prebuilt packages cover Windows x64, macOS Apple Silicon / Intel, and Linux x64 / ARM64; the other host presets and protocol adapters in this repository do not imply that every client, version, or platform has been verified.
+
+## Configure 端云协同 with the Skill
+
+The project's **[端云一体 Skill (`api-router-start`)](https://skillhub.cn/skills/user_b6a972a8/api-router-start)** has been submitted to SkillHub. It guides model setup, WorkBuddy / Loomy connection, and real request verification. It also supports automatic local model installation and local/cloud routing setup, plus installation, troubleshooting, and updates across platforms. The [Skill source](skills/api-router-start/SKILL.md) is maintained in this repository.
+
+Once approved by SkillHub, install or download it from the detail page, or send this prompt to your AI assistant:
+
+```text
+Follow https://skillhub.cn/install/skillhub.md to install @user_b6a972a8/api-router-start.
+```
 
 ## macOS / Linux quick start
 
