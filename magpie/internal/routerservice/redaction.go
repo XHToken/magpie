@@ -249,6 +249,9 @@ func recordRedactionObservation(
 	var durationMS int64
 	if meta != nil {
 		cacheHit = meta.CacheHit
+		if meta.CurrentRecognition != "" {
+			cacheHit = meta.CurrentRecognition == "reused" || meta.CurrentRecognition == "reused_zero_hit"
+		}
 		durationMS = meta.DurationMS
 		for _, r := range meta.Replacements {
 			if r.Placeholder == "" || r.Original == "" {

@@ -47,7 +47,7 @@ func NewEngineSpecification(binding ModelBinding, experimental bool) (*PrivacySp
 	builtins, _ := json.Marshal(defaultRuleDefinitions)
 	policy, _ := json.Marshal(map[string]any{
 		"hostPromptProjection": cloudcodec.UserPromptSourceVersion,
-		"scope":                "user-input-v1", "source": "original-user-text-v1", "knownValues": "exact-longest-boundary-v1", "cache": "verified-user-prefix-v1", "session": "service-hmac-app-15min-instance-v1", "secondaryScope": "assistant-text-tool-output-string-arguments-v1", "literalTokens": "source-and-target-reserved-allowlisted-emitted-v1",
+		"scope":                "user-input-v1", "source": "original-user-text-v1", "knownValues": "exact-longest-boundary-v1", "cache": "durable-actual-message-v1", "session": "no-session-dictionary-v1", "secondaryScope": "full-known-values-v2", "literalTokens": "request-random-namespace-emitted-v2",
 		"revision": EngineVersion, "experimental": experimental,
 		"labels": labels, "pass": []string{"public_information", "job_title"},
 		"rules":      string(defaultPolicyYAML) + string(rulesZhYAML),
@@ -77,6 +77,13 @@ func NewEngineSpecification(binding ModelBinding, experimental bool) (*PrivacySp
 }
 
 func (s *PrivacySpecification) ModelID() string { return s.modelID }
+
+// RecognitionMaterialID excludes output traversal, token allocation, UI and
+// session policy. Changing those must not invalidate completed recognition.
+func (s *PrivacySpecification) RecognitionMaterialID() string {
+	raw, _ := json.Marshal([]any{s.fingerprints.Model, s.enginePrompt, s.engineSchema, s.engineLabels, CanonicalLabelMap, AllowedPassThroughLabels, string(defaultPolicyYAML), string(rulesZhYAML), string(defaultDictionaryYAML), defaultRuleDefinitions, DefaultLLMMaxChunkChars, DefaultLLMChunkOverlap, EngineMaxChunks, PrivacyMaxBatchFields, PrivacyMaxBatchRunes, PrivacyMaxOutputTokens, maxEntities, maxEntityBytes, "unique-exact-substring-valid-coordinates-v1/sensitive-union-prefer-fine-category-v1/strict-fields-v1", cloudcodec.UserPromptSourceVersion})
+	return privacyHash(raw)
+}
 
 func (s *PrivacySpecification) labels() map[string]string {
 	if s.unified {

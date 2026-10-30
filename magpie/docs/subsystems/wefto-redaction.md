@@ -1,5 +1,13 @@
 # 端云协同 user input redaction
 
+The Windows production path now saves authenticated per-message recognition
+results and rewrites known values throughout subsequent requests. The broader
+[history protection plan](../redaction-history-protection-plan-20261030.md)
+remains the target design; persistent session/occurrence revisions, deletion
+residue handling, key rotation and recovery tooling are not implemented yet.
+See the [implementation record](../redaction-history-implementation-20261030.md)
+for verified behavior and release restrictions.
+
 ## Responsibility and ownership
 
 Application `redactionEnabled`, active routing-group `localRedaction`, nested
@@ -8,9 +16,9 @@ request plan. They use the same production engine and do not choose different
 algorithms. The user-input scope contract supersedes the older full-request scope.
 
 `routerservice.RedactionService` is created by the service owner and shared through
-`ModelOptions.Redaction`. It owns one current pipeline, a bounded history cache,
-aggregate statistics, cancellation and retiring pipelines. There is no
-group-instance global cache. A group's compatibility execution scope does not replace the engine.
+`ModelOptions.Redaction`. It owns one current pipeline, a private durable recognition store,
+aggregate statistics, cancellation and retiring pipelines. Legacy diagnostic pipelines retain a bounded performance cache. There is no
+group-instance global recognition dictionary. A group's compatibility execution scope does not replace the engine.
 
 Sources of truth:
 
@@ -59,33 +67,30 @@ only `role=user` content strings/direct text blocks; Responses selects string
 selects direct user text, excluding nested `tool_result` content. All user turns
 participate, including earlier turns when the request ends with a tool callback.
 For authenticated WorkBuddy and Loomy applications,
-[`NewUserTextViewForApp`](../../internal/cloudcodec/user_prompt.go) instead selects
-only the current user message's actual prompt. Historical user turns do not
-enter new recognition. WorkBuddy's attributed `system-reminder` envelope is
-retained while only the outer `user_query` payload is scanned. Loomy's generated
-reminders, attachment metadata, gateway profile/memory preludes and forced-skill
-instructions are excluded; separate prelude parts and concatenated text are
-supported. Malformed recognized framing blocks preparation instead of sending
-the context to the local model. Empty/context-only current messages never fall
-back to historical prompts. Other applications retain the protocol user-text
-scope above. User-pasted code inside an actual prompt remains input.
+`NewUserHistoryViewForApp` projects the actual prompt of every user message,
+excluding known host wrappers. `NewUserTextViewForApp` remains the current-only
+view for title generation and observation previews. Tool results inside a user
+message are never new recognition input. Malformed host framing fails closed.
 
-The authenticated application chooses this projection; generic text tags do not
-change other applications' scope. Byte ranges preserve excluded context in the
-outbound request, and private provenance markers cover only prompt ranges
-through protocol conversion. The host projection version participates in the
-engine material fingerprint, invalidating earlier evidence and caches.
+[`history_input.go`](../../internal/routerredact/history_input.go) first inventories
+all projected messages through one batch query. Keys bind installation, the
+service-resolved application's authorization generation, exact ordered UTF-8
+blocks, projection and `RecognitionMaterialID`; they exclude absolute message
+indices, client IDs, cloud provider and API key. Completed zero-hit results are
+required too. A valid historical result never triggers inference on restart or
+cache eviction. Only a missing final ordinary user message may be recognized
+in the normal request; unknown earlier messages and mixed tool callbacks require
+explicit local preparation before any inference. A content edit without a
+verified occurrence adapter therefore uses explicit preparation of that whole
+message. The per-message admission gate coalesces identical recognition outside
+service locks and SQLite transactions. Commit failure blocks the request.
 
-For these two host projections, the server derives a bounded current-prompt
-cache identity from authenticated app, prompt positions and exact prompt text;
-the Pipeline additionally binds model/material and validates all fingerprints.
-Every cached mapping value was therefore already supplied in that exact prompt;
-the identity grants no access to other historical prompts. Context changes do
-not invalidate it, including the current prompt's absolute position in history.
-A cancellable admission gate for each exact prompt lets duplicate requests reuse
-a completed scan. Unrelated prompts cannot hold up a cache hit. Gates are bounded
-to 128 concurrent prompt identities, wait outside the service mutex, share the
-preparation deadline and are removed after their last waiter leaves.
+The service does not infer deletion from history truncation. It never fetches
+old private values solely by session ID or another request's token. This checkout
+has no trusted host edit/delete lifecycle adapter; automatic cleanup of echoes
+whose source was removed is **not supported**. Hosts must resynchronize such
+branches with verifiable source messages. See the implementation record for this
+remaining release blocker.
 
 After recognition, a request with replacements receives a short business-model
 instruction: issued tokens are supplied opaque values to use verbatim in answers
@@ -120,18 +125,19 @@ single pass, longest match first, with case preserved. Boundary version
 `exact-longest-boundary-v1` requires Unicode word boundaries for values shorter
 than four code points. Longer values use ASCII word-neighbor checks at ASCII
 word edges, allowing a phone number adjacent to Chinese prose while excluding
-an ASCII identifier suffix. Keys, numbers, tool names, IDs,
-system/schema and unknown values are untouched. The trie matcher checks the
-shared context while applying mappings. Literal placeholder collisions reserve
-fresh IDs; only tokens actually emitted in allowed target values authorize
-response restoration. A missing allocated mapping fails closed.
+an ASCII identifier suffix. System/developer ordinary text and host wrapper text also receive known-value
+replacement. Keys, numbers, tool names, schema and control fields that contain a
+known full value block egress. The final decoded JSON check also examines nested
+JSON arguments, escaped originals and unknown extensions; only actually issued
+placeholder tokens are skipped. It runs again after the execution instruction
+is appended. This is known-value protection, not new entity recognition of tools
+or assistants. Images and unsupported protocol structures still fail closed.
 
-A required new scan remains blocked while inference is unavailable. A request
-with no user text performs no inference, even without an available model; an
-unchanged selected binding is still required. Existing trusted, tool-only
-mapping application can finish with that binding while disabled. Full user-cache
-hits conservatively retain the extractor's current admission check. Neither
-case acquires or waits for a model slot merely to attest completion.
+[`history_boundary.go`](../../internal/routerredact/history_boundary.go) renders
+all source fragments through their conversion provenance sidecar. Each request
+uses a random `v1` namespace; only tokens emitted in allowed final fields enter
+its restoration snapshot. Legacy tokens and tokens from other requests grant no
+restoration authority. JSON/SSE parsing supports the longer namespace tokens.
 
 The executor receives only the prepared final body. Adaptation to the client's
 protocol precedes restoration. Each Prepared request owns an independent mapping
@@ -198,29 +204,38 @@ this scope. Old model-only acceptance cannot authorize
 the new extractor. The Manager verifies the same model fingerprint and suite;
 experimental permission does not grant formal quality acceptance.
 
+`RecognitionMaterialID` separately hashes the actual detector/model/projection,
+label maps, rules, dictionary, chunking and validation material. Output policy,
+token namespaces, session compatibility and page changes do not alone invalidate
+completed recognition. Outbound policy identity and final body proof are separate
+request ledger fields. The strict known-value matcher has a bounded trie and
+uses linear token counting/collision checks with cancellation.
+
 The first preparation binds an immutable specification; later candidates must
 match. Model/context/backend changes before dispatch reject that preparation.
 Previously prepared response snapshots remain independent of cache rotation.
 
 ## Cache, observations and shutdown
 
-Cache keys isolate authenticated application, server-verified session, source
-user ordinals/text-block ordinals, exact user fingerprints, fixed scope and
-model/material binding. User identification is independent of target provider,
-policy source flags, system prompts, tools and ordinary assistant/tool changes.
-Only an unchanged user prefix is reused; edits, deletion, reordering and forks
-are rescanned. Every outbound history is still rewritten on a cache hit.
+[`ResultStore`](../../internal/routerredact/result_store.go) owns the independent
+SQLite database under `Layout.RedactionResults()`. Its Windows DPAPI/ACL backend,
+256 MiB limit and fail-closed recovery behavior are documented in
+[storage](wefto-storage.md). There is no recognition TTL or automatic eviction.
+Requests load only their supplied message keys. Observations cannot authorize
+recognition reuse. Session handles retained for wire compatibility do not grant
+dictionary access on this path.
 
-There is no verified host-session adapter in this checkout. Body session IDs,
-metadata, trace IDs, message counts and identical first-user text grant no trust.
-The service can issue `X-Router-Redaction-Session`: a random nonce, timestamp and
-HMAC-SHA256 bound to the authenticated app and this service instance, valid for
-15 minutes. A host may echo it to reuse its private cache; missing/invalid,
-cross-app or pre-restart handles use a fresh request session and cannot read
-another session's mappings. This requires no host endpoint/configuration change.
-Internal trusted adapters may supply `SessionVerified`; unverified seed keys are
-never published. The history cache remains bounded to 128 entries, 16 MiB and
-15 minutes, with epoch invalidation and independent response snapshots.
+`POST /api/redaction/history` requires the ordinary local same-origin management
+authorization. `create` takes `appId`, `protocol`, original protocol `body`, and
+explicit zero-based user ordinals in `selected`. It performs no inference.
+`step` executes at most one strict batch (16 fields / 2048 code points), and the
+page pauses between steps; `status` reports quantities and `cancel` interrupts
+active preparation. Tasks select at most 100 user messages / 200000 code points,
+with at most eight in-memory tasks. Only fully covered messages commit. A restart
+requires resupplying the original text and reuses already committed messages.
+Partially completed messages are never reusable. The task API neither sends
+cloud requests nor stores full source messages on disk. Queue priority is still
+the regular redaction priority; each manual step releases it after one batch.
 
 `/api/redaction` is authenticated and reports the shared service's aggregate
 preparation statistics, actual selected model, engine version, readiness and
@@ -228,7 +243,7 @@ trial/formal state. Readiness does not mean every application/group is enabled.
 Request policy observations retain application/group sources, required model,
 actual prepared model and engine version separately from cloud attempts.
 Successful preparation also records `scopeVersion`, `scanDisposition`
-(`scanned`, `cache_hit`, `known_values_only`, `no_user_input`), newly scanned
+(`scanned`, `persistent_reuse`, `known_values_only`, `no_user_input`), newly scanned
 user characters/chunks, reused fragments, actual inference calls and preparation
 milliseconds. Failed calls retain separate safe runtime observations rather than
 claiming a successful zero-scan result. Actual reported tokens and combined
@@ -239,11 +254,15 @@ that system/tool discoveries are excluded. Application Details has no redaction
 control. The application flag remains off by default; existing saved values and
 the management API remain compatible, and page visits do not rewrite them.
 
-Mapping/cache data is in memory. The authenticated latest-user-input comparison
+Restoration mappings are request-local. Reliable recognition entities are encrypted
+on disk separately from the observations below. The request ledger also records
+message reuse, known-value replacement counts and final verification state; these
+fields do not claim that assistant/tool content was newly recognized. The authenticated latest-user-input comparison
 continues to retain original text, redacted text and replacement values in
 `<state>/redaction_observations.sqlite`, at most 500 request IDs / seven days.
 It does not display the entire scanned request. Pruning and clear operations
-retain existing secure-delete behavior. Ordinary logs contain safe metadata.
+retain existing secure-delete behavior and do not delete reliable recognition
+results; the page explains the distinction. Ordinary logs contain safe metadata.
 For WorkBuddy and Loomy, the comparison stores the actual current prompt rather
 than the host envelope or injected context.
 

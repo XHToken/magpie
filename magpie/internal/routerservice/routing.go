@@ -1114,6 +1114,9 @@ func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protoco
 			if prepared.Context().Err() != nil {
 				return routercloud.Result{Operation: operation, Decision: string(DecisionCloud)}, prepared.Context().Err()
 			}
+			if terminalRedactionFailure(prepareErr) {
+				return routercloud.Result{Operation: operation, Decision: string(DecisionCloud)}, prepareErr
+			}
 			return routercloud.Result{Operation: operation, Decision: string(DecisionCloud)}, ErrRedactionUnavailable
 		}
 		if !check && operation != "count_tokens" {
@@ -1142,6 +1145,12 @@ func executeCloudModelSub(w http.ResponseWriter, prepared *http.Request, protoco
 	executor := routercloud.Executor{Timeout: options.Budget, Observe: emit, BeforeAttempt: func(_ context.Context) error {
 		if target.RedactionRequired && options.Redaction != nil && preparedCloud.Versions != options.Redaction.RoutingVersions() {
 			return &routercloud.Error{Code: "redaction_unavailable", Message: "required redaction binding changed", Status: http.StatusServiceUnavailable}
+		}
+		if target.RedactionRequired && options.store != nil {
+			if e := options.store.ConfirmRecognitionScopeContext(prepared.Context(), state.AppID, state.Target.Profile.RecognitionScope(), state.BeginCloudAttempt); e != nil {
+				return &routercloud.Error{Code: "redaction_unavailable", Message: "application recognition authority changed before sending", Status: http.StatusServiceUnavailable}
+			}
+			return nil
 		}
 		if err := state.BeginCloudAttempt(); err != nil {
 			safe := routerrequest.ClassifyError(err)

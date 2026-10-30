@@ -25,7 +25,7 @@ func TestExperimentalProductionAdmissionPreservesUnknownAndBlocksInvalidResults(
 	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		generated.Add(1)
 		body, _ := io.ReadAll(r.Body)
-		if !strings.Contains(string(body), `"enable_thinking":false`) {
+		if !strings.Contains(fixtureLegacyTokens(string(body)), `"enable_thinking":false`) {
 			t.Error("trial enabled thinking")
 		}
 		end := 25
@@ -39,16 +39,16 @@ func TestExperimentalProductionAdmissionPreservesUnknownAndBlocksInvalidResults(
 	cloud := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upstream.Add(1) // Count before checking, including any failed request.
 		body, _ := io.ReadAll(r.Body)
-		if strings.Contains(string(body), "synthetic@example.test") || !strings.Contains(string(body), "<EMAIL:1>") {
+		if strings.Contains(fixtureLegacyTokens(string(body)), "synthetic@example.test") || !strings.Contains(fixtureLegacyTokens(string(body)), "<EMAIL:1>") {
 			t.Error("trial sent an unredacted synthetic value")
 		}
-		if strings.Contains(string(body), `"stream":true`) {
+		if strings.Contains(fixtureLegacyTokens(string(body)), `"stream":true`) {
 			w.Header().Set("Content-Type", "text/event-stream")
-			_, _ = io.WriteString(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"<EMAIL:1>\"},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+			_, _ = io.WriteString(w, fixtureEchoTokens(body, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"<EMAIL:1>\"},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"))
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `{"choices":[{"index":0,"message":{"role":"assistant","content":"<EMAIL:1>"},"finish_reason":"stop"}]}`)
+		_, _ = io.WriteString(w, fixtureEchoTokens(body, `{"choices":[{"index":0,"message":{"role":"assistant","content":"<EMAIL:1>"},"finish_reason":"stop"}]}`))
 	}))
 	defer cloud.Close()
 	catalog := routermanifest.Fixed()

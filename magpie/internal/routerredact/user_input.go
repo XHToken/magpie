@@ -41,6 +41,9 @@ func (s *UserSnapshot) Close() {
 }
 
 func (p *Pipeline) ScanUserInput(ctx context.Context, in Input) (*UserSnapshot, error) {
+	if p.options.Results != nil {
+		return p.scanReliableUserInput(ctx, in)
+	}
 	if routercloud.ValidateInput(string(in.Protocol), in.Body) != nil {
 		return nil, fail("wire_invalid")
 	}
@@ -157,7 +160,8 @@ func collectLiteralStrings(v any, out *[]string) {
 			collectLiteralStrings(a, out)
 		}
 	case map[string]any:
-		for _, a := range x {
+		for k, a := range x {
+			*out = append(*out, k)
 			collectLiteralStrings(a, out)
 		}
 	}
@@ -167,6 +171,9 @@ func (s *UserSnapshot) PrepareTarget(protocol Protocol, body []byte, target *clo
 	return s.PrepareTargetContext(context.Background(), protocol, body, target)
 }
 func (s *UserSnapshot) PrepareTargetContext(ctx context.Context, protocol Protocol, body []byte, target *cloudcodec.UserTextTarget) (*Prepared, error) {
+	if s.meta.OutboundPolicyVersion != "" {
+		return s.prepareReliableTarget(ctx, protocol, body, target)
+	}
 	if err := contextError(ctx); err != nil {
 		return nil, err
 	}
@@ -287,12 +294,20 @@ func knownBoundary(text, value string, start, end int) bool {
 }
 
 type knownNode struct {
+	strict       bool
+	buildError   error
+	tokens       map[string]string
 	next         map[byte]*knownNode
 	token, value string
 }
 
 func newKnownMatcher(mapping map[string]string) *knownNode {
-	root := &knownNode{}
+	return buildKnownMatcher(mapping, 0)
+}
+
+func buildKnownMatcher(mapping map[string]string, maxNodes int) *knownNode {
+	root := &knownNode{tokens: mapping}
+	nodes := 1
 	tokens := make([]string, 0, len(mapping))
 	for token := range mapping {
 		tokens = append(tokens, token)
@@ -309,6 +324,10 @@ func newKnownMatcher(mapping map[string]string) *knownNode {
 				node.next = map[byte]*knownNode{}
 			}
 			if node.next[value[i]] == nil {
+				nodes++
+				if maxNodes > 0 && nodes > maxNodes {
+					return &knownNode{buildError: fail("redaction_input_limit")}
+				}
 				node.next[value[i]] = &knownNode{}
 			}
 			node = node.next[value[i]]
@@ -319,11 +338,19 @@ func newKnownMatcher(mapping map[string]string) *knownNode {
 	}
 	return root
 }
+func newStrictKnownMatcher(mapping map[string]string) *knownNode {
+	root := buildKnownMatcher(mapping, 131072)
+	root.strict = true
+	return root
+}
 func replaceKnownValues(text string, mapping, used map[string]string) string {
 	out, _ := newKnownMatcher(mapping).replace(context.Background(), text, used)
 	return out
 }
 func (root *knownNode) replace(ctx context.Context, text string, used map[string]string) (string, error) {
+	if root.buildError != nil {
+		return "", root.buildError
+	}
 	if len(root.next) == 0 {
 		return text, contextError(ctx)
 	}
@@ -332,12 +359,15 @@ func (root *knownNode) replace(ctx context.Context, text string, used map[string
 		if err := contextError(ctx); err != nil {
 			return "", err
 		}
-		// A placeholder, whether literal or inserted, is never reinterpreted.
+		// Only actual issued tokens are skipped. Angle brackets supplied by a
+		// caller cannot hide a known original from replacement or final checks.
 		if text[at] == '<' {
 			if end := strings.IndexByte(text[at:min(len(text), at+maxPlaceholderBytes)], '>'); end >= 0 {
-				out.WriteString(text[at : at+end+1])
-				at += end + 1
-				continue
+				if _, issued := root.tokens[text[at:at+end+1]]; issued || !root.strict {
+					out.WriteString(text[at : at+end+1])
+					at += end + 1
+					continue
+				}
 			}
 		}
 		node := root

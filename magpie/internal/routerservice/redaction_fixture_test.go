@@ -1,10 +1,14 @@
 package routerservice
 
 import (
+	"context"
 	"encoding/json"
+	"github.com/yetone/magpie/internal/dirs"
 	"github.com/yetone/magpie/internal/routermanifest"
 	"github.com/yetone/magpie/internal/routerredact"
 	"github.com/yetone/magpie/internal/routerruntime"
+	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -14,6 +18,47 @@ import (
 type redactionFixtureInvoker struct {
 	LocalInvoker
 	spec *routerredact.PrivacySpecification
+}
+
+var issuedFixtureToken = regexp.MustCompile(`<([A-Z][A-Z0-9_]*):v1[a-f0-9]{32}:([0-9]+)>`)
+
+// Existing fixtures describe echo behavior using short symbolic tokens. Resolve
+// those symbols from the actual request, so random namespaces remain exercised.
+func fixtureEchoTokens(body []byte, response string) string {
+	decoded := strings.ReplaceAll(strings.ReplaceAll(string(body), `\u003c`, "<"), `\u003e`, ">")
+	pairs := []string{}
+	for _, m := range issuedFixtureToken.FindAllStringSubmatch(decoded, -1) {
+		pairs = append(pairs, "<"+m[1]+":"+m[2]+">", m[0])
+		if len(m[1]) >= 2 {
+			suffix := m[1][len(m[1])-2:] + ":" + m[2] + ">"
+			pairs = append(pairs, suffix, m[0][len(m[1])-1:])
+		}
+	}
+	if len(pairs) == 0 {
+		return response
+	}
+	return strings.NewReplacer(pairs...).Replace(response)
+}
+func fixtureLegacyTokens(body string) string {
+	decoded := strings.ReplaceAll(strings.ReplaceAll(body, `\u003c`, "<"), `\u003e`, ">")
+	return issuedFixtureToken.ReplaceAllString(decoded, `<$1:$2>`)
+}
+
+func prepareFixtureHistory(t *testing.T, r *RedactionService, app, protocol string, body []byte, selected ...int) {
+	t.Helper()
+	p, s, err := r.current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := p.NewHistoryTask(context.Background(), routerredact.Input{AppID: app, Protocol: routerredact.Protocol(protocol), AuthenticatedScope: app + "/1", RecognitionMaterial: s.RecognitionMaterialID(), Versions: s.Versions(), Body: body}, selected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for !task.Progress().Done {
+		if _, err = task.Step(context.Background(), p); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func (r redactionFixtureInvoker) Require(p routerruntime.Purpose) error {
@@ -40,6 +85,13 @@ func redactionTestOptions(t *testing.T, opts ModelOptions) ModelOptions {
 		return opts
 	}
 	r := newRedactionService(opts.LocalRuntime, opts.ExperimentalRedaction)
+	if r.results == nil && r.resultsError == nil {
+		state := t.TempDir()
+		if err := os.Chmod(state, 0700); err != nil {
+			t.Fatal(err)
+		}
+		r.results, r.resultsError = routerredact.OpenResultStore(dirs.Layout{State: state})
+	}
 	if (opts.LocalRuntime == nil || opts.LocalRuntime.Manager == nil) && opts.Routing != nil && opts.Routing.LocalInvoker != nil {
 		r.binding = routerredact.ModelBinding{ModelID: "spark-x2.6-4B", RuntimeID: routerruntime.PlatformRuntime(routermanifest.Fixed(), runtime.GOOS, runtime.GOARCH)}
 		spec, err := routerredact.NewEngineSpecification(r.binding, false)

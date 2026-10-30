@@ -30,12 +30,13 @@ func TestUserInputModelReceivesOnlyOriginalUserText(t *testing.T) {
 	v := &userScopeInvoker{t: t}
 	opts := redactionTestOptions(t, ModelOptions{Routing: &RoutingOptions{LocalInvoker: v}})
 	req := RedactionRequest{RequestID: "scope", AppID: "codex", SourceProtocol: "chat", TargetProtocol: "chat", Operation: "generation", Body: []byte(`{"model":"fixture","messages":[{"role":"system","content":"NON_USER_SENTINEL Elodie"},{"role":"user","content":"Contact Elodie"},{"role":"assistant","content":"NON_USER_SENTINEL Elodie"}]}`)}
+	prepareFixtureHistory(t, opts.Redaction, "codex", "chat", req.Body, 0)
 	p, err := opts.Redaction.Prepare(context.Background(), req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer closePreparedCloud(p)
-	if !strings.Contains(string(p.Body), `NON_USER_SENTINEL Elodie`) || strings.Contains(string(p.Body), `Contact Elodie`) {
+	if !strings.Contains(string(p.Body), `NON_USER_SENTINEL`) || strings.Contains(string(p.Body), `Elodie`) || strings.Contains(string(p.Body), `Contact Elodie`) {
 		t.Fatal("source scope was not preserved", string(p.Body))
 	}
 }
@@ -180,12 +181,17 @@ func TestUserInputNativeProtocolsExcludeToolContext(t *testing.T) {
 		t.Run(test.protocol, func(t *testing.T) {
 			v := &userScopeInvoker{t: t}
 			options := redactionTestOptions(t, ModelOptions{Routing: &RoutingOptions{LocalInvoker: v}})
+			selected := []int{0}
+			if test.protocol == "anthropic" {
+				selected = append(selected, 1)
+			}
+			prepareFixtureHistory(t, options.Redaction, "codex", test.protocol, []byte(test.body), selected...)
 			p, e := options.Redaction.Prepare(context.Background(), RedactionRequest{RequestID: "protocol-scope", AppID: "codex", SourceProtocol: test.protocol, TargetProtocol: test.protocol, Operation: "generation", Body: []byte(test.body)})
 			if e != nil {
 				t.Fatal(e)
 			}
 			defer closePreparedCloud(p)
-			if v.calls != 1 || strings.Contains(string(p.Body), "Contact Elodie") || !strings.Contains(string(p.Body), "NON_USER_SENTINEL Elodie") {
+			if v.calls != len(selected) || strings.Contains(string(p.Body), "Elodie") || !strings.Contains(string(p.Body), "NON_USER_SENTINEL") {
 				t.Fatal("original protocol scope lost", v.calls, string(p.Body))
 			}
 		})

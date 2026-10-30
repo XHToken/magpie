@@ -20,6 +20,7 @@ var ErrUserInputScope = errors.New("redaction user input source conflict")
 // UserTextView is derived only from the original validated wire protocol.
 // Its positions are server-owned; no client field can declare provenance.
 type UserTextView struct {
+	history           bool
 	appID             string
 	latestUser        int
 	protocol          string
@@ -111,7 +112,7 @@ func (v *UserTextView) Rewrite(texts []string) ([]byte, error) {
 	if len(texts) != len(v.slots) {
 		return nil, ErrUserInputScope
 	}
-	fresh, err := NewUserTextViewForApp(v.protocol, v.body, v.appID)
+	fresh, err := newUserPromptView(v.protocol, v.body, v.appID, v.history)
 	if err != nil {
 		return nil, err
 	}

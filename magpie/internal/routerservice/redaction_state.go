@@ -26,6 +26,13 @@ func (r *RedactionService) state() redactionRuntimeState {
 	if r == nil || r.local == nil || r.local.Manager == nil {
 		return redactionRuntimeState{Capability: routerconfig.RedactionUnavailable, Reason: "runtime_unavailable"}
 	}
+	if r.resultsError != nil || r.results == nil {
+		reason := "redaction_store_unavailable"
+		if r.resultsError != nil {
+			reason = routerredact.SafeFailureCode(r.resultsError.Error())
+		}
+		return redactionRuntimeState{Integrated: true, Statistics: true, Capability: routerconfig.RedactionUnavailable, Reason: reason}
+	}
 	status := r.local.Manager.Status()
 	budgetMS := r.local.Manager.RedactionBudget().Milliseconds()
 	capability := status.Capabilities[routerruntime.Redaction]

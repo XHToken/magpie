@@ -11,7 +11,20 @@ const UserPromptSourceVersion = "workbuddy-loomy-current-prompt-v2"
 
 // NewUserTextViewForApp applies the authenticated application's prompt contract.
 func NewUserTextViewForApp(protocol string, body []byte, appID string) (*UserTextView, error) {
+	return newUserPromptView(protocol, body, appID, false)
+}
+
+// NewUserHistoryViewForApp projects every actual user message. The current-only
+// view remains available for prompt previews and title generation.
+func NewUserHistoryViewForApp(protocol string, body []byte, appID string) (*UserTextView, error) {
+	return newUserPromptView(protocol, body, appID, true)
+}
+
+func newUserPromptView(protocol string, body []byte, appID string, history bool) (*UserTextView, error) {
 	v, err := NewUserTextView(protocol, body)
+	if v != nil {
+		v.history = history
+	}
 	if err != nil || (appID != "workbuddy" && appID != "loomy") {
 		return v, err
 	}
@@ -23,7 +36,7 @@ func NewUserTextViewForApp(protocol string, body []byte, appID string) (*UserTex
 	}
 	latest := v.latestUser
 	for _, slot := range slots {
-		if slot.user != latest {
+		if !history && slot.user != latest {
 			continue
 		}
 		text := slot.object[slot.key].(string)
@@ -45,6 +58,55 @@ func NewUserTextViewForApp(protocol string, body []byte, appID string) (*UserTex
 		}
 	}
 	return v, nil
+}
+
+// UserMessage groups ordered exact prompt blocks without absolute positions in
+// its content identity. Indices refer only to this view, never client IDs.
+type UserMessage struct {
+	Ordinal int
+	Fields  []int
+	Texts   []string
+	Current bool
+}
+
+func (v *UserTextView) Messages() []UserMessage {
+	var messages []UserMessage
+	for i, slot := range v.slots {
+		if len(messages) == 0 || messages[len(messages)-1].Ordinal != slot.user {
+			messages = append(messages, UserMessage{Ordinal: slot.user, Current: slot.user == v.latestUser && v.endsWithUser()})
+		}
+		m := &messages[len(messages)-1]
+		m.Fields = append(m.Fields, i)
+		m.Texts = append(m.Texts, v.texts[i])
+	}
+	return messages
+}
+
+func (v *UserTextView) endsWithUser() bool {
+	if _, ok := v.root["input"].(string); ok {
+		return true
+	}
+	key := "messages"
+	if v.protocol == "responses" {
+		key = "input"
+	}
+	items, _ := v.root[key].([]any)
+	if len(items) == 0 {
+		return false
+	}
+	o, _ := items[len(items)-1].(map[string]any)
+	if o["role"] != "user" {
+		return false
+	}
+	if blocks, ok := o["content"].([]any); ok {
+		for _, raw := range blocks {
+			b, _ := raw.(map[string]any)
+			if b["type"] == "tool_result" {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // WorkBuddy's installed serializer emits attributed reminders followed by one

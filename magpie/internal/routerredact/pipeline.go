@@ -53,6 +53,7 @@ type Pipeline struct {
 	closeOnce sync.Once
 }
 type Prepared struct {
+	protocol                                                               Protocol
 	scopeMeta                                                              ObservationMeta
 	newUserCharacters, reusedFragments, localInferenceCalls, newUserChunks int
 	*Snapshot

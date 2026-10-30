@@ -297,6 +297,15 @@ func (r *Request) finish(result routercloud.Result, err error, status, code, sta
 	outcome.LocalModel = localModel
 	if policy := result.Redaction; policy != nil {
 		outcome.Redaction = &routerledger.RedactionPolicy{ScopeVersion: policy.ScopeVersion, ScanDisposition: policy.ScanDisposition, NewUserCharacters: policy.NewUserCharacters, NewUserChunks: policy.NewUserChunks, ReusedUserFragments: policy.ReusedUserFragments, LocalInferenceCalls: policy.LocalInferenceCalls, PreparationMS: policy.PreparationMS, ProfileRequired: policy.ProfileRequired, ActualModelID: policy.ActualModelID, EngineVersion: policy.EngineVersion, Required: policy.Required, SourceGroupIDs: append([]string(nil), policy.SourceGroupIDs...), SourceGroupCount: policy.SourceGroupCount, ModelID: policy.ModelID, State: policy.State}
+		outcome.Redaction.HistoryUserMessages = policy.HistoryUserMessages
+		outcome.Redaction.CurrentRecognition = policy.CurrentRecognition
+		outcome.Redaction.RecognitionMaterial = policy.RecognitionMaterial
+		outcome.Redaction.OutboundBodyProof = policy.OutboundBodyProof
+		outcome.Redaction.HistoryReused = policy.HistoryReused
+		outcome.Redaction.KnownValueReplacements = policy.KnownValueReplacements
+		outcome.Redaction.SecondaryRecognition = policy.SecondaryRecognition
+		outcome.Redaction.OutboundPolicyVersion = policy.OutboundPolicyVersion
+		outcome.Redaction.OutboundVerified = policy.OutboundVerified
 	}
 	if r.metadata.Operation == "generate" && destination == "local" {
 		outcome.Usage = localUsage

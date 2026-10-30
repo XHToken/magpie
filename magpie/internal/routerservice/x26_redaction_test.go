@@ -97,6 +97,7 @@ func TestX26VariantsUseExistingGroupRedactionPath(t *testing.T) {
 				t.Fatalf("X2.6 group redaction failed: status=%d local=%d upstream=%d body=%s", response.Code, localCalls.Load(), cloudCalls.Load(), response.Body.String())
 			}
 			outbound, _ := upstreamBody.Load().(string)
+			outbound = fixtureLegacyTokens(outbound)
 			if strings.Contains(outbound, "Alice") || strings.Contains(outbound, "first@example.test") || !strings.Contains(outbound, "<NAME:1>") || !strings.Contains(outbound, "<EMAIL:1>") {
 				t.Fatalf("upstream did not receive redacted values: %s", outbound)
 			}

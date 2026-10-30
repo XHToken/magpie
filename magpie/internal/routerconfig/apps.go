@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -54,23 +55,30 @@ type AppCloud struct {
 // AppProfile is independent of Magpie's whole-agent snapshot Profile.
 // Builtin, Configured and Path are derived, never persisted.
 type AppProfile struct {
-	SchemaVersion    int             `json:"schemaVersion"`
-	ID               string          `json:"id"`
-	Revision         int             `json:"revision"`
-	Name             string          `json:"name"`
-	Enabled          bool            `json:"enabled"`
-	Models           []string        `json:"models,omitempty"`
-	Cloud            AppCloud        `json:"cloud"`
-	CredentialMode   string          `json:"credentialMode"`
-	LocalRuntime     string          `json:"localRuntime"`
-	RedactionEnabled bool            `json:"redactionEnabled"`
-	ReferencePrice   *ReferencePrice `json:"referencePrice"`
-	Builtin          bool            `json:"builtin"`
-	Configured       bool            `json:"configured"`
-	Path             string          `json:"path"`
+	AuthorizationGeneration int             `json:"authorizationGeneration,omitempty"`
+	SchemaVersion           int             `json:"schemaVersion"`
+	ID                      string          `json:"id"`
+	Revision                int             `json:"revision"`
+	Name                    string          `json:"name"`
+	Enabled                 bool            `json:"enabled"`
+	Models                  []string        `json:"models,omitempty"`
+	Cloud                   AppCloud        `json:"cloud"`
+	CredentialMode          string          `json:"credentialMode"`
+	LocalRuntime            string          `json:"localRuntime"`
+	RedactionEnabled        bool            `json:"redactionEnabled"`
+	ReferencePrice          *ReferencePrice `json:"referencePrice"`
+	Builtin                 bool            `json:"builtin"`
+	Configured              bool            `json:"configured"`
+	Path                    string          `json:"path"`
 
 	// ModelAliases maps readable WorkBuddy selectors to the selected raw targets.
 	ModelAliases map[string]string `json:"modelAliases,omitempty"`
+}
+
+// RecognitionScope follows the service-resolved application authorization,
+// independently of cloud targets, API key rotation and ordinary page edits.
+func (p AppProfile) RecognitionScope() string {
+	return p.ID + "/" + strconv.Itoa(max(1, p.AuthorizationGeneration))
 }
 
 type AppEdit struct {
@@ -166,6 +174,9 @@ func defaultApp(id, name string) AppProfile {
 }
 
 func validateApp(p AppProfile) error {
+	if p.AuthorizationGeneration < 0 || p.AuthorizationGeneration > p.Revision {
+		return invalidProvider("invalid application authorization generation")
+	}
 	if !ValidAppID(p.ID) || p.SchemaVersion != 1 || p.Revision < 1 || strings.TrimSpace(p.Name) == "" || len(p.Name) > 120 || strings.ContainsAny(p.Name, "\r\n\x00") {
 		return invalidProvider("invalid application identity or Profile schema")
 	}

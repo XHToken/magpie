@@ -10,7 +10,7 @@ import (
 
 const maxEntities = 4096
 const maxEntityBytes = 4096
-const maxPlaceholderBytes = 40
+const maxPlaceholderBytes = 96
 
 // Snapshot is private to one request. Closing it drops its sensitive references.
 // Callers must join response restoration before Close. It never persists data.
@@ -147,15 +147,24 @@ type ReplacementMeta struct {
 }
 
 type ObservationMeta struct {
-	ScopeVersion        string            `json:"scopeVersion,omitempty"`
-	ScanDisposition     string            `json:"scanDisposition,omitempty"`
-	NewUserCharacters   int               `json:"newUserCharacters"`
-	NewUserChunks       int               `json:"newUserChunks"`
-	ReusedUserFragments int               `json:"reusedUserFragments"`
-	LocalInferenceCalls int               `json:"localInferenceCalls"`
-	CacheHit            bool              `json:"cacheHit"`
-	DurationMS          int64             `json:"durationMs"`
-	Replacements        []ReplacementMeta `json:"replacements"`
+	CurrentRecognition     string            `json:"currentRecognition,omitempty"`
+	RecognitionMaterial    string            `json:"recognitionMaterial,omitempty"`
+	OutboundBodyProof      string            `json:"outboundBodyProof,omitempty"`
+	HistoryUserMessages    int               `json:"historyUserMessages"`
+	HistoryReused          int               `json:"historyReused"`
+	KnownValueReplacements int               `json:"knownValueReplacements"`
+	SecondaryRecognition   string            `json:"secondaryRecognition,omitempty"`
+	OutboundPolicyVersion  string            `json:"outboundPolicyVersion,omitempty"`
+	OutboundVerified       bool              `json:"outboundVerified"`
+	ScopeVersion           string            `json:"scopeVersion,omitempty"`
+	ScanDisposition        string            `json:"scanDisposition,omitempty"`
+	NewUserCharacters      int               `json:"newUserCharacters"`
+	NewUserChunks          int               `json:"newUserChunks"`
+	ReusedUserFragments    int               `json:"reusedUserFragments"`
+	LocalInferenceCalls    int               `json:"localInferenceCalls"`
+	CacheHit               bool              `json:"cacheHit"`
+	DurationMS             int64             `json:"durationMs"`
+	Replacements           []ReplacementMeta `json:"replacements"`
 }
 
 func applyEntities(texts []string, entities []Entity, mapping map[string]string, categories map[string]string, reserved []string, generalized ...map[string]string) ([]string, error) {

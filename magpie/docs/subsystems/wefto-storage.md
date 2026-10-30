@@ -18,6 +18,42 @@ macOS also honors absolute `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` 
 
 ## Configuration and secrets
 
+[`routerredact.ResultStore`](../../internal/routerredact/result_store.go) now stores
+per-user-message recognition evidence in `<state>/redaction-results/`, separately
+from request records and observations. It uses the resolved complete legacy or
+current `dirs.Layout`; it never selects another configuration root. Windows is
+the only implemented key-protection backend. Other platforms block production
+redaction with `redaction_store_platform_unsupported`.
+
+The new directory has a protected DACL granting only the current user and SYSTEM
+access; elevated Windows owners may be Administrators. Directory/file DACLs are
+checked, and all path ancestors reject reparse points. Current-user DPAPI with
+UI forbidden wraps a persistent random master key in `keys.dpapi`. HMAC index and
+AES-256-GCM data keys are independently derived. Query keys contain no original
+text. Encrypted payloads contain entity coordinates/category/necessary originals,
+block coverage, complete state, content/material/scope/revision metadata; AAD binds
+the store, schema, key version and result key. Complete zero-hit records are also
+authenticated. Full user messages, assistant/tool history and restoration tables
+are not saved in this store.
+
+`owner.lock` excludes a second writer. SQLite uses DELETE journal mode,
+`synchronous=EXTRA`, bounded busy timeout, and a 256 MiB page cap, with no TTL or
+automatic pruning. Inference runs outside database transactions. A committed
+complete result is required before dispatch; failures never fall back to an
+in-memory-only or plaintext result. The key bundle is synced before initial DB
+creation, and the DB identity is authenticated against its storeId. Missing keys,
+partial initialization, corrupt payloads, unknown schema, unexpected files and
+permissions errors preserve the directory and block redaction. Automatic partial
+initialization recovery, key rotation, backups, and per-record quarantine/recovery
+commands are still pending; do not delete or recreate the directory to repair it.
+
+Application recognition scope is derived from the service-resolved Profile's
+`authorizationGeneration` (legacy absent value means 1). New registrations,
+credential-mode changes and application revocation advance it; provider/model
+changes do not. The broader [history plan](../redaction-history-protection-plan-20261030.md)
+and [implementation record](../redaction-history-implementation-20261030.md) describe
+remaining session/revision and recovery requirements.
+
 [`routerconfig.Store`](../../internal/routerconfig/config.go) owns schema-1 configuration with a nonempty instance identity and listen, apps, providers, redaction and runtime objects. Unknown JSON fields round-trip. Updates retain previous `.bak` files and write atomically through [`steady`](../../internal/steady); a private configuration lock serializes transactions.
 
 Provider records contain credential references and previews; API keys remain in `credentials.json`. Application Profiles hold ordered model/group references, with the first synchronized to legacy primary-model fields. Provider deletion rejects references from saved applications or groups. Model/runtime artifacts and request ledger records remain in their existing owners' paths; renaming does not rewrite their contents.

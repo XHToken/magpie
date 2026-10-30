@@ -104,6 +104,13 @@ func validatedAppDraft(f providerFiles, in AppEdit, redactionCapability Redactio
 		}
 	}
 	p.CredentialMode = in.CredentialMode
+	p.AuthorizationGeneration = max(1, old.AuthorizationGeneration)
+	if !exists {
+		p.AuthorizationGeneration = p.Revision
+	}
+	if old.CredentialMode != p.CredentialMode {
+		p.AuthorizationGeneration = p.Revision
+	}
 	p.RedactionEnabled = in.RedactionEnabled
 	p.ReferencePrice = in.ReferencePrice
 	if err := validateApp(p); err != nil {
@@ -235,6 +242,7 @@ func (s *Store) DeleteAppContext(ctx context.Context, id string, revision int) e
 	if p.Builtin {
 		p = defaultApp(id, builtinApps[id])
 		p.Revision = next
+		p.AuthorizationGeneration = next
 		var previous Document
 		_ = json.Unmarshal(raw[id], &previous)
 		b := mergeObject(raw[id], p)

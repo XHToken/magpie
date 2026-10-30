@@ -22,7 +22,7 @@ func TestInheritedGroupRedactionSuccessRestoresAndProtectsFallback(t *testing.T)
 	var leaks atomic.Int32
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		if strings.Contains(string(body), "宁祁") || !strings.Contains(string(body), "<NAME:1>") {
+		if strings.Contains(fixtureLegacyTokens(string(body)), "宁祁") || !strings.Contains(fixtureLegacyTokens(string(body)), "<NAME:1>") {
 			leaks.Add(1)
 		}
 		if calls.Add(1) == 1 {
@@ -30,7 +30,7 @@ func TestInheritedGroupRedactionSuccessRestoresAndProtectsFallback(t *testing.T)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `{"choices":[{"message":{"role":"assistant","content":"已收到<NAME:1>"},"finish_reason":"stop"}]}`)
+		_, _ = io.WriteString(w, fixtureEchoTokens(body, `{"choices":[{"message":{"role":"assistant","content":"已收到<NAME:1>"},"finish_reason":"stop"}]}`))
 	}))
 	defer upstream.Close()
 	invoker := &dynamicPayloadInvoker{}

@@ -7,7 +7,7 @@ import (
 	"github.com/yetone/magpie/internal/routercloud"
 )
 
-const redactionTaskInstruction = "Redaction tokens of the form <TYPE:number> represent values that have already been supplied. Treat them as valid opaque data, not blank or missing fields. Complete the user's task using these tokens and preserve each token verbatim in text and tool arguments so the local application can restore the values. Do not invent their originals, label them unfilled, ask the user to resend the original sensitive values, or claim the user did not provide them. Do not volunteer explanations of redaction. If a specific operation requires unavailable properties of a hidden value, explain that specific limitation and complete the remaining work."
+const redactionTaskInstruction = "Redaction tokens of the form <TYPE:namespace:number> represent values that have already been supplied. Treat them as valid opaque data, not blank or missing fields. Complete the user's task using these tokens and preserve each token verbatim in text and tool arguments so the local application can restore the values. Do not invent their originals, label them unfilled, ask the user to resend the original sensitive values, or claim the user did not provide them. Do not volunteer explanations of redaction. If a specific operation requires unavailable properties of a hidden value, explain that specific limitation and complete the remaining work."
 
 // This contract is added after recognition and target preparation. It contains
 // no originals or issued mapping tokens and never enters the privacy model.

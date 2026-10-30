@@ -73,7 +73,7 @@ func (p PreparedRequest) UserInputTarget(appIDs ...string) (*cloudcodec.UserText
 	if len(appIDs) > 0 {
 		appID = appIDs[0]
 	}
-	view, err := cloudcodec.NewUserTextViewForApp(p.protocol, p.sourceBody, appID)
+	view, err := cloudcodec.NewUserHistoryViewForApp(p.protocol, p.sourceBody, appID)
 	if err != nil {
 		return nil, err
 	}
@@ -145,13 +145,22 @@ type Result struct {
 
 // RedactionPolicy is safe execution metadata, never request or entity content.
 type RedactionPolicy struct {
-	ScopeVersion        string `json:"scopeVersion,omitempty"`
-	ScanDisposition     string `json:"scanDisposition,omitempty"`
-	NewUserCharacters   int    `json:"newUserCharacters"`
-	NewUserChunks       int    `json:"newUserChunks"`
-	ReusedUserFragments int    `json:"reusedUserFragments"`
-	LocalInferenceCalls int    `json:"localInferenceCalls"`
-	PreparationMS       int64  `json:"preparationMs"`
+	CurrentRecognition     string `json:"currentRecognition,omitempty"`
+	RecognitionMaterial    string `json:"recognitionMaterial,omitempty"`
+	OutboundBodyProof      string `json:"outboundBodyProof,omitempty"`
+	HistoryUserMessages    int    `json:"historyUserMessages"`
+	HistoryReused          int    `json:"historyReused"`
+	KnownValueReplacements int    `json:"knownValueReplacements"`
+	SecondaryRecognition   string `json:"secondaryRecognition,omitempty"`
+	OutboundPolicyVersion  string `json:"outboundPolicyVersion,omitempty"`
+	OutboundVerified       bool   `json:"outboundVerified"`
+	ScopeVersion           string `json:"scopeVersion,omitempty"`
+	ScanDisposition        string `json:"scanDisposition,omitempty"`
+	NewUserCharacters      int    `json:"newUserCharacters"`
+	NewUserChunks          int    `json:"newUserChunks"`
+	ReusedUserFragments    int    `json:"reusedUserFragments"`
+	LocalInferenceCalls    int    `json:"localInferenceCalls"`
+	PreparationMS          int64  `json:"preparationMs"`
 
 	ProfileRequired  bool     `json:"profileRequired,omitempty"`
 	ActualModelID    string   `json:"actualModelId,omitempty"`

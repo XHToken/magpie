@@ -1,6 +1,24 @@
 'use strict';
 (() => {
   for (const [key, zh, tw, ja, de] of [
+    ['Local history preparation', '本机历史补处理', '本機歷程補處理', 'ローカル履歴の準備', 'Lokale Verlaufsvorbereitung'],
+    ['Current user recognition', '当前用户输入识别', '目前使用者輸入識別', '現在のユーザー入力の識別', 'Erkennung der aktuellen Benutzereingabe'],
+    ['New recognition', '新识别', '新識別', '新規識別', 'Neue Erkennung'],
+    ['No entities detected in current input', '当前输入零命中', '目前輸入零命中', '現在の入力に検出なし', 'Keine Entitäten in aktueller Eingabe erkannt'],
+    ['Reused zero-hit result', '复用零命中结果', '重用零命中結果', '検出なし結果を再利用', 'Ergebnis ohne Treffer wiederverwendet'],
+    ['Provide one complete original user message. Completed messages are reused when the application sends its history again.', '每次提供一条完整的用户原文。应用再次发送历史时会复用已完成的识别结果。', '每次提供一條完整的使用者原文。應用再次傳送歷程時會重用已完成的識別結果。', '元のユーザーメッセージを1件ずつ入力します。アプリが履歴を再送すると完了した識別結果を再利用します。', 'Jeweils eine vollständige ursprüngliche Benutzernachricht angeben. Fertige Ergebnisse werden bei erneuter Übermittlung des Verlaufs wiederverwendet.'],
+    ['Create local preparation', '创建本机补处理', '建立本機補處理', 'ローカル準備を作成', 'Lokale Vorbereitung anlegen'],
+    ['Prepare next batch', '处理下一批', '處理下一批', '次のバッチを処理', 'Nächsten Stapel vorbereiten'],
+    ['Cancel preparation', '取消补处理', '取消補處理', '準備をキャンセル', 'Vorbereitung abbrechen'],
+    ['Preparation paused between batches; no cloud requests. Maximum 100 messages / 200000 characters. Restart requires the original request again; completed messages are reused.', '批次之间暂停，不发送云端。最多 100 条消息、20 万字符。重启后需重新提供原始请求，已完成消息可复用。', '批次之間暫停，不傳送雲端。最多 100 條訊息、20 萬字元。重啟後需重新提供原始請求，已完成訊息可重用。', 'バッチ間は一時停止します。クラウド送信なし。最大100メッセージ・20万文字。再起動後は元のリクエストが必要です。完了分は再利用します。', 'Zwischen Stapeln pausiert; keine Cloud-Anfragen. Maximal 100 Nachrichten / 200000 Zeichen. Nach Neustart ursprüngliche Anfrage erneut angeben; fertige Nachrichten werden wiederverwendet.'],
+    ['Completed messages', '已完成消息', '已完成訊息', '完了メッセージ', 'Abgeschlossene Nachrichten'],
+    ['Total characters', '总字符数', '總字元數', '合計文字数', 'Zeichen insgesamt'],
+    ['History user messages', '历史用户消息', '歷程使用者訊息', '履歴のユーザーメッセージ', 'Benutzernachrichten im Verlauf'],
+    ['Persistent results reused', '持久识别结果复用数', '持久識別結果重用數', '永続結果の再利用数', 'Wiederverwendete dauerhafte Ergebnisse'],
+    ['Known value replacements', '已知值替换数量', '已知值置換數量', '既知値の置換数', 'Ersetzungen bekannter Werte'],
+    ['No new recognition for assistant or tools', '助手与工具未进行新实体识别', '助理與工具未進行新實體識別', 'アシスタントとツールの新規識別なし', 'Keine neue Erkennung für Assistenten oder Werkzeuge'],
+    ['Full outbound check passed', '完整出站已知值检查通过', '完整出站已知值檢查通過', '送信全体の既知値検査に合格', 'Vollständige Ausgangsprüfung bekannter Werte bestanden'],
+    ['Clearing observations does not delete reliable recognition results.', '清空观察记录不会删除可靠识别结果。', '清空觀察紀錄不會刪除可靠識別結果。', '観測記録の消去では永続識別結果は削除されません。', 'Das Löschen von Beobachtungen entfernt keine dauerhaften Erkennungsergebnisse.'],
         ['User input redaction', '用户输入脱敏', '使用者輸入去識別化', 'ユーザー入力の匿名化', 'Anonymisierung der Benutzereingabe'],
     ['System prompts and new information from tools are not scanned.', '系统提示词和工具产生的新信息不参与识别。', '系統提示詞與工具產生的新資訊不參與識別。', 'システムプロンプトとツールが生成した新しい情報は識別対象外です。', 'Systemanweisungen und neue Informationen aus Werkzeugen werden nicht geprüft.'],
     ['User input scanned', '已识别用户输入', '已識別使用者輸入', 'ユーザー入力を識別済み', 'Benutzereingabe geprüft'],
@@ -54,7 +72,7 @@
     ['Inspect the latest user input turn of each request before and after redaction. System prompts, tool definitions and tool outputs are excluded.', '展示每次请求最新一轮用户输入的原始文本与脱敏后文本对比。不包含系统提示词、工具定义与工具返回结果。', '顯示每次請求最新一輪使用者輸入的原始文本與去識別化後文本對比。不包含系統提示詞、工具定義與工具傳回結果。', '各リクエストの最新ユーザー入力について、匿名化前後のテキストを比較表示します。システムプロンプト、ツール定義、ツール出力は除外されます。', 'Zeigt die letzte Benutzereingabe jeder Anfrage vor und nach der Anonymisierung. Systemprompts, Tool-Definitionen und Tool-Ausgaben sind ausgeschlossen.'],
     ['Observed inputs', '观测输入总数', '觀測輸入總數', '観測された入力数', 'Beobachtete Eingaben'], ['Redaction hits', '命中脱敏次数', '命中去識別化次數', '匿名化ヒット数', 'Anonymisierungstreffer'], ['Pass-through inputs', '未命中原样放行', '未命中原樣放行', '未検出（そのまま通過）', 'Unverändert durchgeleitet'], ['Redacted entities', '累计替换敏感项', '累計替換敏感項', '置換された機密項目数', 'Ersetzte sensible Elemente'],
     ['All user inputs', '全部用户输入', '全部使用者輸入', 'すべてのユーザー入力', 'Alle Benutzereingaben'], ['Redaction hits only', '仅看命中脱敏', '僅看命中去識別化', '匿名化ヒットのみ', 'Nur Treffer'], ['Keyword search', '关键词搜索', '關鍵字搜尋', 'キーワード検索', 'Stichwortsuche'], ['Search original or redacted text…', '搜索原始输入或脱敏文本…', '搜尋原始輸入或去識別化文本…', '元のテキストまたは匿名化テキストを検索…', 'Original- oder anonymisierten Text suchen…'],
-    ['Clear records', '清空记录', '清空紀錄', '記録を消去', 'Einträge löschen'], ['Confirm clear', '确认清空', '確認清空', '消去を確認', 'Löschen bestätigen'], ['Original user input (before redaction)', '原始用户输入（脱敏前）', '原始使用者輸入（去識別化前）', '元のユーザー入力（匿名化前）', 'Ursprüngliche Benutzereingabe (vor Anonymisierung)'], ['Redacted user input (sent to model)', '脱敏后用户输入（实际发送）', '去識別化後使用者輸入（實際傳送）', '匿名化後のユーザー入力（送信内容）', 'Anonymisierte Benutzereingabe (gesendet)'],
+    ['Clear records', '清空记录', '清空紀錄', '記録を消去', 'Einträge löschen'], ['Confirm clear', '确认清空', '確認清空', '消去を確認', 'Löschen bestätigen'], ['Original user input (before redaction)', '原始用户输入（脱敏前）', '原始使用者輸入（去識別化前）', '元のユーザー入力（匿名化前）', 'Ursprüngliche Benutzereingabe (vor Anonymisierung)'], ['Prepared redacted user input', '脱敏后用户输入（已准备）', '去識別化後使用者輸入（已準備）', '匿名化後のユーザー入力（準備済み）', 'Vorbereitete anonymisierte Benutzereingabe'],
     ['Copy', '复制', '複製', 'コピー', 'Kopieren'], ['Copied', '已复制', '已複製', 'コピー済み', 'Kopiert'], ['Sensitive entity mappings', '敏感实体替换映射表', '敏感實體替換映射表', '機密エンティティ置換マッピング', 'Zuordnung sensibler Entitäten'], ['Redacted token', '脱敏后表示', '去識別化後表示', '置換後トークン', 'Anonymisierter Token'],
     ['Sensitive category', '敏感类别', '敏感類別', '機密カテゴリ', 'Kategorie'], ['Original value', '原始敏感内容', '原始敏感內容', '元の機密値', 'Ursprünglicher Wert'], ['Occurrences', '替换次数', '替換次數', '置換回数', 'Vorkommen'], ['Hit {count} items', '命中 {count} 项', '命中 {count} 項', '{count} 件検出', '{count} Treffer'],
     ['No sensitive info', '未命中敏感信息', '未命中敏感資訊', '機密情報なし', 'Keine sensiblen Daten'], ['Cache hit', '命中缓存', '命中快取', 'キャッシュヒット', 'Cache-Treffer'], ['Generalized', '泛化', '泛化', '汎化', 'Verallgemeinert'], ['No redaction observations yet', '暂无脱敏观测记录', '暫無去識別化觀測紀錄', '匿名化の観測記録はまだありません', 'Noch keine Anonymisierungsbeobachtungen'],
@@ -240,10 +258,14 @@
     field(dl, 'Judgment duration (ms)', milliseconds(selected.judgmentMs));
     const policy = selected.redactionPolicy;
     if (policy?.scopeVersion) {
+      if (policy.currentRecognition) field(dl,'Current user recognition',label({new:'New recognition',zero_hit:'No entities detected in current input',reused:'Persistent results reused',reused_zero_hit:'Reused zero-hit result'},policy.currentRecognition));
       field(dl, 'Redaction scope', policy.scopeVersion === 'user-input-v1' ? t('User input redaction') : policy.scopeVersion);
-      const disposition = { scanned: 'User input scanned', cache_hit: 'User history reused', known_values_only: 'Known user values only', no_user_input: 'No user input to scan' };
+      const disposition = { scanned: 'User input scanned', cache_hit: 'User history reused', persistent_reuse: 'Persistent results reused', known_values_only: 'Known user values only', no_user_input: 'No user input to scan' };
       field(dl, 'User input processing', label(disposition, policy.scanDisposition));
       for (const [name, key] of [['New user characters','newUserCharacters'], ['New user chunks','newUserChunks'], ['Reused user fragments','reusedUserFragments'], ['Local redaction calls','localInferenceCalls']]) field(dl, name, num(policy[key]));
+      for (const [name, key] of [['History user messages','historyUserMessages'], ['Persistent results reused','historyReused'], ['Known value replacements','knownValueReplacements']]) field(dl,name,num(policy[key]));
+      if (policy.secondaryRecognition === 'known_values_only') field(dl,'Known user values only',t('No new recognition for assistant or tools'));
+      field(dl,'Full outbound check passed',t(policy.outboundVerified ? 'Yes' : 'No'));
     }
     field(dl, 'Redaction requirement', policy ? t(policy.required ? 'Yes' : 'No') : t('Unknown'));
     field(dl, 'Redaction policy', policy ? label({ not_required: 'No redaction required', not_sent: 'No outbound attempt', prepared: 'Redaction prepared', blocked: 'Cloud request blocked', pending: 'Processing' }, policy.state) : t('Unknown'));
@@ -436,7 +458,7 @@
       redactedPatterns.push({ needle: match[0] });
     }
     const redactedPanel = el('div', 'redact-panel is-redacted'), redactedHead = el('div', 'redact-panel-head');
-    redactedHead.append(el('b', '', t('Redacted user input (sent to model)')), copyButton(obs.redactedInput));
+    redactedHead.append(el('b', '', t('Prepared redacted user input')), copyButton(obs.redactedInput));
     redactedPanel.append(redactedHead, renderHighlightedCode(obs.redactedInput, redactedPatterns, 'redact-mark-redacted'));
 
     grid.append(rawPanel, redactedPanel);
@@ -578,6 +600,39 @@
     finally { if (request === sequence) { loading = false; render(); } }
   }
   $('#requestFilters').onsubmit = event => { event.preventDefault(); load(''); };
+  const preparationBox = $('#historyPreparation');
+  if (preparationBox) {
+    const panel = el('details', 'request-card'), heading = el('summary','',t('Local history preparation'));
+    panel.append(heading,el('p','router-note',t('Preparation paused between batches; no cloud requests. Maximum 100 messages / 200000 characters. Restart requires the original request again; completed messages are reused.')),el('p','router-note',t('Clearing observations does not delete reliable recognition results.')));
+    panel.append(el('p','router-note',t('Provide one complete original user message. Completed messages are reused when the application sends its history again.')));
+    const form = el('form','request-fields'), inputs = {};
+    form.style.gridTemplateColumns='minmax(0,1fr)';
+    for (const [key,label,multiline] of [['appId','Application ID',false],['body','Original user input (before redaction)',true]]) {
+      const item = el('label','',t(label)), input=el(multiline ? 'textarea':'input'); input.name=key;input.autocomplete='off'; input.spellcheck=false;
+      item.style.display='grid';input.style.width='100%';input.style.minWidth='0';input.style.boxSizing='border-box';
+      if (multiline) {input.rows=8;input.style.width='100%';} else input.type='text';
+      item.append(input);form.append(item);inputs[key]=input;
+    }
+    inputs.appId.value='workbuddy';
+    const status=el('p','router-note');status.setAttribute('role','status');
+    let taskId='',busy=false,pendingCancel=false,flight=null,done=false;
+    const show=p=>{status.textContent=t('Completed messages')+': '+p.completedMessages+' / '+p.totalMessages+' · '+t('Total characters')+': '+p.totalCharacters+' · '+p.completedChunks+' / '+p.totalChunks;next.disabled=busy || !taskId || p.done;};
+    const send=async action=>{
+      if (busy || !managementToken) return;busy=true;create.disabled=next.disabled=true;cancel.disabled=!taskId;
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),35000);
+      flight=controller;
+      try {
+        const payload={action,id:taskId,appId:inputs.appId.value.trim()};
+        if (action==='create') {payload.protocol='chat';payload.body={model:'local-history-preparation',messages:[{role:'user',content:inputs.body.value}]};payload.selected=[0];}
+        const response=await managementFetch('/api/redaction/history',{method:'POST',headers:{Authorization:'Bearer '+managementToken,'Content-Type':'application/json'},body:JSON.stringify(payload),credentials:'omit',redirect:'error',cache:'no-store',signal:controller.signal});
+        const data=await response.json();if (!response.ok) throw new Error(data.error?.code || 'redaction_unavailable');
+        taskId=action==='cancel' ? '' : data.id;done=data.progress.done;busy=false;show(data.progress);
+      } catch {status.textContent=t('Redaction failed');} finally {clearTimeout(timer);flight=null;busy=false;create.disabled=false;cancel.disabled=!taskId;next.disabled=!taskId || done;if (pendingCancel) {pendingCancel=false;send('cancel');}}
+    };
+    const create=button('Create local preparation',()=>send('create')),next=button('Prepare next batch',()=>send('step')),cancel=button('Cancel preparation',()=>{if (busy) {pendingCancel=true;flight?.abort();} else send('cancel');});
+    for (const btn of [create,next,cancel]) btn.type='button';next.disabled=cancel.disabled=true;
+    form.onsubmit=event=>event.preventDefault();form.append(create,next,cancel,status);panel.append(form);preparationBox.append(panel);
+  }
   if ($('#redactionObsFilters')) $('#redactionObsFilters').onsubmit = event => { event.preventDefault(); confirmingClear = false; load(''); };
   if ($('#redactionObsClear')) $('#redactionObsClear').onclick = () => clearRedactionObservations();
   window.routerObservationsOpen = () => { confirmingClear = false; load(''); }; window.routerObservationsRender = render;

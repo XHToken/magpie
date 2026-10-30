@@ -208,6 +208,8 @@ func TestHostOnlyCurrentPromptReachesModelAndRestores(t *testing.T) {
 				}})
 				v := &currentPromptInvoker{t: t}
 				opts := redactionTestOptions(t, ModelOptions{Routing: &RoutingOptions{LocalInvoker: v}})
+				prepareFixtureHistory(t, opts.Redaction, app, "chat", body, 0)
+				v.texts = nil
 				wire, err := routercloud.PrepareRequestBody(routercloud.Request{Protocol: "chat", Body: body, Target: routercloud.Target{Model: "fixture", Provider: routerconfig.ResolvedProvider{Config: routerconfig.CloudProvider{Protocol: targetProtocol, BaseURL: "http://127.0.0.1/v1"}}}}, false)
 				if err != nil {
 					t.Fatal(err)
@@ -230,7 +232,7 @@ func TestHostOnlyCurrentPromptReachesModelAndRestores(t *testing.T) {
 				if strings.Contains(string(prepared.Body), "张小测") || strings.Contains(string(prepared.Body), "13800001234") || !strings.Contains(string(prepared.Body), "NON_USER_CONTEXT") || !strings.Contains(string(prepared.Body), "NON_USER_HISTORY") {
 					t.Fatal("incorrect source replacement or lost cloud context")
 				}
-				response := []byte(`{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"<NAME:1> <PHONE:1>"}}]}`)
+				response := []byte(fixtureEchoTokens(prepared.Body, `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"<NAME:1> <PHONE:1>"}}]}`))
 				restored, err := prepared.Restore(context.Background(), "chat", "application/json", response)
 				if err != nil || !strings.Contains(string(restored), "张小测") || !strings.Contains(string(restored), "13800001234") {
 					t.Fatal("prompt response failed to restore", err)
@@ -252,9 +254,7 @@ func TestHostCurrentPromptCacheIgnoresInjectedContext(t *testing.T) {
 					current = "<system-reminder data-role=\"user-context\">" + contextText + "</system-reminder><user_query>" + prompt + "</user_query>"
 				}
 				messages := []any{map[string]any{"role": "user", "content": current}}
-				if contextText == "CHANGED_CONTEXT" {
-					messages = append([]any{map[string]any{"role": "user", "content": "OLDER_USER_PROMPT"}, map[string]any{"role": "assistant", "content": "OLDER_ASSISTANT_REPLY"}}, messages...)
-				}
+
 				body, _ := json.Marshal(map[string]any{"model": "fixture", "messages": messages})
 				p, err := opts.Redaction.Prepare(context.Background(), RedactionRequest{RequestID: contextText, AppID: app, SourceProtocol: "chat", TargetProtocol: "chat", Operation: "generation", Body: body})
 				if err != nil {
@@ -263,7 +263,7 @@ func TestHostCurrentPromptCacheIgnoresInjectedContext(t *testing.T) {
 				if !strings.Contains(string(p.Body), contextText) || strings.Contains(string(p.Body), "13800001234") {
 					t.Fatal("cache changed context or leaked prompt")
 				}
-				if contextText == "CHANGED_CONTEXT" && (p.ObservationMeta.NewUserCharacters != 0 || p.ObservationMeta.LocalInferenceCalls != 0 || p.ObservationMeta.ScanDisposition != "cache_hit") {
+				if contextText == "CHANGED_CONTEXT" && (p.ObservationMeta.NewUserCharacters != 0 || p.ObservationMeta.LocalInferenceCalls != 0 || p.ObservationMeta.ScanDisposition != "persistent_reuse") {
 					t.Fatal("identical prompt was scanned again", p.ObservationMeta)
 				}
 				closePreparedCloud(p)

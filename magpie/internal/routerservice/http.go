@@ -111,6 +111,7 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 		isGroup := r.URL.Path == "/api/routing-groups" || r.URL.Path == "/api/routing-groups/switch"
 		isRedaction := r.URL.Path == "/api/redaction"
 		isRedactionObs := r.URL.Path == "/api/redaction/observations"
+		isHistory := r.URL.Path == "/api/redaction/history"
 		isTutorial := r.URL.Path == "/api/tutorial/dismiss"
 		allowed, methods := r.Method == http.MethodGet || r.Method == http.MethodHead, "GET, HEAD"
 		if r.URL.Path == "/api/cloud-providers" || r.URL.Path == "/api/routing-groups" || isApp {
@@ -128,12 +129,15 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 			allowed = r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodPost || r.Method == http.MethodDelete
 			methods = "GET, HEAD, POST, DELETE"
 		}
+		if isHistory {
+			allowed, methods = r.Method == http.MethodPost, "POST"
+		}
 		if !allowed {
 			w.Header().Set("Allow", methods)
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if (r.URL.Path == "/api/service" || isControl || isProvider || isGroup || isApp || isRequest || isLoomy || isHostAuto || isLocal || isRedaction || isRedactionObs || isTutorial) && subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
+		if (r.URL.Path == "/api/service" || isControl || isProvider || isGroup || isApp || isRequest || isLoomy || isHostAuto || isLocal || isRedaction || isRedactionObs || isHistory || isTutorial) && subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, "management token required", http.StatusUnauthorized)
 			return
@@ -156,6 +160,10 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 		}
 		if isRedactionObs {
 			redactionObservationsAPI(w, r, options.RedactionObservations)
+			return
+		}
+		if isHistory {
+			historyPreparationAPI(w, r, store, options.Redaction)
 			return
 		}
 		if isRedaction {
@@ -265,6 +273,8 @@ func handlerWithModelOptions(info Info, token string, store *routerconfig.Store,
 
 func allowedAPIPath(path string) bool {
 	switch path {
+	case "/api/redaction/history":
+		return true
 	case "/api/service", "/api/tutorial/dismiss", "/api/cloud-providers", "/api/cloud-providers/models", "/api/routing-groups", "/api/routing-groups/switch", "/api/apps", "/api/apps/check", "/api/hosts/loomy", "/api/hosts/auto", "/api/redaction", "/api/redaction/observations", "/api/service/stop", "/api/service/restart", "/api/service/autostart":
 		return true
 	}

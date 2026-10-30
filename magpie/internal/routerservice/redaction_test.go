@@ -190,7 +190,7 @@ func TestRedactionMultiTurnSessionCacheHitAndIncrementalExtraction(t *testing.T)
 		b, _ := io.ReadAll(r.Body)
 		cloudBodies = append(cloudBodies, string(b))
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"Hello <NAME:1>"},"finish_reason":"stop"}]}`))
+		_, _ = w.Write([]byte(fixtureEchoTokens(b, `{"choices":[{"message":{"role":"assistant","content":"Hello <NAME:1>"},"finish_reason":"stop"}]}`)))
 	}))
 	defer cloud.Close()
 

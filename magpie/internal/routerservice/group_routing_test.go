@@ -876,10 +876,10 @@ func TestGroupLocalRedactionExecution(t *testing.T) {
 	cloudSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, _ := io.ReadAll(r.Body)
 		mu.Lock()
-		upstreamBodies = append(upstreamBodies, string(raw))
+		upstreamBodies = append(upstreamBodies, fixtureLegacyTokens(string(raw)))
 		mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"chatcmpl-red","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"已收到<NAME:1>的电话<PHONE:1>"},"finish_reason":"stop"}]}`))
+		_, _ = w.Write([]byte(fixtureEchoTokens(raw, `{"id":"chatcmpl-red","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"已收到<NAME:1>的电话<PHONE:1>"},"finish_reason":"stop"}]}`)))
 	}))
 	defer cloudSrv.Close()
 
@@ -1025,10 +1025,10 @@ func TestGroupLocalRedactionInvalidCompletionMustBlock(t *testing.T) {
 	cloudSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, _ := io.ReadAll(r.Body)
 		mu.Lock()
-		upstreamBodies = append(upstreamBodies, string(raw))
+		upstreamBodies = append(upstreamBodies, fixtureLegacyTokens(string(raw)))
 		mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"chatcmpl-red","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"已收到<NAME:1>"},"finish_reason":"stop"}]}`))
+		_, _ = w.Write([]byte(fixtureEchoTokens(raw, `{"id":"chatcmpl-red","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"已收到<NAME:1>"},"finish_reason":"stop"}]}`)))
 	}))
 	defer cloudSrv.Close()
 
@@ -1331,8 +1331,8 @@ func (p *purposeSwitchInvoker) Invoke(_ context.Context, purpose routerruntime.P
 	if purpose == routerruntime.Redaction {
 		payload = p.redactResp
 	} else {
-		p.execBodies = append(p.execBodies, string(body))
-		payload = p.execResp
+		p.execBodies = append(p.execBodies, fixtureLegacyTokens(string(body)))
+		payload = fixtureEchoTokens(body, p.execResp)
 		if p.execStatus != 0 {
 			status = p.execStatus
 		}
@@ -1508,7 +1508,8 @@ func TestGroupLocalCandidateRestoreFailureFailsClosedWithoutCommittingOutput(t *
 	cloudSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cloudCalls.Add(1)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"cloud-fallback","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"来自云端恢复<NAME:1>"},"finish_reason":"stop"}]}`))
+		raw, _ := io.ReadAll(r.Body)
+		_, _ = w.Write([]byte(fixtureEchoTokens(raw, `{"id":"cloud-fallback","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"来自云端恢复<NAME:1>"},"finish_reason":"stop"}]}`)))
 	}))
 	defer cloudSrv.Close()
 

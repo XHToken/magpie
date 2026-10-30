@@ -99,13 +99,22 @@ type Outcome struct {
 
 // RedactionPolicy is optional for backward compatibility with historical records.
 type RedactionPolicy struct {
-	ScopeVersion        string `json:"scopeVersion,omitempty"`
-	ScanDisposition     string `json:"scanDisposition,omitempty"`
-	NewUserCharacters   int    `json:"newUserCharacters"`
-	NewUserChunks       int    `json:"newUserChunks"`
-	ReusedUserFragments int    `json:"reusedUserFragments"`
-	LocalInferenceCalls int    `json:"localInferenceCalls"`
-	PreparationMS       int64  `json:"preparationMs"`
+	CurrentRecognition     string `json:"currentRecognition,omitempty"`
+	RecognitionMaterial    string `json:"recognitionMaterial,omitempty"`
+	OutboundBodyProof      string `json:"outboundBodyProof,omitempty"`
+	HistoryUserMessages    int    `json:"historyUserMessages"`
+	HistoryReused          int    `json:"historyReused"`
+	KnownValueReplacements int    `json:"knownValueReplacements"`
+	SecondaryRecognition   string `json:"secondaryRecognition,omitempty"`
+	OutboundPolicyVersion  string `json:"outboundPolicyVersion,omitempty"`
+	OutboundVerified       bool   `json:"outboundVerified"`
+	ScopeVersion           string `json:"scopeVersion,omitempty"`
+	ScanDisposition        string `json:"scanDisposition,omitempty"`
+	NewUserCharacters      int    `json:"newUserCharacters"`
+	NewUserChunks          int    `json:"newUserChunks"`
+	ReusedUserFragments    int    `json:"reusedUserFragments"`
+	LocalInferenceCalls    int    `json:"localInferenceCalls"`
+	PreparationMS          int64  `json:"preparationMs"`
 
 	ProfileRequired  bool     `json:"profileRequired,omitempty"`
 	ActualModelID    string   `json:"actualModelId,omitempty"`

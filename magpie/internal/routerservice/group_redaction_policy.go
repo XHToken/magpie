@@ -142,6 +142,15 @@ func redactionSnapshot(ctx context.Context, err error) *routercloud.RedactionPol
 	}
 	policy := &routercloud.RedactionPolicy{ProfileRequired: work.plan.ProfileRequired, ActualModelID: work.actualModelID, EngineVersion: work.engineVersion, Required: required, SourceGroupIDs: slices.Clone(work.plan.SourceGroupIDs[:min(8, len(work.plan.SourceGroupIDs))]), SourceGroupCount: len(work.plan.SourceGroupIDs), ModelID: work.plan.RequiredModelID, State: state}
 	if m := work.meta; m != nil {
+		policy.CurrentRecognition = m.CurrentRecognition
+		policy.RecognitionMaterial = m.RecognitionMaterial
+		policy.OutboundBodyProof = m.OutboundBodyProof
+		policy.HistoryUserMessages = m.HistoryUserMessages
+		policy.HistoryReused = m.HistoryReused
+		policy.KnownValueReplacements = m.KnownValueReplacements
+		policy.SecondaryRecognition = m.SecondaryRecognition
+		policy.OutboundPolicyVersion = m.OutboundPolicyVersion
+		policy.OutboundVerified = m.OutboundVerified
 		policy.ScopeVersion = m.ScopeVersion
 		policy.ScanDisposition = m.ScanDisposition
 		policy.NewUserCharacters = m.NewUserCharacters

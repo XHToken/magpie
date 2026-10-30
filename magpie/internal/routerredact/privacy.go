@@ -1,5 +1,12 @@
 package routerredact
 
+func (*ResultStore) String() string               { return "redaction results (private)" }
+func (*ResultStore) GoString() string             { return "redaction results (private)" }
+func (*ResultStore) MarshalJSON() ([]byte, error) { return []byte(`{"private":true}`), nil }
+func (*HistoryTask) String() string               { return "redaction history task (private)" }
+func (*HistoryTask) GoString() string             { return "redaction history task (private)" }
+func (*HistoryTask) MarshalJSON() ([]byte, error) { return []byte(`{"private":true}`), nil }
+
 func (*Pipeline) String() string               { return "redaction pipeline (private)" }
 func (*Pipeline) GoString() string             { return "redaction pipeline (private)" }
 func (*Pipeline) MarshalJSON() ([]byte, error) { return []byte(`{"private":true}`), nil }

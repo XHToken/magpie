@@ -13,11 +13,16 @@ import (
 
 	"github.com/yetone/magpie/internal/cloudcodec"
 	"github.com/yetone/magpie/internal/routerredact"
+	"github.com/yetone/magpie/internal/routerrequest"
 	"github.com/yetone/magpie/internal/routerruntime"
 )
 
 // RedactionService owns one production engine for all request policy sources.
 type RedactionService struct {
+	historyMu    sync.Mutex
+	historyTasks map[string]*historyPreparation
+	results      *routerredact.ResultStore
+	resultsError error
 	sessionKey   []byte
 	ctx          context.Context
 	cancel       context.CancelFunc
@@ -75,7 +80,11 @@ func (r *RedactionService) acquirePromptScan(ctx context.Context, key [32]byte) 
 
 func newRedactionService(local *LocalModels, experimental ...bool) *RedactionService {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &RedactionService{ctx: ctx, cancel: cancel, local: local, experimental: len(experimental) > 0 && experimental[0], refs: map[*routerredact.Pipeline]int{}}
+	r := &RedactionService{ctx: ctx, cancel: cancel, local: local, experimental: len(experimental) > 0 && experimental[0], refs: map[*routerredact.Pipeline]int{}}
+	if local != nil && local.Layout.State != "" {
+		r.results, r.resultsError = routerredact.OpenResultStore(local.Layout)
+	}
+	return r
 }
 func routingVersions(spec *routerredact.PrivacySpecification) RoutingVersions {
 	v := spec.RoutingVersions()
@@ -122,7 +131,7 @@ func (r *RedactionService) currentLocked(ctx context.Context) (*routerredact.Pip
 			budget = b
 		}
 	}
-	pipeline := routerredact.New(routerredact.Options{Extractor: routerredact.NewHybridExtractor(invoker, spec), Budget: budget, ReversibleAmounts: true})
+	pipeline := routerredact.New(routerredact.Options{Results: r.results, Extractor: routerredact.NewHybridExtractor(invoker, spec), Budget: budget, ReversibleAmounts: true})
 	var closeOld *routerredact.Pipeline
 	if old := r.active; old != nil {
 		old.Clear()
@@ -192,6 +201,12 @@ func (r *RedactionService) Prepare(ctx context.Context, req RedactionRequest) (P
 // prepare takes one immutable binding. Later candidates must match it; policy
 // source flags never select another specification or renew the deadline.
 func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, expected *RoutingVersions) (PreparedCloudRequest, error) {
+	if r.resultsError != nil {
+		return PreparedCloudRequest{}, redactionHistoryError(r.resultsError)
+	}
+	if r.results == nil {
+		return PreparedCloudRequest{}, ErrRedactionUnavailable
+	}
 	started := time.Now()
 	budget := routerruntime.DefaultRedactionBudget
 	if r.local != nil && r.local.Manager != nil {
@@ -218,7 +233,7 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 		if len(source) == 0 && client == target {
 			source = req.Body
 		}
-		view, e := cloudcodec.NewUserTextViewForApp(string(client), source, req.AppID)
+		view, e := cloudcodec.NewUserHistoryViewForApp(string(client), source, req.AppID)
 		noInput := e == nil
 		if noInput {
 			for _, text := range view.Texts() {
@@ -231,7 +246,7 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 		if noInput {
 			if spec, e := r.specification(ctx); e == nil {
 				transient = true
-				p = routerredact.New(routerredact.Options{})
+				p = routerredact.New(routerredact.Options{Results: r.results})
 				s = spec
 				old = nil
 				err = nil
@@ -282,7 +297,7 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 		if client != target {
 			return PreparedCloudRequest{}, ErrRedactionUnavailable
 		}
-		view, e := cloudcodec.NewUserTextViewForApp(string(client), source, req.AppID)
+		view, e := cloudcodec.NewUserHistoryViewForApp(string(client), source, req.AppID)
 		if e != nil {
 			return PreparedCloudRequest{}, ErrRedactionUnavailable
 		}
@@ -297,7 +312,7 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 		req.SessionID = work.session.ID
 		req.SessionVerified = true
 	}
-	view, e := cloudcodec.NewUserTextViewForApp(string(client), source, req.AppID)
+	view, e := cloudcodec.NewUserHistoryViewForApp(string(client), source, req.AppID)
 	if e != nil {
 		return PreparedCloudRequest{}, ErrRedactionUnavailable
 	}
@@ -306,13 +321,6 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 	}
 	material, _ := json.Marshal([]any{req.AppID, client, view.Identities(), view.Texts()})
 	sourceIdentity := sha256.Sum256(material)
-	if req.AppID == "workbuddy" || req.AppID == "loomy" {
-		// Each entry contains only the exact current prompt already supplied by
-		// this authenticated app, never another turn's undisclosed values.
-		// The Pipeline also checks fingerprints, material and target literals.
-		req.SessionID = "prompt:" + hex.EncodeToString(sourceIdentity[:])
-		req.SessionVerified = true
-	}
 	if work != nil && work.userSnapshot != nil {
 		if work.sourceIdentity != sourceIdentity {
 			return PreparedCloudRequest{}, ErrRedactionUnavailable
@@ -328,9 +336,13 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 			}
 			defer release()
 		}
-		user, err = p.ScanUserInput(ctx, routerredact.Input{RequestID: req.RequestID, AppID: req.AppID, Protocol: client, Operation: req.Operation, SessionID: req.SessionID, SessionVerified: req.SessionVerified, Versions: s.Versions(), Body: source, ReservedBody: req.Body})
+		scope := req.AppID + "/1"
+		if state, ok := routerrequest.FromContext(ctx); ok {
+			scope = state.Target.Profile.RecognitionScope()
+		}
+		user, err = p.ScanUserInput(ctx, routerredact.Input{AuthenticatedScope: scope, RecognitionMaterial: s.RecognitionMaterialID(), RequestID: req.RequestID, AppID: req.AppID, Protocol: client, Operation: req.Operation, SessionID: req.SessionID, SessionVerified: req.SessionVerified, Versions: s.Versions(), Body: source, ReservedBody: req.Body})
 		if err != nil {
-			return PreparedCloudRequest{}, err
+			return PreparedCloudRequest{}, redactionHistoryError(err)
 		}
 		if work != nil {
 			work.userSnapshot = user
@@ -360,6 +372,12 @@ func (r *RedactionService) prepare(ctx context.Context, req RedactionRequest, ex
 			return PreparedCloudRequest{}, ErrRedactionUnavailable
 		}
 	}
+	if err = prepared.VerifyFinalBody(ctx, body); err != nil {
+		prepared.Close()
+		return PreparedCloudRequest{}, redactionHistoryError(err)
+	}
+	proof := sha256.Sum256(body)
+	meta.OutboundBodyProof = hex.EncodeToString(proof[:])
 	meta.DurationMS = time.Since(started).Milliseconds()
 	var once sync.Once
 	ok = true
@@ -429,8 +447,18 @@ func (r *RedactionService) close() {
 		pipelines = append(pipelines, r.active)
 	}
 	r.mu.Unlock()
+	r.historyMu.Lock()
+	tasks := r.historyTasks
+	r.historyTasks = nil
+	r.historyMu.Unlock()
+	for _, task := range tasks {
+		task.task.Cancel()
+	}
 	for _, p := range pipelines {
 		p.Close()
+	}
+	if r.results != nil {
+		_ = r.results.Close()
 	}
 }
 func (r *RedactionService) Close() error { r.close(); return nil }

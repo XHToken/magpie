@@ -89,6 +89,10 @@ func validStatus(s string, processing bool) bool {
 // boundaries. Unknown strings, including raw errors, collapse to router_error.
 func SafeCode(s string) string {
 	switch s {
+	case "redaction_store_capacity":
+		return s
+	case "redaction_history_prepare_required", "redaction_store_unavailable", "redaction_store_permissions", "redaction_store_key_unavailable", "redaction_store_corrupt", "redaction_store_schema", "redaction_store_commit_failed", "redaction_store_platform_unsupported", "redaction_placeholder_collision", "redaction_outbound_control_value", "redaction_outbound_residual":
+		return s
 	case "redaction_policy_conflict", "redaction_policy_invalid", "redaction_model_missing":
 		return s
 	}
@@ -132,11 +136,22 @@ const MaxAttempts = 16
 
 func validOutcome(o Outcome, processing bool) bool {
 	if p := o.Redaction; p != nil {
+		if !display(p.RecognitionMaterial, 128) || !display(p.OutboundBodyProof, 64) {
+			return false
+		}
+		switch p.CurrentRecognition {
+		case "", "new", "zero_hit", "reused", "reused_zero_hit":
+		default:
+			return false
+		}
+		if p.HistoryUserMessages < 0 || p.HistoryUserMessages > 8192 || p.HistoryReused < 0 || p.HistoryReused > p.HistoryUserMessages || p.KnownValueReplacements < 0 || p.KnownValueReplacements > 8<<20 || (p.SecondaryRecognition != "" && p.SecondaryRecognition != "known_values_only") || !display(p.OutboundPolicyVersion, 128) {
+			return false
+		}
 		if !display(p.ScopeVersion, 128) || p.NewUserCharacters < 0 || p.NewUserCharacters > 8<<20 || p.NewUserChunks < 0 || p.NewUserChunks > 64 || p.ReusedUserFragments < 0 || p.ReusedUserFragments > 8192 || p.LocalInferenceCalls < 0 || p.LocalInferenceCalls > 1024 || p.PreparationMS < 0 {
 			return false
 		}
 		switch p.ScanDisposition {
-		case "", "scanned", "cache_hit", "known_values_only", "no_user_input":
+		case "", "scanned", "cache_hit", "persistent_reuse", "known_values_only", "no_user_input":
 		default:
 			return false
 		}

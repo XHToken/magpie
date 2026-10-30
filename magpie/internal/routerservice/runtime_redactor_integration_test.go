@@ -101,7 +101,7 @@ func TestProductionHTTPW4W5UsesTargetWireAndRestoresClientResponse(t *testing.T)
 				cloud := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					cloudBody, _ = io.ReadAll(r.Body)
 					w.Header().Set("Content-Type", "application/json")
-					_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"<NAME:1>"},"finish_reason":"stop"}]}`))
+					_, _ = w.Write([]byte(fixtureEchoTokens(cloudBody, `{"choices":[{"message":{"role":"assistant","content":"<NAME:1>"},"finish_reason":"stop"}]}`)))
 				}))
 				defer cloud.Close()
 
@@ -171,7 +171,7 @@ func TestProductionHTTPW4W5UsesTargetWireAndRestoresClientResponse(t *testing.T)
 				if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Alice") {
 					t.Fatalf("integrated request was not restored: %d %s", w.Code, w.Body.String())
 				}
-				if strings.Contains(string(cloudBody), "Alice") || !strings.Contains(string(cloudBody), "<NAME:1>") {
+				if strings.Contains(fixtureLegacyTokens(string(cloudBody)), "Alice") || !strings.Contains(fixtureLegacyTokens(string(cloudBody)), "<NAME:1>") {
 					t.Fatalf("raw entity reached cloud: %s", cloudBody)
 				}
 				if len(localBodies) < 2 {

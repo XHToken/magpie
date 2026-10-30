@@ -24,11 +24,12 @@ type Layout struct {
 	Logs    string `json:"logs"`
 }
 
-func (l Layout) ConfigFile() string      { return filepath.Join(l.Config, "config.json") }
-func (l Layout) CredentialsFile() string { return filepath.Join(l.Config, "credentials.json") }
-func (l Layout) ManifestFile() string    { return filepath.Join(l.Models, "manifest.json") }
-func (l Layout) LogFile() string         { return filepath.Join(l.Logs, "router.jsonl") }
-func (l Layout) ServiceLock() string     { return filepath.Join(l.State, "router.lock") }
+func (l Layout) ConfigFile() string       { return filepath.Join(l.Config, "config.json") }
+func (l Layout) CredentialsFile() string  { return filepath.Join(l.Config, "credentials.json") }
+func (l Layout) ManifestFile() string     { return filepath.Join(l.Models, "manifest.json") }
+func (l Layout) LogFile() string          { return filepath.Join(l.Logs, "router.jsonl") }
+func (l Layout) ServiceLock() string      { return filepath.Join(l.State, "router.lock") }
+func (l Layout) RedactionResults() string { return filepath.Join(l.State, "redaction-results") }
 
 // Resolve uses OS conventions, never the current working directory or an
 // executable-adjacent data folder. Relative OS directory variables are errors.

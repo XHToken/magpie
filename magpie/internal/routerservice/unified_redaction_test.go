@@ -185,7 +185,7 @@ func TestUnifiedRedactionApplicationGroupAndCombinedUseSameEngine(t *testing.T) 
 						t.Fatal("private value reached upstream", value)
 					}
 				}
-				if body != sent[0] {
+				if fixtureLegacyTokens(body) != fixtureLegacyTokens(sent[0]) {
 					t.Fatal("policy source changed final engine output")
 				}
 			}

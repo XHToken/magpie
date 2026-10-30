@@ -24,19 +24,21 @@ type Versions struct{ Model, Prompt, Config string }
 // finalized diagnostic body for legacy Prepare. Source identities and reserved
 // target literals are trusted internal values, never client credentials.
 type Input struct {
-	ReservedBody    []byte   // Target literals; only collision protection, never scanning.
-	TextIdentities  []string // Server-owned original user ordinal/part identities.
-	Reserved        []string // Literal token collision protection; never detection input.
-	CacheScope      string
-	RequestID       string
-	AppID           string
-	Protocol        Protocol
-	Operation       string
-	SessionID       string
-	SessionVerified bool   // Server-verified session source; a Profile ID is insufficient.
-	SeedSessionID   string // Deprecated compatibility field; unverified seeds are ignored.
-	Versions        Versions
-	Body            []byte
+	AuthenticatedScope  string // Server-owned authorization domain; never body metadata.
+	RecognitionMaterial string
+	ReservedBody        []byte   // Target literals; only collision protection, never scanning.
+	TextIdentities      []string // Server-owned original user ordinal/part identities.
+	Reserved            []string // Literal token collision protection; never detection input.
+	CacheScope          string
+	RequestID           string
+	AppID               string
+	Protocol            Protocol
+	Operation           string
+	SessionID           string
+	SessionVerified     bool   // Server-verified session source; a Profile ID is insufficient.
+	SeedSessionID       string // Deprecated compatibility field; unverified seeds are ignored.
+	Versions            Versions
+	Body                []byte
 }
 type Extraction struct {
 	Versions Versions
@@ -82,6 +84,7 @@ func (f *Failure) Unwrap() error {
 func fail(code string) error { return &Failure{Code: code} }
 
 type Options struct {
+	Results           *ResultStore
 	ReversibleAmounts bool // Unified production policy; preserve exact values in the private mapping.
 	Extractor         Extractor
 	Budget            time.Duration

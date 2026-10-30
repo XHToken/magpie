@@ -604,6 +604,9 @@ func executeLocalCandidate(w http.ResponseWriter, prepared *http.Request, protoc
 			if prepared.Context().Err() != nil {
 				return res, prepared.Context().Err()
 			}
+			if terminalRedactionFailure(prepErr) {
+				return res, prepErr
+			}
 			return res, ErrRedactionUnavailable
 		}
 		if !check && op != "count_tokens" {
