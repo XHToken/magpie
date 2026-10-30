@@ -46,3 +46,9 @@
 5. **完整验收仍有缺口。** 未完成真实 WorkBuddy/Loomy 编辑/删除事件能力实测、断电/文件系统故障恢复、引用删除竞争、全部崩溃点注入和一次性补处理成本压测。此记录不声明完整设计第 13 节全部通过，也不声明正式模型质量已获验收。
 
 完整目标及验收矩阵仍以[设计方案](redaction-history-protection-plan-20261030.md)为准。
+
+## beta.14 草稿复核（2026-10-30）
+
+在提交源码与准备 beta.14 草稿时，找到了已有的 MinGW-w64 编译器并执行原生 Windows `-race -count=1`。`cloudcodec/routerredact/routerconfig/routercloud/routerledger/routerobserve/dirs` 七个包通过；`routerservice.TestHostOnlyCurrentPromptReachesModelAndRestores` 的宿主/目标协议子测试返回 `redaction_extraction_failed`，服务包未通过。单独 race 复核仍出现同样错误，未将其认定为偶发失败，也未修改生产代码来绕过。
+
+完整日志保存在 `D:/api-router/.git/release-20261030/`。beta.14 只生成含候选包和校验文件的 GitHub Release 草稿，beta.13 继续作为公开版本。新测试结果不覆盖上文已列出的生命周期、平台后端和恢复工具发布阻碍；草稿不代表发布验收通过。其余候选检查及平台范围以草稿的 `BUILD-INFO.json` 和验证记录为准。
