@@ -81,9 +81,11 @@ Remote transfer or integrity failures advance to the next source under the
 same download lock. User cancellation and local filesystem/disk failures stop
 the job. An unreadable free-space probe is advisory and allows download,
 extraction and assembly to proceed; a confirmed space shortfall still blocks,
-and actual write/flush failures still stop the job. Source switches restart
-that artifact from byte zero and clear its
-validators; a later explicit retry first resumes the persisted source if it
+and actual write/flush failures still stop the job. Source switches request
+that artifact from byte zero without sending the previous source's validators.
+The previous partial and metadata remain intact until the new source returns
+a usable full response; a connection failure or rejected response cannot erase
+the saved progress. A later explicit retry first resumes the persisted source if it
 still belongs to the compiled source list with matching size/hash pins.
 Installation progress reports the actual source hostname. See the
 [downloader contract](../../internal/routerdownload/README.md) for retry bounds.

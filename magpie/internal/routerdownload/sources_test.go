@@ -263,3 +263,77 @@ func TestDownloadSourceSwitchDropsUntrustedResumeURL(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestDownloadFailedMirrorPreservesResumablePrimary(t *testing.T) {
+	for _, model := range routermanifest.Fixed().Models {
+		for _, failure := range []string{"connection", "http", "encoded", "unsolicited-partial"} {
+			t.Run(model.ID+"/"+failure, func(t *testing.T) {
+				data := []byte("complete fixed model bytes")
+				a := artifact(data)
+				a.URL = model.Artifact.URL
+				dest := filepath.Join(t.TempDir(), "model.gguf")
+				seedPartial(t, a, dest, data[:8])
+				metadata, err := os.ReadFile(dest + ".part.json")
+				if err != nil {
+					t.Fatal(err)
+				}
+				var backupCalls atomic.Int32
+				client := sourceClient(t, func(w http.ResponseWriter, r *http.Request) {
+					if r.Header.Get("X-Source-Host") == "hf-mirror.com" {
+						w.WriteHeader(http.StatusTooManyRequests)
+						return
+					}
+					if r.Header.Get("Range") != "" || r.Header.Get("If-Range") != "" {
+						t.Error("fallback reused the primary source's range or validator")
+					}
+					switch failure {
+					case "http":
+						w.WriteHeader(http.StatusServiceUnavailable)
+					case "encoded":
+						w.Header().Set("Content-Encoding", "gzip")
+						w.Write(data)
+					case "unsolicited-partial":
+						w.WriteHeader(http.StatusPartialContent)
+					}
+				})
+				transport := client.Transport
+				client.Transport = sourceTransport(func(r *http.Request) (*http.Response, error) {
+					if r.URL.Hostname() != "hf-mirror.com" {
+						backupCalls.Add(1)
+						if failure == "connection" {
+							return nil, os.ErrDeadlineExceeded
+						}
+					}
+					return transport.RoundTrip(r)
+				})
+				if err := (&Downloader{Client: client}).Download(context.Background(), a, dest, nil); err == nil || backupCalls.Load() != 1 {
+					t.Fatalf("expected one failed backup attempt: calls=%d err=%v", backupCalls.Load(), err)
+				}
+				prefix, err := os.ReadFile(dest + ".part")
+				if err != nil || !bytes.Equal(prefix, data[:8]) {
+					t.Fatalf("failed fallback discarded resumable primary bytes: %q, %v", prefix, err)
+				}
+				after, err := os.ReadFile(dest + ".part.json")
+				if err != nil || !bytes.Equal(after, metadata) {
+					t.Fatalf("failed fallback changed the primary resume metadata: %q, %v", after, err)
+				}
+				requireMissing(t, dest)
+				recovered := sourceClient(t, func(w http.ResponseWriter, r *http.Request) {
+					if r.Header.Get("X-Source-Host") != "hf-mirror.com" || r.Header.Get("Range") != "bytes=8-" || r.Header.Get("If-Range") != `"old"` {
+						t.Error("retry did not resume the original primary prefix")
+					}
+					w.Header().Set("ETag", `"old"`)
+					w.Header().Set("Content-Range", fmt.Sprintf("bytes 8-%d/%d", len(data)-1, len(data)))
+					w.WriteHeader(http.StatusPartialContent)
+					w.Write(data[8:])
+				})
+				if err := (&Downloader{Client: recovered}).Download(context.Background(), a, dest, nil); err != nil {
+					t.Fatal(err)
+				}
+				if err := Verify(context.Background(), a, dest); err != nil {
+					t.Fatal(err)
+				}
+			})
+		}
+	}
+}

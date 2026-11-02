@@ -211,11 +211,6 @@ func (d *Downloader) downloadSource(ctx context.Context, a routermanifest.Artifa
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	if offset == 0 {
-		if err := removePartial(partPath, metaPath); err != nil {
-			return err
-		}
-	}
 	space := d.FreeBytes
 	if space == nil {
 		space = freeBytes
@@ -333,6 +328,8 @@ func (d *Downloader) downloadSource(ctx context.Context, a routermanifest.Artifa
 		b, _ := json.Marshal(m)
 		flags := os.O_CREATE | os.O_WRONLY
 		if offset == 0 {
+			// Keep a previous source's resumable prefix until this source has
+			// returned a usable response. A failed connection must not erase it.
 			flags |= os.O_TRUNC
 		}
 		f, err := os.OpenFile(partPath, flags, 0o600)

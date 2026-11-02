@@ -13,16 +13,20 @@ as their source of truth.
 
 The compiled catalog's `Artifact.DownloadURLs` supplies an ordered source list.
 llama.cpp b10828 packages for every supported OS/backend, including CUDA DLLs,
-try GH-Proxy before GitHub. X2.6 weights and the template try HF-Mirror before
-the pinned ModelScope counterpart. Source policy is separate from serialized
+try GH-Proxy before GitHub. X2.6 4B weights and their template try HF-Mirror before
+the pinned ModelScope counterpart; 1.7B uses the pinned Hugging Face counterpart.
+Source policy is separate from serialized
 artifact identity: existing SHA256 pins, receipts, fingerprints and cache paths
 remain valid. Progress reports the current source hostname, not redirect URLs.
 
 Each source is attempted once after its bounded stall/resume handling. Network,
 HTTP, truncated/invalid responses and integrity failures advance to the next
 source; cancellation, disk/metadata errors and lock contention stop immediately.
-The same destination lock covers the whole operation. Switching sources resets
-the partial and validators, so bytes and ETags from different hosts never mix.
+The same destination lock covers the whole operation. A new source sends no
+other source's Range or validators. It replaces the previous partial only after
+receiving a usable full response, so connection failures and rejected responses
+preserve the previous source's bytes and metadata for a later retry. Bytes and
+ETags from different hosts never mix.
 A restarted job first resumes its persisted source only when it is still in
 the compiled list and the size/hash match; new jobs use the preferred order.
 Verified complete files are reused without contacting any source.
