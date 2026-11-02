@@ -10,9 +10,9 @@
 
 ## 使用 Skill 配置端云协同
 
-本项目的 **[端云一体 Skill（`api-router-start`）](https://skillhub.cn/skills/user_b6a972a8/api-router-start)** 已提交至 SkillHub。它可以引导首次配置模型、接入 WorkBuddy / Loomy 并验证真实请求，也支持一键安装本地模型、一键配置端云协同，以及多平台安装、排障和更新。[Skill 源码](skills/api-router-start/SKILL.md)随本仓库维护。
+本项目的 **[端云一体 Skill（`api-router-start`）](https://skillhub.cn/skills/user_b6a972a8/api-router-start)** 已发布至 SkillHub（版本 `1.0.0`）。它可以引导首次配置模型、接入 WorkBuddy / Loomy 并验证真实请求，也支持一键安装本地模型、一键配置端云协同，以及多平台安装、排障和更新。[Skill 源码](skills/api-router-start/SKILL.md)随本仓库维护。
 
-平台审核通过后，可在详情页安装或下载，也可将以下提示词发送给 AI 助手：
+可在详情页安装或下载，也可将以下提示词发送给 AI 助手：
 
 ```text
 请根据 https://skillhub.cn/install/skillhub.md，安装 @user_b6a972a8/api-router-start。

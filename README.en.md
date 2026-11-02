@@ -10,9 +10,9 @@ The current version is **0.1.0-beta.13**, with initial support focused on WorkBu
 
 ## Configure 端云协同 with the Skill
 
-The project's **[端云一体 Skill (`api-router-start`)](https://skillhub.cn/skills/user_b6a972a8/api-router-start)** has been submitted to SkillHub. It guides model setup, WorkBuddy / Loomy connection, and real request verification. It also supports automatic local model installation and local/cloud routing setup, plus installation, troubleshooting, and updates across platforms. The [Skill source](skills/api-router-start/SKILL.md) is maintained in this repository.
+The project's **[端云一体 Skill (`api-router-start`)](https://skillhub.cn/skills/user_b6a972a8/api-router-start)** is published on SkillHub (version `1.0.0`). It guides model setup, WorkBuddy / Loomy connection, and real request verification. It also supports automatic local model installation and local/cloud routing setup, plus installation, troubleshooting, and updates across platforms. The [Skill source](skills/api-router-start/SKILL.md) is maintained in this repository.
 
-Once approved by SkillHub, install or download it from the detail page, or send this prompt to your AI assistant:
+Install or download it from the detail page, or send this prompt to your AI assistant:
 
 ```text
 Follow https://skillhub.cn/install/skillhub.md to install @user_b6a972a8/api-router-start.
