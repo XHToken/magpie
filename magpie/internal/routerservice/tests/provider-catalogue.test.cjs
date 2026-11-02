@@ -103,7 +103,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     await page.waitForFunction(()=>document.querySelector('#providerModal').hidden);
     await page.waitForFunction(()=>document.querySelector('#providerStatus').textContent.includes('Model discovery failed'));
     assert.equal(await page.locator('#providerStatus').textContent(),'Provider saved. Model discovery failed; using cached models.');
-    assert.equal(await page.evaluate(()=>routerIntlLang()),'en');
+    assert.equal(await page.evaluate(()=>routerIntlLang()),'en-US','POSIX modifiers are removed while preserving the valid region');
     await page.evaluate(()=>Object.defineProperty(navigator,'language',{get:()=> 'en-GB',configurable:true}));
     assert.equal(await page.evaluate(()=>routerIntlLang()),'en-GB','valid English regional formatting remains available');
     assert.deepEqual(errors,[]);assert.equal(generationCalls,0);
