@@ -182,6 +182,14 @@ optional live Manager state and installation verification. They expose
 `local/<model-id>` selectors and installation/selection/status fields; the
 provider listing does not start a local model process.
 
+The Providers page offers a local row only for `installed: true`; a stale
+runtime status does not establish installation. Its Ready badge additionally
+requires that the model is selected, enabled and ready/running/busy/idle.
+Other installed models show Installed. Each row's Local model shortcut focuses
+that exact catalogue entry, including 1.7B quantizations, without selecting,
+disabling or replacing the runtime. Local names wrap on narrow screens so the
+quantization suffix remains visible.
+
 ## Verification
 
 Run the isolated `internal/routerconfig` and `internal/routerservice` Go suites.
@@ -194,3 +202,6 @@ are in `internal/routerservice/tests/provider-presets.test.cjs` and
 engines, all five languages and narrow layouts. Catalogue tests cover official
 and custom targets, native and cursor pagination, hostile next-page links,
 identity invalidation, failed refreshes and late responses.
+`local-model-surfaces.test.cjs` covers local visibility, readiness badges,
+shortcut identity, model switches, application/group persistence and isolated
+host writes across five languages and desktop/mobile widths in both engines.

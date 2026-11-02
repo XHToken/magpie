@@ -147,6 +147,11 @@ new-session defaults and primary-model hints use catalogue names too; groups
 use their saved names. A saved local selection keeps its catalogue name even
 when uninstalled. Unknown entries fall back to their ID without guessing a
 quantization. Request records retain their actual model IDs for diagnostics.
+Local model connection/configuration status and model-button tooltips use
+those same catalogue names, while saves and host aliases retain exact stable
+selectors. Cloud/group status and tooltips retain their full selectors.
+The routing header does not shrink beneath its controls as groups
+accumulate, keeping creation reachable on narrow screens.
 
 - Renders two `.row.agent.conn` rows (`data-agent-id="loomy"` and
   `data-agent-id="workbuddy"`).

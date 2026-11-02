@@ -321,7 +321,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
             await step(page, number);
             if (number === 3) {
               await page.locator('#tutorialContent button[data-route="local"]').click();
-              assert.equal(await page.locator('.tutorial-model-label strong').textContent(), 'Spark-X2.6-4B · Q4_K_M / Q8_0');
+              assert.equal(await page.locator('.tutorial-model-label strong').textContent(), 'Spark-X2.6-1.7B / 4B · Q4_K_M / Q8_0');
               assert.equal(await page.locator('.tutorial-model-label .tutorial-inlinehint').textContent(), await page.evaluate(() => t('Both tiers use the same installation and trial flow')));
             }
             if (number === 4) {

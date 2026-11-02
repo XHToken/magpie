@@ -96,10 +96,8 @@
       box.append(grid);
     }
   }
-  function isReadyLocalModel(lm) {
-    if (!lm) return false;
-    const status = String(lm.status || '').toLowerCase();
-    return Boolean(lm.installed === true || ['ready', 'running', 'installed', 'busy', 'idle'].includes(status));
+  function isInstalledLocalModel(lm) {
+    return lm?.installed === true;
   }
   function providerModelSummary(provider, preset) {
     const discovered = Array.isArray(provider?.discoveredModels) ? provider.discoveredModels : [];
@@ -114,17 +112,21 @@
     const section = $('#localProvidersSection'), box = $('#localProviders');
     if (!section || !box) return;
     box.replaceChildren();
-    const readyLocal = (state.localModels || []).filter(isReadyLocalModel);
+    const readyLocal = (state.localModels || []).filter(isInstalledLocalModel);
     if (!managementToken || !readyLocal.length) { section.hidden = true; return; }
     section.hidden = false;
     for (const lm of readyLocal) {
       const id = lm.id || lm.modelId || '', selector = lm.selector || (id ? 'local/' + id : '');
       const row = el('div', 'row provider local-provider'); row.dataset.localModel = id; row.dataset.selector = selector;
       const who = el('div', 'who'); who.append(el('div', 'name', lm.name || id), el('div', 'sub', selector));
-      const statusNorm = String(lm.status || '').toLowerCase(), isReady = statusNorm === 'ready' || statusNorm === 'running';
+      const statusNorm = String(lm.status || '').toLowerCase();
+      const isReady = lm.selected === true && lm.enabled === true && ['ready', 'running', 'busy', 'idle'].includes(statusNorm);
       const badge = el('span', 'router-state ok', t(isReady ? 'Ready' : 'Installed')); badge.dataset.status = statusNorm || 'installed';
       const jump = el('button', 'text', t('Local model')); jump.type = 'button'; jump.dataset.action = 'open-local-model';
-      jump.onclick = () => { if (typeof show === 'function') show('local-model'); else $('#nav [data-view="local-model"]')?.click(); };
+      jump.onclick = () => {
+        window.routerLocalFocusModel?.(id);
+        if (typeof show === 'function') show('local-model'); else $('#nav [data-view="local-model"]')?.click();
+      };
       row.append(iconFor('spark-color'), who, badge, jump); box.append(row);
     }
   }

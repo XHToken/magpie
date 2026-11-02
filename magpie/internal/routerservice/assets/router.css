@@ -1,5 +1,6 @@
 /* Product-only adaptations. Colors, type, sidebar, cards and controls come
    directly from Magpie's unchanged app.css and context.css. */
+#view-routing > .rt-view-head { height: auto; min-height: 26px; flex-shrink: 0; flex-wrap: wrap; gap: 6px; }
 .router-logo { width: 18px; height: 18px; align-items: center; justify-content: center; font: 700 20px/1 Arial, Helvetica, sans-serif; }
 .tutorial-entry { white-space: nowrap; }
 .tutorial-modal { z-index: 120; }
@@ -350,6 +351,7 @@ button:disabled { cursor: default; opacity: .45; }
 .lib-switch:disabled { opacity: .5; cursor: default; }
 .local-installed-wrap { margin-bottom: 14px; }
 .local-installed-wrap .row.local-provider { gap: 12px; }
+#localProviders .local-provider .name, #localInstalledModels .local-provider .name { white-space: normal; overflow-wrap: anywhere; }
 .local-installed-wrap .row.local-provider.off .who, .local-installed-wrap .row.local-provider.off .ic { opacity: .68; }
 .local-installed-wrap .row.local-provider .ag-actions { display: inline-flex; align-items: center; gap: 10px; justify-self: end; }
 .local-download-row { flex-wrap: wrap; gap: 10px; align-items: flex-start; }

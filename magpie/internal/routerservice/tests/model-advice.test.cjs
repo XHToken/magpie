@@ -46,7 +46,7 @@ test(`quantized model advice and conservative resource messages (${process.env.B
   const baseReport = () => ({
     device: { availableMemoryBytes: { value: 12 * 2 ** 30 } },
     recommendation: { tier: '4B', maxTier: '4B' }, detection: { state: 'passed', reasons: [] },
-    advice: { policy: 'spark26-64k-v2', state: 'recommended', modelID: id8, modelName: name8, quantization: 'Q8_0', reason: 'resources_suitable', assessments: [
+    advice: { policy: 'spark26-64k-v3', state: 'recommended', modelID: id8, modelName: name8, quantization: 'Q8_0', reason: 'resources_suitable', assessments: [
       { id: id4, name: name4, quantization: 'Q4_K_M', automatic: 'passed', manual: 'passed', issues: [], disks: [{ path: layout.models, volume: { value: 'same' }, available: { value: 100 * 2 ** 30 }, required: 10 * 2 ** 30 }] },
       { id: id8, name: name8, quantization: 'Q8_0', automatic: 'passed', manual: 'passed', issues: [], disks: [{ path: layout.models, volume: { value: 'same' }, available: { value: 100 * 2 ** 30 }, required: 12 * 2 ** 30 }] },
     ] },
@@ -67,7 +67,7 @@ test(`quantized model advice and conservative resource messages (${process.env.B
       await skipTutorial(page);
       await page.goto(`${base}/?locale=${language}&view=local-model`);
       try { await page.waitForFunction(name => document.querySelector('#localDeviceMessage')?.textContent.includes(name), name8, { timeout: 10000 }); } catch (error) { t.diagnostic(JSON.stringify({ language, width, errors, startup, refreshError: await page.evaluate(async () => { try { await refreshService(); return null } catch (e) { return { message: e.message, stack: e.stack } } }), health: await fetch(base + '/healthz').then(r => r.status).catch(e => e.message), state: await page.evaluate(() => ({ message: document.querySelector('#localDeviceMessage')?.textContent, error: document.querySelector('#localModelError')?.textContent, content: document.querySelector('#localModelContent')?.textContent, service: document.querySelector('#service')?.textContent })) })); throw error; }
-      assert.deepEqual(await page.locator('#localModelChoices button').allTextContents(), [name4, name8]);
+      assert.deepEqual(await page.locator('#localModelChoices button').allTextContents(), [name4, name8, 'Spark-X2.6-1.7B-Q4_K_M', 'Spark-X2.6-1.7B-Q8_0']);
       assert.equal(await page.locator('#localModelChoices button').nth(firstPage ? 1 : 0).getAttribute('aria-pressed'), 'true', 'Q8 is the initial default; a saved explicit Q4 choice is preserved');
       assert.ok(actions.every(action => action === '/api/local-model/detect'), 'detecting and choosing a default does not persist intent or download');
       // Explicit user choice must survive later high-spec Q8 recommendations.
@@ -119,7 +119,7 @@ test(`quantized model advice and conservative resource messages (${process.env.B
       macQ4.download = 'passed'; macQ4.automatic = 'failed';
       macQ4.issues = [{ code: 'available_memory_below_recommended', available: 4.7 * 2 ** 30, required: 8 * 2 ** 30 }];
       await check();
-      const macTrial = await page.evaluate(() => t('Q4 can be downloaded and tried manually on this Mac. Available memory is below the automatic recommendation.'));
+      const macTrial = await page.evaluate(() => t('You can download and manually try this model. Available memory is below the automatic recommendation.'));
       assert.equal(await page.locator('#localDeviceMessage').textContent(), macTrial);
       const macGuide = await page.locator('#localDeviceGuide').textContent();
       assert.ok(macGuide.includes('4.7') && macGuide.includes('8.0'), 'Mac trial shows headroom and recommendation separately');
@@ -145,6 +145,40 @@ test(`quantized model advice and conservative resource messages (${process.env.B
       macQ4.download = 'failed'; macQ4.issues.push({ code: 'disk_insufficient', available: 0, required: 10 * 2 ** 30 });
       await check();
       assert.equal(await page.locator('#localModelContent [data-action=install]').isDisabled(), true, 'Mac downloads still require disk space');
+      // Both small models use their own recommendation, explicit selection and
+      // 4 GiB manual floor on Windows, in every language and viewport.
+      report = baseReport();
+      report.device.system = { value: { os: 'windows', logicalCPUs: { value: 4 } } };
+      report.device.availableMemoryBytes.value = 5 * 2 ** 30;
+      report.advice.modelID = 'spark-x2.6-1.7B-Q8_0';
+      report.advice.modelName = 'Spark-X2.6-1.7B-Q8_0';
+      report.recommendation = { tier: '1.7B', maxTier: '1.7B' };
+      report.advice.assessments.push(...['Q4_K_M', 'Q8_0'].map(quant => ({
+        id: 'spark-x2.6-1.7B' + (quant === 'Q8_0' ? '-Q8_0' : ''),
+        name: 'Spark-X2.6-1.7B-' + quant, tier: '1.7B', quantization: quant,
+        automatic: 'passed', manual: 'passed', issues: [], disks: [],
+      })));
+      await check();
+      assert.ok((await page.locator('#localDeviceMessage').textContent()).includes('Spark-X2.6-1.7B-Q8_0'));
+      for (const small of report.advice.assessments.slice(2)) {
+        const selected = page.waitForRequest(request => request.method() === 'POST' && new URL(request.url()).pathname === '/api/local-model/select');
+        await page.locator('#localModelChoices button').filter({ hasText: small.name }).click();
+        assert.deepEqual((await selected).postDataJSON(), { model: small.id });
+        await page.waitForFunction(name => [...document.querySelectorAll('#localModelChoices button')].some(button => button.textContent === name && button.getAttribute('aria-pressed') === 'true'), small.name);
+        report.advice.state = 'deferred'; report.advice.modelID = ''; report.advice.modelName = '';
+        small.automatic = 'failed';
+        small.issues = [{ code: 'available_memory_below_recommended', available: 4.7 * 2 ** 30, required: 5 * 2 ** 30 }];
+        await check();
+        assert.equal(await page.locator('#localDeviceMessage').textContent(), await page.evaluate(() => t('You can download and manually try this model. Available memory is below the automatic recommendation.')));
+        assert.equal(await page.locator('#localModelContent [data-action=install]').isEnabled(), true);
+        small.manual = 'failed';
+        small.issues = [{ code: 'memory_below_8_gib', available: 7 * 2 ** 30, required: 8 * 2 ** 30 }];
+        await check();
+        const smallMemory = await page.evaluate(() => t('Installed memory: {available} GiB; automatic recommendations need {required} GiB.', { available: '7.0', required: '8.0' }));
+        assert.ok((await page.locator('#localDeviceGuide').textContent()).includes(smallMemory));
+        assert.equal(await page.locator('#localModelContent [data-action=install]').isDisabled(), true);
+      }
+      await page.locator('#localModelChoices button').first().click();
       report = null;
       await check();
       const failed = await page.evaluate(() => t('Device detection failed. You can still download and try loading a model.'));
@@ -182,7 +216,7 @@ test(`quantized model advice and conservative resource messages (${process.env.B
     });
     await skipTutorial(page);
     await page.goto(`${base}/?locale=zh&view=local-model`);
-    await page.waitForFunction(() => document.querySelector('#localDeviceMessage')?.textContent.includes('Q4'));
+    await page.waitForFunction(() => document.querySelector('#localDeviceMessage')?.textContent === t('You can download and manually try this model. Available memory is below the automatic recommendation.'));
     assert.equal(await page.locator('#localModelChoices button').first().getAttribute('aria-pressed'), 'true');
     assert.equal(await page.locator('#localModelContent [data-action=install]').isEnabled(), true);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);

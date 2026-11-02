@@ -43,7 +43,9 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     const state = async () => (await (await fetch(base + '/api/redaction', { headers: { Authorization: 'Bearer ' + token } })).json());
     assert.equal((await fetch(base + '/api/redaction')).status, 401);
     const initial = await state();
-    assert.equal(initial.capability, 'unknown'); assert.equal(initial.productionIntegrated, true); assert.equal(initial.modelReady, false); assert.equal(initial.recognitionReady, false); assert.equal(initial.statsAvailable, true);
+    // Startup may already have marked the missing model unavailable. Both
+    // states deny capability use and preserve the saved redaction intent.
+    assert.ok(['unknown', 'unavailable'].includes(initial.capability)); assert.equal(initial.productionIntegrated, true); assert.equal(initial.modelReady, false); assert.equal(initial.recognitionReady, false); assert.equal(initial.statsAvailable, true);
     assert.equal(initial.intents.filter(p => p.enabled).length, 2);
     assert.ok(initial.intents.every(p => p.active === false));
     assert.equal((await fetch(base + '/api/redaction', { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ edits: [{ id: 'loomy', revision: 0, enabled: true }] }) })).status, 409);

@@ -7,6 +7,89 @@ func adviceOptions() []ModelOption {
 	return []ModelOption{{ID: "q4", Name: "Q4", Quantization: "Q4_K_M", RuntimeAvailable: true, Disks: disk}, {ID: "q8", Name: "Q8", Quantization: "Q8_0", RuntimeAvailable: true, Disks: disk}}
 }
 
+func tieredAdviceOptions() []ModelOption {
+	options := adviceOptions()
+	for i := range options {
+		options[i].Tier = Tier4B
+	}
+	for _, quant := range []string{"Q4_K_M", "Q8_0"} {
+		options = append(options, ModelOption{ID: "small-" + quant, Name: "Spark-X2.6-1.7B-" + quant, Tier: Tier1_7B, Quantization: quant, RuntimeAvailable: true,
+			Disks: []DiskBudget{{Path: "/models", Volume: Known("one"), Available: Known(100 * GiB), Required: 7 * GiB}}})
+	}
+	return options
+}
+
+func TestTieredAdviceUsesApprovedSpark17BoundariesAndPriority(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		total, free    uint64
+		threads        int
+		gpu            bool
+		state, modelID string
+	}{
+		{"below 8 GiB", 8*GiB - 1, 5 * GiB, 4, false, "not_recommended", ""},
+		{"manual floor", 8 * GiB, 4 * GiB, 4, false, "deferred", ""},
+		{"below automatic floor", 8 * GiB, 5*GiB - 1, 4, false, "deferred", ""},
+		{"small CPU Q8", 8 * GiB, 5 * GiB, 4, false, "recommended", "small-Q8_0"},
+		{"below four threads", 8 * GiB, 5 * GiB, 3, false, "not_recommended", ""},
+		{"4B memory occupied", 16 * GiB, 7 * GiB, 8, false, "recommended", "small-Q8_0"},
+		{"4B CPU preferred", 16 * GiB, 8 * GiB, 8, false, "recommended", "q4"},
+		{"four CPU threads use small", 16 * GiB, 12 * GiB, 4, false, "recommended", "small-Q8_0"},
+		{"4B GPU Q8 preferred", 16 * GiB, 8 * GiB, 4, true, "recommended", "q8"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := adviceSnapshot(tc.total, tc.free, tc.threads)
+			if tc.gpu {
+				addAdviceGPU(&s, 12*GiB, 11*GiB)
+			}
+			options := tieredAdviceOptions()
+			// Catalog order must not let small Q8 outrank eligible 4B Q4.
+			for i, j := 0, len(options)-1; i < j; i, j = i+1, j-1 {
+				options[i], options[j] = options[j], options[i]
+			}
+			a := AdviseModels(s, options, RunningModel{})
+			if a.State != tc.state || a.ModelID != tc.modelID {
+				t.Fatalf("got %s/%s (%s), want %s/%s", a.State, a.ModelID, a.Reason, tc.state, tc.modelID)
+			}
+		})
+	}
+}
+
+func TestSpark17ManualHeadroomIsSeparateFromAutomaticAdvice(t *testing.T) {
+	for _, system := range []string{"windows", "linux", "darwin"} {
+		for _, free := range []uint64{4*GiB - 1, 4 * GiB, 5*GiB - 1, 5 * GiB} {
+			s := fixture(system, 8*GiB)
+			s.System.Value.LogicalCPUs = Known(4)
+			s.AvailableMemoryBytes = Known(free)
+			a := AdviseModels(s, tieredAdviceOptions(), RunningModel{})
+			for _, id := range []string{"small-Q4_K_M", "small-Q8_0"} {
+				c, _ := a.Model(id)
+				if c.AllowsManual() != (free >= 4*GiB) || (c.Automatic == CheckPassed) != (free >= 5*GiB) || c.MemoryRequired != 5*GiB {
+					t.Fatalf("%s/%d/%s: %+v", system, free, id, c)
+				}
+			}
+		}
+	}
+}
+
+func TestSpark17AdviceChecksOwnDiskUnknownFactsAndHealthyReuse(t *testing.T) {
+	s, options := adviceSnapshot(8*GiB, 5*GiB, 4), tieredAdviceOptions()
+	options[3].Disks[0].Available = Known(7*GiB - 1)
+	if a := AdviseModels(s, options, RunningModel{}); a.ModelID != "small-Q4_K_M" || a.Reason != "q8_disk_insufficient" {
+		t.Fatal("small Q4 did not survive Q8's disk shortage", a)
+	}
+	s.AvailableMemoryBytes = Unknown[uint64]("read failed")
+	a := AdviseModels(s, options, RunningModel{})
+	c, _ := a.Model("small-Q4_K_M")
+	if a.State != "deferred" || c.Manual != CheckUnknown {
+		t.Fatal("unknown memory authorized automatic use or blocked explicit trial", a)
+	}
+	s = adviceSnapshot(32*GiB, 16*GiB, 8)
+	if a := AdviseModels(s, options, RunningModel{ID: "small-Q4_K_M", Healthy: true}); !a.Reuse || a.ModelID != "small-Q4_K_M" {
+		t.Fatal("existing healthy small model was replaced", a)
+	}
+}
+
 func adviceSnapshot(ram, available uint64, threads int) Snapshot {
 	s := fixture("windows", ram)
 	s.AvailableMemoryBytes = Known(available)

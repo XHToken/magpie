@@ -2,7 +2,7 @@ package routerdevice
 
 import "strings"
 
-const ModelAdvicePolicy = "spark26-64k-v2"
+const ModelAdvicePolicy = "spark26-64k-v3"
 
 // ResourceIssue contains only safe, structured resource observations.
 type ResourceIssue struct {
@@ -23,6 +23,7 @@ type ModelOption struct {
 	ID               string       `json:"id"`
 	Name             string       `json:"name"`
 	Quantization     string       `json:"quantization"`
+	Tier             Tier         `json:"tier,omitempty"`
 	RuntimeAvailable bool         `json:"runtimeAvailable"`
 	Installed        bool         `json:"installed"`
 	Disks            []DiskBudget `json:"disks"`
@@ -104,23 +105,25 @@ func AdviseModels(s Snapshot, options []ModelOption, running RunningModel) Model
 			return a
 		}
 	}
-	for _, quant := range []string{"Q8_0", "Q4_K_M"} {
-		for _, c := range a.Assessments {
-			if c.Quantization == quant && c.Automatic == CheckPassed {
-				reason := "resources_suitable"
-				if quant == "Q4_K_M" {
-					for _, other := range a.Assessments {
-						if other.Quantization == "Q8_0" && other.Hardware == CheckPassed {
-							for _, issue := range other.Issues {
-								if issue.Code == "disk_insufficient" {
-									reason = "q8_disk_insufficient"
+	for _, tier := range []Tier{Tier4B, Tier1_7B} {
+		for _, quant := range []string{"Q8_0", "Q4_K_M"} {
+			for _, c := range a.Assessments {
+				if modelTier(c.ModelOption) == tier && c.Quantization == quant && c.Automatic == CheckPassed {
+					reason := "resources_suitable"
+					if quant == "Q4_K_M" {
+						for _, other := range a.Assessments {
+							if modelTier(other.ModelOption) == tier && other.Quantization == "Q8_0" && other.Hardware == CheckPassed {
+								for _, issue := range other.Issues {
+									if issue.Code == "disk_insufficient" {
+										reason = "q8_disk_insufficient"
+									}
 								}
 							}
 						}
 					}
+					selectModel(c, reason)
+					return a
 				}
-				selectModel(c, reason)
-				return a
 			}
 		}
 	}
@@ -137,13 +140,22 @@ func AdviseModels(s Snapshot, options []ModelOption, running RunningModel) Model
 	}
 	// Prefer the Q4 reason: Q8's stricter GPU policy must not hide a fixable
 	// Q4 memory/disk shortage or classify missing data as weak hardware.
-	for _, c := range a.Assessments {
-		if c.Quantization == "Q4_K_M" && len(c.Issues) > 0 {
-			a.Reason = c.Issues[0].Code
-			break
+	for _, tier := range []Tier{Tier1_7B, Tier4B} {
+		for _, c := range a.Assessments {
+			if modelTier(c.ModelOption) == tier && c.Quantization == "Q4_K_M" && len(c.Issues) > 0 {
+				a.Reason = c.Issues[0].Code
+				return a
+			}
 		}
 	}
 	return a
+}
+
+func modelTier(option ModelOption) Tier {
+	if option.Tier == "" {
+		return Tier4B // Compatibility for trusted callers predating tiered advice.
+	}
+	return option.Tier
 }
 
 func assessModel(s Snapshot, option ModelOption) ModelAssessment {
@@ -155,7 +167,11 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 		option.Disks[i].Available = cloneFact(option.Disks[i].Available)
 	}
 	isMac := s.System.Value != nil && s.System.Value.OS == "darwin"
+	small := modelTier(option) == Tier1_7B
 	c := ModelAssessment{ModelOption: option, Automatic: CheckPassed, Manual: CheckPassed, Download: CheckPassed, Issues: []ResourceIssue{}, MemoryRequired: 8 * GiB}
+	if small {
+		c.MemoryRequired = 5 * GiB
+	}
 	add := func(code string, state CheckState, available *uint64, required uint64, manual bool) {
 		c.Issues = append(c.Issues, ResourceIssue{Code: code, Available: available, Required: required})
 		if state == CheckFailed || c.Automatic == CheckPassed {
@@ -193,16 +209,20 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 			return c
 		}
 	}
-	if option.Quantization != "Q4_K_M" && option.Quantization != "Q8_0" {
+	if (option.Quantization != "Q4_K_M" && option.Quantization != "Q8_0") || (modelTier(option) != Tier1_7B && modelTier(option) != Tier4B) {
 		add("model_unsupported", CheckFailed, nil, 0, true)
 		c.Hardware = c.Automatic
 		c.weak = true
 		return c
 	}
+	minimumMemory, memoryCode := uint64(16*GiB), "memory_below_16_gib"
+	if small {
+		minimumMemory, memoryCode = 8*GiB, "memory_below_8_gib"
+	}
 	if s.MemoryBytes.Value == nil || *s.MemoryBytes.Value == 0 {
-		add("memory_unknown", CheckUnknown, nil, 16*GiB, true)
-	} else if *s.MemoryBytes.Value < 16*GiB {
-		add("memory_below_16_gib", CheckFailed, s.MemoryBytes.Value, 16*GiB, *s.MemoryBytes.Value < 8*GiB || option.Quantization == "Q8_0")
+		add("memory_unknown", CheckUnknown, nil, minimumMemory, true)
+	} else if *s.MemoryBytes.Value < minimumMemory {
+		add(memoryCode, CheckFailed, s.MemoryBytes.Value, minimumMemory, small || *s.MemoryBytes.Value < 8*GiB || option.Quantization == "Q8_0")
 		c.weak = true
 	}
 	cpu, metal, gpu4, gpu8, gpuUnknown, gpuBusy := adviceBackends(s)
@@ -211,7 +231,11 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 		threads = s.System.Value.LogicalCPUs.Value
 	}
 	if threads == nil {
-		add("cpu_threads_unknown", CheckUnknown, nil, 8, true)
+		required := uint64(8)
+		if small {
+			required = 4
+		}
+		add("cpu_threads_unknown", CheckUnknown, nil, required, true)
 	} else if *threads < 4 {
 		add("cpu_threads_below_4", CheckFailed, nil, 4, true)
 		c.weak = true
@@ -224,7 +248,7 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 			}
 			add("backend_unconfirmed", state, nil, 0, true)
 		}
-		if *threads < 8 && !metal && !gpu4 {
+		if !small && *threads < 8 && !metal && !gpu4 {
 			state, code := CheckFailed, "cpu_threads_below_8"
 			if gpuBusy {
 				code = "gpu_memory_insufficient"
@@ -237,7 +261,7 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 		}
 	}
 	strongUnified := metal && s.System.Value != nil && s.System.Value.OS == "darwin" && s.System.Value.Architecture.Value != nil && *s.System.Value.Architecture.Value == "arm64" && s.MemoryBytes.Value != nil && *s.MemoryBytes.Value >= 32*GiB && threads != nil && *threads >= 8
-	if option.Quantization == "Q8_0" {
+	if !small && option.Quantization == "Q8_0" {
 		if strongUnified || !gpu8 {
 			c.MemoryRequired = 12 * GiB
 		}
@@ -253,10 +277,10 @@ func assessModel(s Snapshot, option ModelOption) ModelAssessment {
 		}
 	}
 	manualMemory := c.MemoryRequired
-	if isMac && option.Quantization == "Q4_K_M" {
-		// This is a trial floor, not a measured 64K working-set guarantee.
-		// Keep automatic advice conservative and let actual loading/health
-		// checks decide whether the explicitly requested model can run.
+	if small || (isMac && option.Quantization == "Q4_K_M") {
+		// Small models and explicit Mac Q4 trials have a lower trial floor.
+		// This is not a measured 64K guarantee; loading/health checks remain
+		// authoritative, with more headroom required for automatic advice.
 		manualMemory = 4 * GiB
 	}
 	if s.AvailableMemoryBytes.Value == nil {

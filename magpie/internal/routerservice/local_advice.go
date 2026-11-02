@@ -79,7 +79,7 @@ func (l *LocalModels) modelAdvice(ctx context.Context, operation string, cpuOnly
 	options := []routerdevice.ModelOption{}
 	for _, model := range l.Catalog.Models {
 		installed := operation == "load" || l.Manager.IsModelInstalled(ctx, model.ID)
-		option := routerdevice.ModelOption{ID: model.ID, Name: model.DisplayName(), Quantization: model.Quantization, RuntimeAvailable: available, Installed: installed && operation != "install"}
+		option := routerdevice.ModelOption{ID: model.ID, Name: model.DisplayName(), Quantization: model.Quantization, Tier: routerdevice.Tier(model.Tier), RuntimeAvailable: available, Installed: installed && operation != "install"}
 		if !option.Installed {
 			plan := l.Manager.InstallationPlan(ctx, model.ID)
 			option.Disks = modelDiskBudgets(l.Layout.Models, l.Layout.Runtime, snapshot, runtimeDisk, plan)
@@ -94,7 +94,13 @@ func (l *LocalModels) modelAdvice(ctx context.Context, operation string, cpuOnly
 	advice := routerdevice.AdviseModels(snapshot, options, running)
 	report := routerdevice.Report{Device: snapshot, Advice: &advice, Recommendation: routerdevice.Recommendation{Tier: routerdevice.TierNone, MaxTier: routerdevice.TierNone, Reason: advice.Reason}, Detection: routerdevice.Check{State: routerdevice.CheckFailed, Reasons: []string{advice.Reason}}}
 	if advice.State == "recommended" {
-		report.Recommendation.Tier, report.Recommendation.MaxTier, report.Detection.State = routerdevice.Tier4B, routerdevice.Tier4B, routerdevice.CheckPassed
+		selected, _ := advice.Model(advice.ModelID)
+		report.Recommendation.Tier, report.Recommendation.MaxTier, report.Detection.State = selected.Tier, selected.Tier, routerdevice.CheckPassed
+		for _, assessment := range advice.Assessments {
+			if assessment.Automatic == routerdevice.CheckPassed && assessment.Tier == routerdevice.Tier4B {
+				report.Recommendation.MaxTier = routerdevice.Tier4B
+			}
+		}
 		report.Detection.Reasons = []string{}
 	} else if advice.State == "deferred" {
 		report.Detection.State = routerdevice.CheckUnknown

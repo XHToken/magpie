@@ -14,7 +14,7 @@ import (
 )
 
 func TestUnknownDeviceDetectionAllowsExplicitModelLifecycle(t *testing.T) {
-	for _, id := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
+	for _, id := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0", "spark-x2.6-1.7B", "spark-x2.6-1.7B-Q8_0"} {
 		t.Run(id, func(t *testing.T) {
 			layout, address := fixture(t)
 			store := routerconfig.New(layout)

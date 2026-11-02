@@ -154,7 +154,7 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       assert.equal(await page.evaluate(() => [...document.querySelectorAll('#localModelContent .row b')].some(el => el.textContent === t('Downloading'))), false, `${installation} never renders a stale Downloading progress row`);
       assert.equal(detections, 1, `${installation} triggers one automatic read-only device check`);
       assert.deepEqual(initialActions, ['/api/local-model/detect'], 'opening an empty model page only detects; it does not select, enable, download or load');
-      assert.deepEqual(await page.locator('#localModelChoices button').allTextContents(), ['Spark-X2.6-4B-Q4_K_M', 'Spark-X2.6-4B-Q8_0']);
+      assert.deepEqual(await page.locator('#localModelChoices button').allTextContents(), ['Spark-X2.6-4B-Q4_K_M', 'Spark-X2.6-4B-Q8_0', 'Spark-X2.6-1.7B-Q4_K_M', 'Spark-X2.6-1.7B-Q8_0']);
       assert.equal(await page.locator('#localModelContent [data-action=detect]').count(), 1, 'one detection control is shown at the top');
       assert.equal(await page.evaluate(() => !!(document.querySelector('#localDeviceGuide').compareDocumentPosition(document.querySelector('#localModelChoices')) & Node.DOCUMENT_POSITION_FOLLOWING)), true, 'device guidance precedes model selection');
       if (language === 'zh') assert.equal(await page.locator('#localDeviceMessage').textContent(), '根据检测，您的电脑配置适合 Spark-X2.6-4B-Q4_K_M。');
@@ -191,11 +191,11 @@ test(`local model consent and management (${process.env.BROWSER || 'chromium'})`
       await page.evaluate(() => window.routerLocalOpen());
       assert.equal(detections, 1, 'manual and repeated refresh do not repeat automatic detection');
       await page.locator('#localModelChoices button').first().click();
-      await page.waitForFunction(() => document.querySelector('#localModelChoices button').classList.contains('on'));
+      await page.waitForFunction(() => document.querySelector('#localModelChoices button').classList.contains('on') && !document.querySelector('#localModelChoices button').disabled);
       await page.evaluate(() => window.routerLocalOpen());
       assert.equal(detections, 1, 'selecting a model does not repeat automatic detection');
       const [fourBSelection] = await Promise.all([
-        page.waitForResponse(response => response.url() === base + '/api/local-model/select' && response.request().method() === 'POST'),
+        page.waitForResponse(response => response.url() === base + '/api/local-model/select' && response.request().method() === 'POST' && response.request().postDataJSON().model === 'spark-x2.6-4B-Q8_0'),
         page.locator('#localModelChoices button').nth(1).click(),
       ]);
       assert.equal(fourBSelection.status(), 200, 'the real fixed catalog accepts 4B selection');

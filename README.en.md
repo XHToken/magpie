@@ -55,12 +55,18 @@ For an existing installation, stop the service, retain the previous package, and
 
 Cloud providers and local models can be used independently. Experimental redaction requires a separate, explicit opt-in.
 
+### Local 1.7B models in the current source build
+
+Open Local models, detect your device, then choose **Spark-X2.6-1.7B-Q4_K_M** (about 1.77 GB) or **Spark-X2.6-1.7B-Q8_0** (about 1.82 GB) and click Download and install. The app prepares the required engine and chat template and verifies the files. Enable the model in the installed list, then use the reported checks before selecting it for an application or routing group.
+
+Both variants require 8 GiB total RAM, 5 GiB available RAM, four logical CPU threads and a compatible runtime for automatic recommendations. With 4–5 GiB available, you can try loading manually. Actual loading and capability checks still apply; use the page's installation budget for disk requirements. See the [approved recommendation policy](docs/local-model-recommendation-proposal.md).
+
 ## Features
 
 - **Cloud APIs:** Configure provider credentials, endpoints, protocols, and explicit model lists, with independent application profiles.
 - **Routing groups:** Use smart cloud/local routing, ordered, weighted, or manual strategies, and fallback between selected models. An application can bind multiple models and groups.
 - **Protocol handling:** Bounded support for OpenAI Chat Completions, OpenAI Responses, and Anthropic Messages, including streaming, limited retries, request records, and reported token usage. Tool use and protocol conversion depend on client input and upstream capabilities.
-- **Local models:** Device checks, pinned Spark-X2.5-1.7B / 4B model and runtime downloads, one managed inference process, and context and execution budgets. Local execution requires explicit installation, enablement, and capability checks.
+- **Local models:** Device checks, pinned Spark-X2.6-1.7B / 4B Q4_K_M and Q8_0 model and runtime downloads, one managed inference process, and context and execution budgets. Local execution requires explicit installation, enablement, and capability checks.
 - **Experimental redaction:** Local detection, strict result validation, mapping, and response restoration. Detection quality is not formally accepted; invalid results block cloud dispatch.
 - **Host connections:** WorkBuddy and Loomy adapters with configuration previews, backups, and offline recovery commands.
 - **Local management:** Embedded web console, first-run guide, service start/stop/restart, optional per-user Windows login startup, and uninstall with a retained recovery tool.

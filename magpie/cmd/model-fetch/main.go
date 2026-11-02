@@ -20,7 +20,7 @@ import (
 )
 
 func main() {
-	modelID := flag.String("model", "spark-x2.6-4B", "fixed X2.6 catalog model ID: spark-x2.6-4B or spark-x2.6-4B-Q8_0")
+	modelID := flag.String("model", "spark-x2.6-4B", "fixed X2.6 catalog model ID (1.7B or 4B, Q4_K_M or Q8_0)")
 	cache := flag.String("cache", "", "absolute persistent cache directory")
 	attempts := flag.Int("attempts", 6, "bounded attempts per artifact, at most 12")
 	budget := flag.Duration("attempt-timeout", 4*time.Minute, "deadline per resumable attempt, at most 15m")

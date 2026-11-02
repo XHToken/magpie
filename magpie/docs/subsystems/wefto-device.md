@@ -12,7 +12,7 @@ On macOS, native architecture detection checks Apple Silicon capability and Rose
 ## Product quantization advice
 
 The product service uses [`AdviseModels`](../../internal/routerdevice/model_advice.go),
-policy `spark26-64k-v2`. The older tier evaluator below remains available for
+policy `spark26-64k-v3`. The older tier evaluator below remains available for
 trusted diagnostic callers; it no longer chooses the product's quantization.
 The service's detection response includes `advice` alongside the legacy
 `recommendation` and `detection` summary.
@@ -29,14 +29,26 @@ manual admission from the legacy tier/check fields. `download` is consumed by
 the install button and install API; `manual` governs enable/load and restoring
 previously enabled selections.
 
-Automatic Q4 needs 16 GiB total / 8 GiB available RAM and either eight CPU
+The compiled catalog supplies each option's `tier` (`1.7B` or `4B`) as well as
+quantization. Both 1.7B variants need 8 GiB total / 5 GiB available RAM and four
+logical threads with a compatible CPU, confirmed Metal or qualifying discrete
+backend for automatic advice. Explicit trials use 4 GiB available RAM on all
+supported platforms; 4–5 GiB produces `available_memory_below_recommended`.
+1.7B Q8 does not inherit 4B Q8's acceleration or 12 GiB CPU headroom requirement.
+Unknown observations still allow explicit attempts but never automatic advice.
+Healthy running models are reused first. New candidates are ranked 4B Q8,
+4B Q4, 1.7B Q8, then 1.7B Q4 independently of catalog order, including each
+candidate's own disk budget. The legacy summary returns the chosen tier rather
+than always claiming 4B. The unchanged 4B rules follow.
+
+Automatic 4B Q4 needs 16 GiB total / 8 GiB available RAM and either eight CPU
 threads with CPU support, four threads plus a confirmed discrete accelerator
 with 4 GiB left after reserve, or four threads with confirmed Apple Silicon
 Metal. Q8 automatic advice needs either a confirmed discrete GPU with at least
 12 GiB total / 9 GiB usable dedicated VRAM and 16/8 GiB host RAM plus four
 threads, or confirmed Metal with 32/12 GiB unified RAM and eight threads. VRAM
 reserve is at least 1 GiB or 15% of that single GPU's total. Shared memory and
-multiple GPUs are never added. Pure CPU machines default to Q4; explicit Q8
+multiple GPUs are never added. For 4B, pure CPU machines default to Q4; explicit Q8
 CPU use needs 16 GiB total / 12 GiB available RAM and eight threads. Q4 manual admission
 retains four threads and 8 GiB available RAM on Windows/Linux. On supported Macs
 (Apple Silicon or Intel), Q4 manual trials accept 8 GiB total / 4 GiB available

@@ -29,7 +29,7 @@ func experimentalFixtureInvoker(t *testing.T, m *Manager) *ExperimentalRedaction
 }
 
 func TestExperimentalRedactionRequiresStartupChoiceAndExactBinding(t *testing.T) {
-	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0", "spark-x2.6-1.7B", "spark-x2.6-1.7B-Q8_0"} {
 		t.Run(modelID, func(t *testing.T) {
 			ordinary, _, factory, _ := managerFixture(t, func(o *Options, _ *fixtureInstaller, _ *fixtureFactory) {
 				o.Store = &memoryIntent{i: Intent{Enabled: true, Selected: modelID}}
@@ -87,7 +87,7 @@ func TestExperimentalRedactionRequiresStartupChoiceAndExactBinding(t *testing.T)
 }
 
 func TestExperimentalRedactionRequiresCatalogTrialSupport(t *testing.T) {
-	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0", "spark-x2.6-1.7B", "spark-x2.6-1.7B-Q8_0"} {
 		t.Run(modelID, func(t *testing.T) {
 			m, _, factory, _ := managerFixture(t, func(o *Options, _ *fixtureInstaller, _ *fixtureFactory) {
 				o.ExperimentalRedaction = true
@@ -166,7 +166,7 @@ func TestExperimentalRedactionSelectionChangeInvalidatesHandle(t *testing.T) {
 }
 
 func TestExperimentalRedactionUsesOwnedTransportAndPreservesFormalUnknown(t *testing.T) {
-	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0", "spark-x2.6-1.7B", "spark-x2.6-1.7B-Q8_0"} {
 		t.Run(modelID, func(t *testing.T) {
 			var requests atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

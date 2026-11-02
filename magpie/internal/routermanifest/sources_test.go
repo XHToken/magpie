@@ -26,6 +26,9 @@ func TestCatalogDownloadSourcesCoverEveryPlatformAndCUDADependency(t *testing.T)
 
 func TestModelSourcesUsePinnedModelScopeWeightsAndTemplate(t *testing.T) {
 	for _, m := range Fixed().Models {
+		if m.Tier == "1.7B" {
+			continue
+		}
 		for _, a := range []Artifact{m.Artifact, m.Template} {
 			urls := a.DownloadURLs()
 			if len(urls) != 2 || urls[0] != a.URL || !strings.HasPrefix(urls[0], "https://hf-mirror.com/") || !strings.HasPrefix(urls[1], "https://modelscope.cn/models/XHToken/") || !strings.HasSuffix(urls[1], "/"+a.FileName) {
@@ -47,5 +50,19 @@ func TestModelSourcesUsePinnedModelScopeWeightsAndTemplate(t *testing.T) {
 	a := Artifact{URL: "https://example.com/custom-runtime"}
 	if urls := a.DownloadURLs(); len(urls) != 1 || urls[0] != a.URL {
 		t.Fatal("custom source was rewritten", urls)
+	}
+}
+
+func TestSmallModelSourcesRetainOfficialPinsAcrossFallback(t *testing.T) {
+	for _, m := range Fixed().Models {
+		if m.Tier != "1.7B" {
+			continue
+		}
+		for _, a := range []Artifact{m.Artifact, m.Template} {
+			urls := a.DownloadURLs()
+			if len(urls) != 2 || urls[0] != a.URL || urls[1] != strings.Replace(a.URL, "https://hf-mirror.com/", "https://huggingface.co/", 1) || strings.Contains(urls[1], "/main/") {
+				t.Fatalf("1.7B fallback lost pinned identity: %v", urls)
+			}
+		}
 	}
 }

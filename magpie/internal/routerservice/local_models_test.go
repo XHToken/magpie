@@ -176,7 +176,7 @@ func TestLocalRuntimeSettingsAPIIsReadOnly(t *testing.T) {
 }
 
 func TestLocalModelManagementConsentBoundariesAndCapabilitySeparation(t *testing.T) {
-	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0", "spark-x2.6-1.7B", "spark-x2.6-1.7B-Q8_0"} {
 		t.Run(modelID, func(t *testing.T) {
 			testLocalModelManagement(t, modelID)
 		})
@@ -345,7 +345,7 @@ func TestLocalModelTierEnablementBoundaries(t *testing.T) {
 		return w
 	}
 
-	// The current catalog contains only 4B variants. A 16 GiB host with
+	// An explicit 4B choice retains its existing admission rules. A 16 GiB host with
 	// sufficient available memory and eight CPU threads can enable either one.
 	snap = routerdevice.Snapshot{
 		System:               routerdevice.Known(routerdevice.System{OS: "windows", Version: routerdevice.Known("10.0.26200"), Architecture: routerdevice.Known("amd64"), LogicalCPUs: routerdevice.Known(8)}),

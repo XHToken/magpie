@@ -235,8 +235,8 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     await page.unroute('**/api/requests?*'); await page.unroute('**/api/requests/' + recovered.requestId);
     const count = (knownTokens, knownRequests, unknownRequests) => ({ knownTokens, knownRequests, unknownRequests });
     const known = count(0, 1, 0), unknown = count(null, 0, 1);
-    const local = { ...failed, requestId: 'a'.repeat(32), status: 'succeeded', destination: 'local', attempts: 0, attemptDetails: [], localModel: 'spark-x2.6-4B', safeErrorCode: '', failureStage: '', usage: { inputTokens: 0, outputTokens: 7, totalTokens: null }, referencePrice: { currency: 'USD', unit: 'million-tokens', input: 1.25, output: 2.5, version: 'price-v1', source: 'Profile reference' } };
-    const localUnknown = { ...local, requestId: 'b'.repeat(32), localModel: 'spark-x2.6-4B-Q8_0', usage: { inputTokens: 0, outputTokens: null, totalTokens: null } };
+    const local = { ...failed, requestId: 'a'.repeat(32), status: 'succeeded', destination: 'local', attempts: 0, attemptDetails: [], localModel: 'spark-x2.6-1.7B', safeErrorCode: '', failureStage: '', usage: { inputTokens: 0, outputTokens: 7, totalTokens: null }, referencePrice: { currency: 'USD', unit: 'million-tokens', input: 1.25, output: 2.5, version: 'price-v1', source: 'Profile reference' } };
+    const localUnknown = { ...local, requestId: 'b'.repeat(32), localModel: 'spark-x2.6-1.7B-Q8_0', usage: { inputTokens: 0, outputTokens: null, totalTokens: null } };
     const localZero = { ...local, requestId: 'c'.repeat(32), usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, referencePrice: { ...local.referencePrice, currency: 'EUR' } };
     const counts = { processing: 0, succeeded: 0, failed: 0, canceled: 0, timedOut: 0, interrupted: 0 };
     const timing = { knownMs: 0, knownCalls: 1, unknownCalls: 0 }, unknownTiming = { knownMs: null, knownCalls: 0, unknownCalls: 1 };
@@ -247,10 +247,10 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       internalCalls: [{ ...calls, purpose: 'judgment' }, { ...calls, purpose: 'execution', businessUsageCalls: 1, overheadUsageCalls: 0, overheadInputTokens: count(null, 0, 0), overheadOutputTokens: count(null, 0, 0), overheadTotalTokens: count(null, 0, 0) }, { ...calls, purpose: 'redaction', inferenceStarted: 0, notStarted: 1, results: { rejected: 1 }, inputTokens: count(null, 0, 0), outputTokens: count(null, 0, 0), totalTokens: count(null, 0, 0) }], checkCalls: [{ ...calls, purpose: 'judgment', total: 2, inferenceStarted: 2, overheadUsageCalls: 2 }] };
     const callDetail = { purpose: 'execution', modelId: local.localModel, fingerprint: 'safe-model-fingerprint', materialVersion: 'execution-v1', mode: 'formal', result: 'succeeded', inferenceStarted: true, startedAt: local.startedAt, endedAt: local.endedAt, safeErrorCode: '', usage: local.usage, timings: { queueLoadMs: 0, queueMs: null, loadMs: null, inferenceMs: 0, totalMs: 0 } };
     const settings = { contextTokens: 65536, judgmentQueueSeconds: 15, judgmentInferenceSeconds: 30, executionQueueSeconds: 30, executionSeconds: 300, loadSeconds: 90, requestSeconds: 600, cloudReserveSeconds: 60 };
-    const fallback = { ...failed, redactionPolicy: { required: true, profileRequired: true, sourceGroupIds: ['privacy'], sourceGroupCount: 1, modelId: 'spark-x2.6-4B-Q8_0', actualModelId: 'spark-x2.6-4B-Q8_0', engineVersion: 'privacy-user-input-v1', scopeVersion: 'user-input-v1', scanDisposition: 'known_values_only', newUserCharacters: 0, newUserChunks: 0, reusedUserFragments: 2, localInferenceCalls: 0, state: 'prepared' }, decision: 'cloud', capabilityState: 'judgment_inference_timeout', judgmentMs: 30000 };
+    const fallback = { ...failed, redactionPolicy: { required: true, profileRequired: true, sourceGroupIds: ['privacy'], sourceGroupCount: 1, modelId: 'spark-x2.6-1.7B-Q8_0', actualModelId: 'spark-x2.6-1.7B-Q8_0', engineVersion: 'privacy-user-input-v1', scopeVersion: 'user-input-v1', scanDisposition: 'known_values_only', newUserCharacters: 0, newUserChunks: 0, reusedUserFragments: 2, localInferenceCalls: 0, state: 'prepared' }, decision: 'cloud', capabilityState: 'judgment_inference_timeout', judgmentMs: 30000 };
     const failedJudgment = { ...callDetail, purpose: 'judgment', result: 'failed', safeErrorCode: 'local_judgment_inference_timeout', settings, settingsFingerprint: 'a'.repeat(64), contextUsage: { inputTokens: 128, outputTokens: 32, contextTokens: 65536 }, httpStatus: 400 };
-    const blocked = { ...failed, requestId: 'd'.repeat(32), destination: 'none', model: '', localModel: '', attempts: 0, safeErrorCode: 'redaction_unavailable', localModels: [{ purpose: 'redaction', modelId: 'spark-x2.6-4B' }] };
-    const pending = { ...blocked, requestId: 'e'.repeat(32), status: 'processing', localModels: [{ purpose: 'judgment', modelId: 'spark-x2.6-4B-Q8_0' }] };
+    const blocked = { ...failed, requestId: 'd'.repeat(32), destination: 'none', model: '', localModel: '', attempts: 0, safeErrorCode: 'redaction_unavailable', localModels: [{ purpose: 'redaction', modelId: 'spark-x2.6-1.7B' }] };
+    const pending = { ...blocked, requestId: 'e'.repeat(32), status: 'processing', localModels: [{ purpose: 'judgment', modelId: 'spark-x2.6-1.7B-Q8_0' }] };
     const unobserved = { ...blocked, requestId: 'f'.repeat(32), localModels: [], redactionPolicy: { modelId: 'configured-but-not-executed', required: true, state: 'blocked' } };
     for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) for (const width of [1600, 375]) {
       const fixturePage = await browser.newPage({ locale: 'en-US' }); fixturePage.on('pageerror', error => errors.push(error.message));
@@ -277,7 +277,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       const fallbackDetails = await fixturePage.locator('#requestRecords .request-detail > .request-fields').textContent();
       assert.equal(await detailValue(fixturePage, 'User input processing'), await fixturePage.evaluate(() => t('Known user values only')));
       assert.ok(fallbackDetails.includes(await fixturePage.evaluate(() => t('Application requirement'))), 'application privacy source is visible');
-      assert.ok(fallbackDetails.includes(await fixturePage.evaluate(() => t('Actual redaction model') + 'spark-x2.6-4B-Q8_0')), 'actual privacy binding is visible');
+      assert.ok(fallbackDetails.includes(await fixturePage.evaluate(() => t('Actual redaction model') + 'spark-x2.6-1.7B-Q8_0')), 'actual privacy binding is visible');
       assert.ok(fallbackDetails.includes(await fixturePage.evaluate(() => t('Judgment status') + t('Failed'))), 'local judgment failure remains visible with final cloud destination');
       assert.ok(fallbackDetails.includes(await fixturePage.evaluate(() => t('Execution status') + t('Not observed'))), 'no local execution is not misrepresented as success');
       const internalDetails = await fixturePage.locator('#requestRecords .request-call-details').textContent();
@@ -300,11 +300,11 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       await fixturePage.locator('#usageReload').click();
       await fixturePage.waitForFunction(() => document.querySelectorAll('#requestRecords tbody tr').length === 5);
       const modelCell = id => fixturePage.locator(`#requestRecords [data-request="${id}"] td`).nth(1);
-      assert.equal(await modelCell(blocked.requestId).textContent(), await fixturePage.evaluate(() => 'spark-x2.6-4B (' + t('Redaction') + ')'));
-      assert.equal(await modelCell(pending.requestId).textContent(), await fixturePage.evaluate(() => 'spark-x2.6-4B-Q8_0 (' + t('Judgment') + ')'));
+      assert.equal(await modelCell(blocked.requestId).textContent(), await fixturePage.evaluate(() => 'spark-x2.6-1.7B (' + t('Redaction') + ')'));
+      assert.equal(await modelCell(pending.requestId).textContent(), await fixturePage.evaluate(() => 'spark-x2.6-1.7B-Q8_0 (' + t('Judgment') + ')'));
       assert.equal(await modelCell(unobserved.requestId).textContent(), await fixturePage.evaluate(() => t('Unknown')));
       assert.equal(await modelCell(local.requestId).textContent(), local.localModel, 'final local execution is not duplicated');
-      assert.equal(await modelCell(failed.requestId).textContent(), model + ' · ' + await fixturePage.evaluate(() => 'spark-x2.6-4B (' + t('Redaction') + ')'), 'cloud generation and local redaction keep their own identities');
+      assert.equal(await modelCell(failed.requestId).textContent(), model + ' · ' + await fixturePage.evaluate(() => 'spark-x2.6-1.7B (' + t('Redaction') + ')'), 'cloud generation and local redaction keep their own identities');
       const overviewTab = fixturePage.locator(width >= 1024 ? '.nav-s[data-of=usageTab-usage]' : '#usageTab-usage'); await overviewTab.click();
       await fixturePage.locator('#requestSummary [data-currency=USD]').waitFor();
       assert.equal(await fixturePage.locator('#requestSummary .kpi b').first().textContent(), '4');

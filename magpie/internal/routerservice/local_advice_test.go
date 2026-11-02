@@ -48,11 +48,39 @@ func TestRecommendationSamplesMinimumAndNeverLoads(t *testing.T) {
 	}))
 	local := &LocalModels{Manager: manager, Detector: detector, Layout: layout, Catalog: catalog}
 	report := local.detect(context.Background(), layout.Models)
-	if report.Advice == nil || report.Advice.State != "deferred" || report.Device.AvailableMemoryBytes.Value == nil || *report.Device.AvailableMemoryBytes.Value != 7*routerdevice.GiB || calls != 6 {
+	if report.Advice == nil || report.Advice.State != "recommended" || report.Advice.ModelID != "spark-x2.6-1.7B-Q8_0" || report.Recommendation.Tier != routerdevice.Tier1_7B || report.Device.AvailableMemoryBytes.Value == nil || *report.Device.AvailableMemoryBytes.Value != 7*routerdevice.GiB || calls != 6 {
 		t.Fatal("transient free-memory spike was used for admission", report, calls)
 	}
 	if manager.Status().Intent.Enabled || installer.calls.Load() != 0 || factory.calls.Load() != 0 {
 		t.Fatal("resource detection enabled, installed or loaded a model")
+	}
+}
+
+func TestSpark17ServiceAdviceAndManualLoadUseSmallModelBudgets(t *testing.T) {
+	layout, _ := fixture(t)
+	catalog := routermanifest.Fixed()
+	manager, err := routerruntime.New(context.Background(), routerruntime.Options{Catalog: catalog, RuntimeID: "windows-amd64-cpu", Store: routerruntime.ConfigIntentStore{Store: routerconfig.New(layout)}, Installer: &managedFixtureInstaller{}, Factory: &managedFixtureFactory{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.Close(context.Background()) })
+	free := uint64(5 * routerdevice.GiB)
+	local := &LocalModels{Manager: manager, Layout: layout, Catalog: catalog, Detector: routerdevice.New(routerdevice.ProviderFunc(func(context.Context, string) (routerdevice.Snapshot, error) {
+		return routerdevice.Snapshot{System: routerdevice.Known(routerdevice.System{OS: "windows", Version: routerdevice.Known("10.0.26200"), Architecture: routerdevice.Known("amd64"), LogicalCPUs: routerdevice.Known(4)}), MemoryBytes: routerdevice.Known(uint64(8 * routerdevice.GiB)), AvailableMemoryBytes: routerdevice.Known(free), DiskFreeBytes: routerdevice.Known(uint64(100 * routerdevice.GiB)), Backends: routerdevice.Known([]routerdevice.Backend{{Kind: routerdevice.CPU, State: routerdevice.Available}})}, nil
+	}))}
+	report := local.detect(context.Background(), layout.Models)
+	if report.Advice == nil || report.Advice.ModelID != "spark-x2.6-1.7B-Q8_0" || report.Recommendation.Tier != routerdevice.Tier1_7B || report.Recommendation.MaxTier != routerdevice.Tier1_7B {
+		t.Fatal("8 GiB CPU host did not receive the 1.7B recommendation", report)
+	}
+	for _, id := range []string{"spark-x2.6-1.7B", "spark-x2.6-1.7B-Q8_0"} {
+		free = 4 * routerdevice.GiB
+		if err := local.admitModel(context.Background(), id, "load", true); err != nil {
+			t.Fatal("manual 1.7B load inherited the 4B memory budget", id, err)
+		}
+		free--
+		if err := local.admitModel(context.Background(), id, "load", true); err == nil {
+			t.Fatal("known memory shortage permitted loading", id)
+		}
 	}
 }
 

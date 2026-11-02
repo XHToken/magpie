@@ -17,7 +17,7 @@
     ['Generation: {rate} tokens/s · First response: {latency} s', '生成速度：{rate} tokens/s · 首次响应：{latency} 秒', '生成速度：{rate} tokens/s · 首次回應：{latency} 秒', '生成速度：{rate} tokens/s・最初の応答：{latency} 秒', 'Generierung: {rate} tokens/s · Erste Antwort: {latency} s'],
     ['Reference: at least 5 tokens/s and first response within 15 s.', '参考标准：生成速度至少 5 tokens/s，首次响应不超过 15 秒。', '參考標準：生成速度至少 5 tokens/s，首次回應不超過 15 秒。', '基準：生成速度 5 tokens/s 以上、最初の応答 15 秒以内。', 'Richtwert: mindestens 5 tokens/s und erste Antwort innerhalb von 15 s.'],
     ['Response performance passed; capability and quality checks remain separate.', '响应性能检查通过；能力可用性与质量验收需单独确认。', '回應效能檢查通過；能力可用性與品質驗收需另外確認。', '応答性能は確認済みです。機能の利用可否と品質は別途確認が必要です。', 'Antwortleistung geprüft; Fähigkeiten und Qualität werden separat geprüft.'],
-    ['Q4 can be downloaded and tried manually on this Mac. Available memory is below the automatic recommendation.', '这台 Mac 可下载并手动试运行 Q4；当前可用内存低于自动推荐值。', '這台 Mac 可下載並手動試執行 Q4；目前可用記憶體低於自動推薦值。', 'この Mac では Q4 をダウンロードして手動で試せます。利用可能メモリは自動推奨値を下回っています。', 'Auf diesem Mac können Sie Q4 herunterladen und manuell testen. Der verfügbare Speicher liegt unter dem Wert für automatische Empfehlungen.'],
+    ['You can download and manually try this model. Available memory is below the automatic recommendation.', '可下载并手动试运行此模型；当前可用内存低于自动推荐值。', '可下載並手動試執行此模型；目前可用記憶體低於自動推薦值。', 'このモデルをダウンロードして手動で試せます。利用可能メモリは自動推奨値を下回っています。', 'Sie können dieses Modell herunterladen und manuell testen. Der verfügbare Speicher liegt unter dem Wert für automatische Empfehlungen.'],
     ['You can download this model now. Check the resource details before loading it.', '当前可下载此模型；加载前请检查资源详情。', '目前可下載此模型；載入前請檢查資源詳情。', 'このモデルはダウンロードできます。読み込み前にリソースの詳細を確認してください。', 'Sie können dieses Modell jetzt herunterladen. Prüfen Sie vor dem Laden die Ressourcen.'],
     ['Available memory: {available} GiB; {required} GiB is recommended for automatic use.', '当前可用内存 {available} GiB，自动推荐参考值为 {required} GiB。', '目前可用記憶體 {available} GiB，自動推薦參考值為 {required} GiB。', '利用可能メモリは {available} GiB、自動利用の推奨値は {required} GiB です。', 'Verfügbarer Speicher: {available} GiB; für automatische Nutzung werden {required} GiB empfohlen.'],
     ['macOS memory includes free and reclaimable inactive pages. Unified memory is counted once.', 'macOS 可用内存已包含空闲与可回收内存，统一内存不重复计入显存。', 'macOS 可用記憶體已包含閒置與可回收記憶體，統一記憶體不重複計入顯示記憶體。', 'macOS の利用可能メモリには空き領域と回収可能な領域を含みます。ユニファイドメモリは一度だけ計上します。', 'Der verfügbare macOS-Speicher umfasst freie und rückgewinnbare inaktive Seiten. Unified Memory wird nur einmal gezählt.'],
@@ -141,6 +141,7 @@
   let data = null, device = null, working = false;
   let stream, refreshController, retryTimer, readGeneration = 0, retryDelay = 1000;
   let detectionAttempted = false, detecting = false, detectionFailed = false, connection = 0, selectedModelId = '';
+  let requestedModelId = '';
   let operationError = '', checking = false, checkCompleted = false, failedCheck = false;
   function setOperationError(message = '', isCheck = false) {
     operationError = message;
@@ -188,7 +189,7 @@
   const label = value => t(stateNames[value] || 'Unknown');
   const dependencyNames = { not_required: 'Not required on this platform', missing: 'Runtime dependencies are missing.', preparing: 'Preparing runtime dependencies', ready: 'Installed and verified', canceled: 'Canceled', failed: 'Runtime dependency download failed.', download_failed: 'Runtime dependency download failed.', corrupt: 'Runtime dependencies are damaged.', architecture: 'Runtime dependency architecture does not match.', version: 'Runtime dependency version does not match.', layout: 'Runtime dependency layout is invalid.' };
   const dependencyMessage = code => dependencyNames[String(code || '').replace(/^local_model_dependency_/, '')] || 'Runtime dependency verification failed.';
-  const modelName = tier => tier === '4B' ? 'Spark-X2.6-4B-Q4_K_M' : undefined;
+  const modelName = tier => tier === '4B' || tier === '1.7B' ? `Spark-X2.6-${tier}-Q4_K_M` : undefined;
   const displayModelName = model => model?.name || modelName(model?.tier) || model?.id;
   function currentChoiceModelId(status) {
     const catalogModels = data?.catalog?.models || [];
@@ -317,7 +318,7 @@
     let message = 'Check your computer configuration to choose a local model.';
     if (detecting) message = 'Checking your computer configuration…';
     else if (detectionFailed) message = 'Device detection failed. You can still download and try loading a model.';
-    else if (chosenAssessment?.manual === 'passed' && chosenAssessment.issues?.some(item => item.code === 'available_memory_below_recommended')) message = 'Q4 can be downloaded and tried manually on this Mac. Available memory is below the automatic recommendation.';
+    else if (chosenAssessment?.manual === 'passed' && chosenAssessment.issues?.some(item => item.code === 'available_memory_below_recommended')) message = 'You can download and manually try this model. Available memory is below the automatic recommendation.';
     else if (chosenAssessment?.download && chosenAssessment.download !== 'failed' && chosenAssessment.manual === 'failed') message = 'You can download this model now. Check the resource details before loading it.';
     else if (advice?.state === 'not_recommended') message = 'Local models are not recommended for this computer. You can use cloud models without downloading one.';
     else if (advice?.state === 'deferred') {
@@ -339,7 +340,7 @@
       if (advice.reuse) guide.append(el('p', 'hint router-note', t('An existing healthy model is being reused.')));
       const chosen = currentChoiceModelId(data?.status) || advice.modelID;
       const assessment = advice.assessments?.find(item => item.id === chosen) || advice.assessments?.find(item => item.quantization === 'Q4_K_M');
-      const memoryIssue = assessment?.issues?.find(item => item.code === 'memory_below_16_gib');
+      const memoryIssue = assessment?.issues?.find(item => ['memory_below_8_gib', 'memory_below_16_gib'].includes(item.code));
       if (memoryIssue?.available != null) guide.append(el('p', 'hint router-note', t('Installed memory: {available} GiB; automatic recommendations need {required} GiB.', { available: (memoryIssue.available / 2 ** 30).toFixed(1), required: (memoryIssue.required / 2 ** 30).toFixed(1) })));
       const cpuIssue = assessment?.issues?.find(item => ['cpu_threads_below_4', 'cpu_threads_below_8', 'q8_cpu_threads_or_backend'].includes(item.code));
       const threads = device.device?.system?.value?.logicalCPUs?.value;
@@ -590,6 +591,11 @@
       if (current !== connection || generation !== readGeneration) return;
       data = result;
       if (operationError === t('Connection unavailable')) setOperationError();
+      if (requestedModelId) {
+        const model = data?.catalog?.models?.find(item => String(item.id).toLowerCase() === requestedModelId);
+        if (model) selectedModelId = model.id;
+        requestedModelId = '';
+      }
       if (!selectedModelId) selectedModelId = data?.status?.installingModel || data?.status?.intent?.selected || '';
       render();
       // One local probe per authenticated page session while no selected
@@ -630,6 +636,7 @@
   }
   async function selectModel(id) {
     if (working || currentChoiceModelId(data?.status) === id) return;
+    requestedModelId = '';
     selectedModelId = id;
     checkCompleted = false;
     setOperationError();
@@ -747,8 +754,18 @@
     finally { if (current === connection) { working = false; checking = false; await open(); renderFeedback(); } }
   }
   window.routerLocalOpen = open;
+  // Navigation changes the displayed choice only. Enabling or replacing the
+  // currently running model still requires its explicit switch action.
+  window.routerLocalFocusModel = id => {
+    requestedModelId = String(id || '').replace(/^local\//, '').toLowerCase();
+    const model = data?.catalog?.models?.find(item => String(item.id).toLowerCase() === requestedModelId);
+    if (model) { selectedModelId = model.id; requestedModelId = ''; }
+    checkCompleted = false;
+    setOperationError();
+    render();
+  };
   window.routerLocalRender = render;
-  window.routerLocalDisconnected = () => { stopObserving(); connection++; operationError = ''; checking = false; checkCompleted = false; failedCheck = false; data = null; device = null; working = false; detectionAttempted = false; detecting = false; detectionFailed = false; selectedModelId = ''; render(); };
+  window.routerLocalDisconnected = () => { stopObserving(); connection++; operationError = ''; checking = false; checkCompleted = false; failedCheck = false; data = null; device = null; working = false; detectionAttempted = false; detecting = false; detectionFailed = false; selectedModelId = ''; requestedModelId = ''; render(); };
   document.addEventListener('visibilitychange', () => { if (document.hidden) stopObserving(); else if (canObserve()) void open(); });
   window.addEventListener('pagehide', stopObserving);
   window.addEventListener('pageshow', event => { if (event.persisted && canObserve()) void open(); });

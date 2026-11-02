@@ -5,7 +5,7 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
 const {spawn,execFileSync}=require('node:child_process');
 const {once}=require('node:events');
 const {chromium,webkit}=require('playwright');
-const binary=process.env.WEFTO_BINARY || path.resolve(__dirname,'../../../dist/wefto.exe');
+const binary=process.env.API_ROUTER_BINARY || process.env.WEFTO_BINARY || path.resolve(__dirname,'../../../dist',process.platform==='win32'?'api-router.exe':'api-router');
 
 for(const engine of (process.env.BROWSER?[process.env.BROWSER]:['chromium','webkit'])) {
  test(`explicit history preparation UI (${engine})`,{timeout:180000},async t=>{
@@ -23,8 +23,10 @@ for(const engine of (process.env.BROWSER?[process.env.BROWSER]:['chromium','webk
   for(let i=0;i<200;i++){if(service.exitCode!==null)assert.fail(output);try{await fs.access(path.join(layout.state,'router.lock','management-token'));break;}catch{}await new Promise(resolve=>setTimeout(resolve,25));}
   browser=await(engine==='webkit'?webkit:chromium).launch();
   for(const language of ['zh','en','zh-TW','ja','de'])for(const width of [375,1600]){
-   const page=await browser.newPage({viewport:{width,height:950}}),errors=[],actions=[];
+   const page=await browser.newPage({locale:'en-US',viewport:{width,height:950}}),errors=[],actions=[],failures=[];
    page.on('pageerror',e=>errors.push(e.message));
+   page.on('response',r=>{if(r.status()>=400)failures.push({path:new URL(r.url()).pathname,status:r.status()});});
+   page.on('requestfailed',r=>failures.push({path:new URL(r.url()).pathname,error:r.failure()?.errorText}));
    // Explicit UI projection: backend authorization, inference and persistence
    // are exercised separately through the real Go HTTP stack.
    await page.route('**/api/redaction/history',async route=>{
@@ -32,7 +34,11 @@ for(const engine of (process.env.BROWSER?[process.env.BROWSER]:['chromium','webk
     await route.fulfill({json:{schemaVersion:1,id:'ui-fixture',cloudAttempts:0,progress:{totalMessages:1,completedMessages:input.action==='step'?1:0,totalCharacters:14,totalChunks:1,completedChunks:input.action==='step'?1:0,done:input.action==='step'}}});
    });
    await skipTutorial(page);await page.goto(`${base}/?locale=${language}&view=usage&tab=redaction`);
-   await page.waitForFunction(()=>!!managementToken && !!serviceInfo);
+   try { await page.waitForFunction(()=>!!managementToken && !!serviceInfo); }
+   catch(error) {
+    t.diagnostic(JSON.stringify({language,width,errors,failures,serviceExit:service.exitCode,refreshError:await page.evaluate(async()=>{try{await refreshService();return null;}catch(e){return {message:e.message,stack:e.stack};}}),state:await page.evaluate(()=>({status:document.querySelector('#status')?.textContent,service:document.querySelector('#service')?.textContent}))}));
+    throw error;
+   }
    const panel=page.locator('#historyPreparation');await panel.locator('summary').click();
    if(language!=='en')assert.notEqual(await panel.locator('summary').innerText(),'Local history preparation');
    const source={model:'local-history-preparation',messages:[{role:'user',content:'Contact Elodie'}]};

@@ -45,6 +45,7 @@
     if (selector.startsWith('group/')) return routingGroups.find(g => g.id === selector.slice(6))?.name || shortModel(selector);
     return shortModel(selector);
   };
+  const selectionLabel = selector => selector.startsWith('local/') ? modelLabel(selector) : selector;
   const menuSaid = (models) => !models.length ? t('No models') : (models.length <= 2 ? models.map(modelLabel).join(', ') : `${models.slice(0, 2).map(modelLabel).join(', ')} +${models.length - 2}`);
   const setStatus = (msg) => { const n = $('#appStatus'); if (n && msg !== undefined) n.textContent = msg; };
   const hostErrText = (data) => data?.error?.code === 'host_config_unavailable' ? t('Host configuration directory was not found. Launch the host application first or use setup to specify its directory.') : data?.error?.code === 'host_profile_invalid' ? t('Select available routing groups and models before reconnecting.') : (data?.error?.message || t('Connection failed. Check that the service is running.'));
@@ -53,13 +54,13 @@
 
   function fillMenuButton(btn, app) {
     const models = appModels(app), v = el('span', 'v', menuSaid(models)), caret = el('span', 'caret');
-    btn.classList.toggle('empty', !models.length); btn.title = models.length ? models.join('\n') : t('Choose models');
+    btn.classList.toggle('empty', !models.length); btn.title = models.length ? models.map(selectionLabel).join('\n') : t('Choose models');
     caret.innerHTML = caretDownSvg;
     btn.replaceChildren(v, caret);
   }
   function fillPrimaryButton(btn, app) {
     const models = appModels(app), primary = models[0] ? modelLabel(models[0]) : t('No models'), v = el('span', 'v', primary), caret = el('span', 'caret');
-    btn.classList.toggle('empty', !models.length); btn.title = models[0] || t('Choose models');
+    btn.classList.toggle('empty', !models.length); btn.title = models[0] ? selectionLabel(models[0]) : t('Choose models');
     caret.innerHTML = caretDownSvg;
     btn.replaceChildren(v, caret);
   }
@@ -91,7 +92,7 @@
           const data = await res.json().catch(() => ({}));
           if (!res.ok) { failed(data); return; }
           app.savedModels = snapshot; app.needsReconnect = false;
-          await syncRevisions(); setStatus(`${app.name}: ${t('Connected')} · ${snapshot[0]}`); updateRowState(app); return;
+          await syncRevisions(); setStatus(`${app.name}: ${t('Connected')} · ${selectionLabel(snapshot[0])}`); updateRowState(app); return;
         }
       }
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -245,12 +246,12 @@
       if (wantOn && Array.isArray(rm) && rm.length) app.models = dedup(rm);
       app.savedModels = [...appModels(app)];
       await syncRevisions();
-      setStatus(wantOn ? `${app.name}: ${t('Connected')} · ${appModels(app)[0] || ''}` : `${app.name}: ${t('Disconnected and restored original host configuration.')}`);
+      setStatus(wantOn ? `${app.name}: ${t('Connected')} · ${selectionLabel(appModels(app)[0] || '')}` : `${app.name}: ${t('Disconnected and restored original host configuration.')}`);
       updateRowState(app);
     } finally { if (sw) sw.disabled = false; }
   }
 
-  const stateLabel = (isOn, models, needsReconnect) => needsReconnect ? t('Reconnect required') : isOn ? (models[0] ? `${t('Connected')} · ${models[0]}` : t('Connected')) : (models.length ? `${t('Configured')} · ${models[0]}` : t('Not connected yet'));
+  const stateLabel = (isOn, models, needsReconnect) => needsReconnect ? t('Reconnect required') : isOn ? (models[0] ? `${t('Connected')} · ${selectionLabel(models[0])}` : t('Connected')) : (models.length ? `${t('Configured')} · ${selectionLabel(models[0])}` : t('Not connected yet'));
 
   function buildExpandPanel(app, sw, menuBtn) {
     const exp = el('div', 'ag-exp'), grid = el('div', 'ag-settings'), models = appModels(app), selSet = new Set(models);

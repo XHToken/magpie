@@ -298,8 +298,8 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
   assert.ok(deleteCall, 'expected DELETE /api/routing-groups?id=hybrid-coding');
 
   // All routing surfaces use catalogue names, including missing installations.
-  const localNames = ['Spark-X2.6-4B-Q4_K_M', 'Spark-X2.6-4B-Q8_0'];
-  const localRefs = ['local/spark-x2.6-4b', 'local/spark-x2.6-4b-q8_0'];
+  const localNames = ['Spark-X2.6-4B-Q4_K_M', 'Spark-X2.6-4B-Q8_0', 'Spark-X2.6-1.7B-Q4_K_M', 'Spark-X2.6-1.7B-Q8_0'];
+  const localRefs = ['local/spark-x2.6-4b', 'local/spark-x2.6-4b-q8_0', 'local/spark-x2.6-1.7b', 'local/spark-x2.6-1.7b-q8_0'];
   await page.route('**/api/cloud-providers', route => route.fulfill({ json: {
     providers: [], localModels: localRefs.map((selector, i) => ({ id: selector.slice(6), selector, name: localNames[i], installed: true })),
   } }));
@@ -307,7 +307,7 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`http://${address}/?locale=${language}&view=routing`);
-      await page.waitForFunction(() => window.__weftoRoutingGroups?.state.localModels.length === 2);
+      await page.waitForFunction(() => window.__weftoRoutingGroups?.state.localModels.length === 4);
       assert.deepEqual(await page.evaluate(refs => refs.map(ref => window.__weftoRoutingGroups.describeMember(ref).modelName), localRefs), localNames);
       assert.equal(await page.evaluate(() => window.__weftoRoutingGroups.describeMember('local/unknown-model').modelName), 'unknown-model');
       await page.locator('#newRoutingGroupBtn').click();
@@ -316,19 +316,22 @@ test(`routing groups list, editor and persistence (${engine})`, { timeout: 12000
         assert.equal(await page.locator(`[data-picker-ref="${localRefs[i]}"] .v`).textContent(), localNames[i]);
       }
       await page.locator('#rgPickerSearch').fill('Q4_K_M');
-      assert.deepEqual(await page.locator('#rgPickerList [data-picker-ref]').evaluateAll(rows => rows.map(row => row.dataset.pickerRef)), [localRefs[0]]);
+      assert.deepEqual(await page.locator('#rgPickerList [data-picker-ref]').evaluateAll(rows => rows.map(row => row.dataset.pickerRef)), [localRefs[0], localRefs[2]]);
       await page.locator(`[data-picker-ref="${localRefs[0]}"]`).click();
       await page.locator('#rgAddModelBtn').click();
       assert.ok((await page.locator('#routingGroupModal').textContent()).includes(localNames[0]));
       await page.evaluate(refs => {
         const rg = window.__weftoRoutingGroups;
-        rg.state.groups.push({ id: 'label-rule', name: 'Label rule', members: [refs[0]], rules: [{ when: 'tools', use: refs[1] }] });
+        rg.state.groups.push({ id: 'label-rule', name: 'Label rule', members: [refs[0]], rules: refs.slice(1).map(use => ({ when: 'tools', use })) });
         rg.renderGroups();
       }, localRefs);
       await page.locator('#rgCancelBtn').click();
       await page.locator('[data-rg-edit="label-rule"]').click();
-      for (let i = 0; i < localRefs.length; i++) {
-        assert.ok((await page.locator(`.rt-rule-use option[value="${localRefs[i]}"]`).textContent()).startsWith(localNames[i]), 'rule targets use names even outside group members');
+      for (let i = 1; i < localRefs.length; i++) {
+        const target = page.locator('.rt-rule-use').nth(i - 1);
+        assert.equal(await target.inputValue(), localRefs[i], 'saved rule targets retain their exact identity');
+        assert.ok((await target.locator(`option[value="${localRefs[i]}"]`).textContent()).startsWith(localNames[i]), 'rule targets use names even outside group members');
+        assert.ok((await target.locator(`option[value="${localRefs[0]}"]`).textContent()).startsWith(localNames[0]), 'group member options use catalogue names');
       }
       await page.waitForFunction(() => {
         const rg = window.__weftoRoutingGroups, note = document.querySelector('#rgPrivacySummary');

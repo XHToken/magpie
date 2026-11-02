@@ -16,7 +16,7 @@ and entity replacement algorithms are outside this subsystem.
 [`routermanifest.Fixed`](../../internal/routermanifest/manifest.go) is a detached,
 compiled catalog: llama.cpp **b10828**, CPU Windows x64/Linux x64/macOS arm64/x64,
 Windows x64 CUDA 12.4/Vulkan and macOS arm64 Metal metadata;
-Spark-X2.6 **4B Q4_K_M / Q8_0**, exact revisions, lengths,
+Spark-X2.6 **1.7B and 4B Q4_K_M / Q8_0**, exact revisions, lengths,
 SHA256, fixed template, license and disk reservation. Runtime/weight metadata
 was checked on 2026-10-17; accelerator release bytes were additionally hashed
 on 2026-10-24. Native inference remains a platform-specific acceptance step.
@@ -44,6 +44,19 @@ Q4_K_M retains catalog ID `spark-x2.6-4B`, selector `local/spark-x2.6-4b`,
 artifact identity and fingerprint. Q8_0 uses catalog ID `spark-x2.6-4B-Q8_0`
 and selector `local/spark-x2.6-4b-q8_0`, with an independent weight artifact ID.
 Their display names include the corresponding quantization.
+The 1.7B variants were verified on 2026-11-02 against the official
+[GGUF revision](https://huggingface.co/XHToken/Spark-X2.6-1.7B-GGUF/tree/3c90a598d4e4a030703080b5f278fe098247fbef).
+Q4_K_M is 1,768,720,512 bytes (catalog ID `spark-x2.6-1.7B`); Q8_0 is
+1,820,113,440 bytes (`spark-x2.6-1.7B-Q8_0`). Both retain separate weight receipts
+and capability fingerprints, and a pinned 5,717-byte official 1.7B template at
+`e6406af83988f26e87ea92455f31db3f6476131b`. Its downloaded SHA256 matches the
+4B template, but its source/receipt identity remains explicit. 1.7B downloads
+try HF-Mirror, then Hugging Face, at the same immutable revision with identical
+size/hash checks. ModelScope metadata was unavailable during verification and
+is not an asserted 1.7B source. All four variants share the existing b10828
+engines, 64K product context, installer, model lifecycle and purpose-specific
+checks. Neither metadata nor download success grants capability acceptance.
+
 [`Artifact.DownloadURLs`](../../internal/routermanifest/sources.go) defines
 download priority separately from artifact identity. All catalog llama.cpp
 b10828 archives (Windows CPU/CUDA/Vulkan, Linux CPU, macOS Intel/Apple Silicon)
@@ -54,7 +67,7 @@ packages by OS, architecture and device hints; source fallback does not select
 another platform or runtime version. Microsoft VC dependencies keep their
 existing Microsoft source.
 
-X2.6 Q4_K_M, Q8_0 and the shared template try HF-Mirror first, then ModelScope.
+X2.6 4B Q4_K_M, Q8_0 and their shared template try HF-Mirror first, then ModelScope.
 ModelScope's GGUF commit `8500d75a53f1e6592cfbb36fcb67c3e7380e6aab` and template
 commit `1648980d7798c24041bedf58aff82615c562b6c6` have matching size/SHA256
 metadata checked on 2026-10-27. The template was also downloaded and hashed;
@@ -75,8 +88,8 @@ still belongs to the compiled source list with matching size/hash pins.
 Installation progress reports the actual source hostname. See the
 [downloader contract](../../internal/routerdownload/README.md) for retry bounds.
 
-Model labels use `Model.DisplayName`, independently of the shared `4B` hardware
-tier. The service consumes per-quantization advice described in the
+Model labels use `Model.DisplayName`, independently of the `1.7B` / `4B` hardware
+tiers. The service consumes per-quantization advice described in the
 [device reference](wefto-device.md#product-quantization-advice), including
 safe manual overrides and separate resource/volume checks. Explicit actions
 accept unknown observations for explicit download/enable/load attempts while
@@ -89,8 +102,8 @@ Complete installed models can be reused without requiring fresh-download space.
 On macOS, explicit installation uses the device assessment's `download` state,
 independent of inference memory/CPU headroom. A download-only request does not
 enable the model. Enable/load and restored enabled intent use `manual` instead:
-Q4 may be explicitly tried from 4 GiB available memory, while automatic advice
-still uses 8 GiB. Q8 budgets and the 64K runtime context remain unchanged. These
+4B Q4 may be explicitly tried from 4 GiB available memory, while automatic advice
+still uses 8 GiB. 4B Q8 budgets and the 64K runtime context remain unchanged. These
 policy estimates do not guarantee that a Mac can allocate the actual working
 set; runtime loading, health and performance checks remain authoritative.
 Selection, loading, CPU/GPU choice, queueing and capability gates are shared;
@@ -532,6 +545,13 @@ navigation/connect/manual refresh and polls transient install/load states only
 while that page is open. All five languages and desktop/mobile layouts are
 covered. Closing the page stops no Router or model process.
 
+Provider-row shortcuts call `routerLocalFocusModel` to preview the exact model
+in the download chooser. Catalogue IDs are resolved case-insensitively back to
+their canonical form; the requested choice survives the initial catalogue
+fetch and subsequent refreshes. Preview navigation does not mutate runtime
+selection or enable intent. Installed model names wrap at narrow widths so
+the 1.7B/4B and Q4_K_M/Q8_0 distinctions remain readable.
+
 The page has no runtime settings section, context selector, numeric budgets or
 save/reload action. The configured model's switch performs the existing
 enable/load/check/trial sequence; startup follows the same capability gates.
@@ -569,7 +589,8 @@ or `failed`), the authenticated local-model page requests one device probe per
 page session. This read-only hardware probe neither selects/enables a model nor
 downloads or loads it; refreshing status does not repeat a failed probe. A manual
 Detect device action retries it. The recommendation appears above the model
-choices, which show the full names **Spark-X2.5-1.7B** and **Spark-X2.5-4B**.
+choices, which show **Spark-X2.6-1.7B** and **Spark-X2.6-4B**, each with its
+full **Q4_K_M** or **Q8_0** suffix.
 Unknown or failed checks are distinguished from a passed recommendation. Both
 tiers share the existing pinned download, resumable installation, dependency
 repair and runtime lifecycle. Enablement and installation enforce the chosen

@@ -74,10 +74,11 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     for(const language of ['zh','en','zh-TW','ja','de'])for(const width of [375,1440]){
       await page.setViewportSize({width,height:950});await skipTutorial(page);
       await page.goto(`http://${address}/?locale=${language}&view=agents`);
-      await page.waitForFunction(()=>!!managementToken&&!!serviceInfo&&document.querySelectorAll('#agents .row.agent.conn').length===2).catch(async error=>{
-        console.error('Catalogue page readiness', {language,width,...await page.evaluate(()=>({hasToken:!!managementToken,hasService:!!serviceInfo,rows:document.querySelectorAll('#agents .row.agent.conn').length,view:location.search})),errors,managementRequests});
+      try { await page.waitForFunction(()=>!!managementToken&&!!serviceInfo&&!!document.querySelector('#agents [data-app="loomy"] .field.ag-menu')); }
+      catch(error) {
+        t.diagnostic(JSON.stringify({language,width,errors,refreshError:await page.evaluate(async()=>{try{await refreshService();return null;}catch(e){return {message:e.message,stack:e.stack};}}),agents:await page.locator('#agents').textContent()}));
         throw error;
-      });
+      }
       await page.locator('#agents [data-app="loomy"] .field.ag-menu').click();
       const pop=page.locator('.am-pop');await pop.waitFor({state:'visible'});
       for(const [kind,key] of Object.entries(labels)){

@@ -6,9 +6,39 @@ import (
 	"testing"
 )
 
+func TestSpark17QuantizationsHaveIndependentPinnedInstallations(t *testing.T) {
+	c := Fixed()
+	for _, tc := range []struct {
+		id, quant, hash string
+		size            int64
+	}{
+		{"spark-x2.6-1.7B", "Q4_K_M", "7abd9859c10924be3c583945456fa9b25d0569484876105a7b7376f7938fffb7", 1768720512},
+		{"spark-x2.6-1.7B-Q8_0", "Q8_0", "8d96279c95ae2be111576f3f599880598be0922efee15069b4d7e4dd96ef6ed4", 1820113440},
+	} {
+		m, ok := c.Model(tc.id)
+		if !ok {
+			t.Fatalf("1.7B model %s is missing from the downloadable catalog", tc.id)
+		}
+		if m.Tier != "1.7B" || m.Quantization != tc.quant || m.DisplayName() != "Spark-X2.6-1.7B-"+tc.quant || m.Artifact.Size != tc.size || m.Artifact.SHA256 != tc.hash {
+			t.Fatalf("incorrect published 1.7B artifact: %+v", m)
+		}
+		if m.Revision != "3c90a598d4e4a030703080b5f278fe098247fbef" || m.TemplateRevision != "e6406af83988f26e87ea92455f31db3f6476131b" || m.Template.Size != 5717 || m.Template.SHA256 != "480576bd2ef80726a0dba6406d72ca37f4f4f9ca747c7f1c8d159dbdf40f6929" {
+			t.Fatal("1.7B weights and template must retain verified revision pins", m)
+		}
+		if !m.SupportsRedactionTrial() || m.InstallationBytes != 2*m.Artifact.Size+(576<<20) {
+			t.Fatal("1.7B must use the shared checked installation and capability flow", m)
+		}
+		for _, other := range c.Models {
+			if other.ID != m.ID && other.Artifact.ID == m.Artifact.ID {
+				t.Fatal("different model weights share an installation identity")
+			}
+		}
+	}
+}
+
 func TestFixedCatalogHasOnlyVerifiedExecutionArtifacts(t *testing.T) {
 	c := Fixed()
-	if c.SchemaVersion != 1 || len(c.Models) != 2 {
+	if c.SchemaVersion != 1 || len(c.Models) != 4 {
 		t.Fatal(c)
 	}
 	for _, retired := range []string{"spark-x2.5-1.7B", "spark-x2.5-4B"} {
@@ -91,7 +121,7 @@ func TestFixedCatalogAdvertisesBothX26RedactionTrials(t *testing.T) {
 	if err := json.Unmarshal(raw, &catalog); err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
+	for _, id := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0", "spark-x2.6-1.7B", "spark-x2.6-1.7B-Q8_0"} {
 		found := false
 		for _, model := range catalog.Models {
 			if model.ID != id {

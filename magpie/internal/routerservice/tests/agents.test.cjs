@@ -347,50 +347,52 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
     }
     await page.unroute('**/api/cloud-providers');
     await page.unroute('**/api/apps');
-    const q4 = 'local/spark-x2.6-4b', q8 = 'local/spark-x2.6-4b-q8_0';
-    let localFixture = [], savedLocal = [];
-    await page.route('**/api/cloud-providers', route => route.fulfill({ json: { providers: [], localModels: localFixture } }));
-    await page.route('**/api/apps', async route => {
-      assert.equal(route.request().method(), 'GET', 'inspecting installation status must not save selections');
-      const response = await route.fetch(), data = await response.json();
-      for (const app of data.apps) { app.models = savedLocal; app.cloud = {}; app.enabled = false; }
-      await route.fulfill({ response, json: data });
-    });
-    for (const scenario of [
-      { name: 'only Q4 installed but disabled', installed: [true, false], expected: [q4] },
-      { name: 'only Q8 installed', installed: [false, true], expected: [q8] },
-      { name: 'both installed', installed: [true, true], expected: [q4, q8] },
-      { name: 'neither installed', installed: [false, false], expected: [] },
-      { name: 'installation unknown despite ready status', installed: [undefined, undefined], expected: [] },
-      { name: 'saved missing Q8', installed: [true, false], saved: [q8], expected: [q4, q8] },
-      { name: 'saved Q4 and Q8', installed: [true, true], saved: [q4, q8], expected: [q4, q8] },
-      { name: 'unknown saved model', installed: [false, false], saved: ['local/unknown-model'], expected: ['local/unknown-model'] },
-    ]) {
-      localFixture = [q4, q8].map((selector, i) => ({ id: selector.slice('local/'.length), name: i ? 'Spark-X2.6-4B-Q8_0' : 'Spark-X2.6-4B-Q4_K_M', installed: scenario.installed[i], enabled: false, selected: true, status: 'ready' }));
-      savedLocal = scenario.saved || [];
-      for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) {
-        await page.goto(`http://${address}/?locale=${language}&view=agents`);
-        await page.waitForFunction(() => !!managementToken && !!serviceInfo);
-        await page.evaluate(() => window.routerAppsOpen());
-        for (const host of ['loomy', 'workbuddy']) {
-          const row = page.locator(`#agents [data-app="${host}"]`);
-          const expectedLabel = ref => localFixture.find(model => `local/${model.id}` === ref)?.name || ref.slice(6);
-          if (savedLocal.length) {
-            assert.equal(await row.locator('.field.ag-menu .v').textContent(), savedLocal.map(expectedLabel).join(', '), `${language}/${host}: selected models keep their display names`);
-            if (!await row.locator('.field.ag-pick').isVisible()) await row.locator('.ag-link').click();
-            assert.equal(await row.locator('.field.ag-pick .v').textContent(), expectedLabel(savedLocal[0]), 'new sessions show the primary model name');
+    for (const tier of ['4B', '1.7B']) {
+      const q4 = 'local/spark-x2.6-' + tier.toLowerCase(), q8 = q4 + '-q8_0';
+      let localFixture = [], savedLocal = [];
+      await page.route('**/api/cloud-providers', route => route.fulfill({ json: { providers: [], localModels: localFixture } }));
+      await page.route('**/api/apps', async route => {
+        assert.equal(route.request().method(), 'GET', 'inspecting installation status must not save selections');
+        const response = await route.fetch(), data = await response.json();
+        for (const app of data.apps) { app.models = savedLocal; app.cloud = {}; app.enabled = false; }
+        await route.fulfill({ response, json: data });
+      });
+      for (const scenario of [
+        { name: 'only Q4 installed but disabled', installed: [true, false], expected: [q4] },
+        { name: 'only Q8 installed', installed: [false, true], expected: [q8] },
+        { name: 'both installed', installed: [true, true], expected: [q4, q8] },
+        { name: 'neither installed', installed: [false, false], expected: [] },
+        { name: 'installation unknown despite ready status', installed: [undefined, undefined], expected: [] },
+        { name: 'saved missing Q8', installed: [true, false], saved: [q8], expected: [q4, q8] },
+        { name: 'saved Q4 and Q8', installed: [true, true], saved: [q4, q8], expected: [q4, q8] },
+        { name: 'unknown saved model', installed: [false, false], saved: ['local/unknown-model'], expected: ['local/unknown-model'] },
+      ]) {
+        localFixture = [q4, q8].map((selector, i) => ({ id: selector.slice('local/'.length), name: 'Spark-X2.6-' + tier + (i ? '-Q8_0' : '-Q4_K_M'), installed: scenario.installed[i], enabled: false, selected: true, status: 'ready' }));
+        savedLocal = scenario.saved || [];
+        for (const language of ['zh', 'en', 'zh-TW', 'ja', 'de']) {
+          await page.goto(`http://${address}/?locale=${language}&view=agents`);
+          await page.waitForFunction(() => !!managementToken && !!serviceInfo);
+          await page.evaluate(() => window.routerAppsOpen());
+          for (const host of ['loomy', 'workbuddy']) {
+            const row = page.locator(`#agents [data-app="${host}"]`);
+            const expectedLabel = ref => localFixture.find(model => `local/${model.id}` === ref)?.name || ref.slice(6);
+            if (savedLocal.length) {
+              assert.equal(await row.locator('.field.ag-menu .v').textContent(), savedLocal.map(expectedLabel).join(', '), `${language}/${host}: selected models keep their display names`);
+              if (!await row.locator('.field.ag-pick').isVisible()) await row.locator('.ag-link').click();
+              assert.equal(await row.locator('.field.ag-pick .v').textContent(), expectedLabel(savedLocal[0]), 'new sessions show the primary model name');
+            }
+            await page.locator(`#agents [data-app="${host}"] .field.ag-menu`).click();
+            assert.deepEqual(await page.locator('.am-mr[data-model^="local/"]').evaluateAll(rows => rows.map(row => row.dataset.model)), scenario.expected, `${language}/${host}/${scenario.name}`);
+            for (const ref of scenario.expected) assert.equal(await page.locator(`.am-mr[data-model="${ref}"] .am-mn`).textContent(), expectedLabel(ref));
+            if (savedLocal.length) assert.ok((await page.locator('.am-foot .am-note').textContent()).endsWith(expectedLabel(savedLocal[0])), 'primary model hint uses its display name');
+            if (scenario.saved?.includes(q8)) {
+              const savedRow = page.locator(`.am-mr[data-model="${q8}"]`);
+              assert.equal(await savedRow.getAttribute('aria-selected'), 'true');
+              if (!scenario.installed[1]) assert.ok((await savedRow.getAttribute('title')).includes(await page.evaluate(() => t('Saved model selection; availability is not verified'))));
+            }
+            await page.keyboard.press('Escape');
+            if (savedLocal.length) await row.locator('.ag-link').click();
           }
-          await page.locator(`#agents [data-app="${host}"] .field.ag-menu`).click();
-          assert.deepEqual(await page.locator('.am-mr[data-model^="local/"]').evaluateAll(rows => rows.map(row => row.dataset.model)), scenario.expected, `${language}/${host}/${scenario.name}`);
-          for (const ref of scenario.expected) assert.equal(await page.locator(`.am-mr[data-model="${ref}"] .am-mn`).textContent(), expectedLabel(ref));
-          if (savedLocal.length) assert.ok((await page.locator('.am-foot .am-note').textContent()).endsWith(expectedLabel(savedLocal[0])), 'primary model hint uses its display name');
-          if (scenario.saved?.includes(q8)) {
-            const savedRow = page.locator(`.am-mr[data-model="${q8}"]`);
-            assert.equal(await savedRow.getAttribute('aria-selected'), 'true');
-            if (!scenario.installed[1]) assert.ok((await savedRow.getAttribute('title')).includes(await page.evaluate(() => t('Saved model selection; availability is not verified'))));
-          }
-          await page.keyboard.press('Escape');
-          if (savedLocal.length) await row.locator('.ag-link').click();
         }
       }
     }

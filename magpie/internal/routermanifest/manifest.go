@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	spark26Rev  = "83b47fda018fd14f51aa63341f78266f628af5a5"
-	spark26Base = "66e3ae7bee54e0a523d692cb8ef841f35409807b"
+	spark26Rev       = "83b47fda018fd14f51aa63341f78266f628af5a5"
+	spark26Base      = "66e3ae7bee54e0a523d692cb8ef841f35409807b"
+	spark26SmallRev  = "3c90a598d4e4a030703080b5f278fe098247fbef"
+	spark26SmallBase = "e6406af83988f26e87ea92455f31db3f6476131b"
 )
 
 // Artifact is immutable source metadata. Missing size/hash/URL means blocked.
@@ -62,7 +64,7 @@ type Model struct {
 // SupportsRedactionTrial keeps the fixed model allowlist and its declared
 // support together. Runtime enablement and exact binding are checked separately.
 func (m Model) SupportsRedactionTrial() bool {
-	return m.RedactionTrial && (m.ID == "spark-x2.6-4B" || m.ID == "spark-x2.6-4B-Q8_0")
+	return m.RedactionTrial && (m.ID == "spark-x2.6-4B" || m.ID == "spark-x2.6-4B-Q8_0" || m.ID == "spark-x2.6-1.7B" || m.ID == "spark-x2.6-1.7B-Q8_0")
 }
 
 // DisplayName keeps the published model version separate from its hardware tier.
@@ -130,12 +132,14 @@ func (c Catalog) Runtime(id string) (Runtime, bool) {
 // Fixed returns a detached catalog. Mirrors are trusted only after exact hash
 // verification against the recorded official repository metadata.
 func Fixed() Catalog {
-	c := Catalog{SchemaVersion: 1, VerifiedAt: "2026-10-27", Sources: []string{
+	c := Catalog{SchemaVersion: 1, VerifiedAt: "2026-11-02", Sources: []string{
 		"https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/b10828",
 		"https://huggingface.co/api/models/XHToken/Spark-X2.6-4B-GGUF/revision/" + spark26Rev + "?blobs=true",
 		"https://huggingface.co/api/models/XHToken/Spark-X2.6-4B/revision/" + spark26Base + "?blobs=true",
 		"https://modelscope.cn/api/v1/models/XHToken/Spark-X2.6-4B-GGUF/repo/files?Revision=8500d75a53f1e6592cfbb36fcb67c3e7380e6aab&Recursive=true",
 		"https://modelscope.cn/api/v1/models/XHToken/Spark-X2.6-4B/repo/files?Revision=1648980d7798c24041bedf58aff82615c562b6c6&Recursive=true",
+		"https://huggingface.co/api/models/XHToken/Spark-X2.6-1.7B-GGUF/revision/" + spark26SmallRev + "?blobs=true",
+		"https://huggingface.co/api/models/XHToken/Spark-X2.6-1.7B/revision/" + spark26SmallBase + "?blobs=true",
 	}}
 	// X2.6 retains the spark2_5 architecture supported by b10828, but uses its
 	// own published template. Metadata checked against the official repo 2026-10-27.
@@ -163,6 +167,29 @@ func Fixed() Catalog {
 		Size: 4375021824, Format: "file"}
 	q8.InstallationBytes = 2*q8.Artifact.Size + (576 << 20)
 	c.Models = append(c.Models, q8)
+	// Keep 4B identities stable. Each 1.7B variant has its own weight receipt;
+	// both use the separately pinned official 1.7B template and shared engines.
+	for _, v := range []struct {
+		id, quant, hash string
+		size            int64
+	}{
+		{"spark-x2.6-1.7B", "Q4_K_M", "7abd9859c10924be3c583945456fa9b25d0569484876105a7b7376f7938fffb7", 1768720512},
+		{"spark-x2.6-1.7B-Q8_0", "Q8_0", "8d96279c95ae2be111576f3f599880598be0922efee15069b4d7e4dd96ef6ed4", 1820113440},
+	} {
+		name := "Spark-X2.6-1.7B-" + v.quant
+		c.Models = append(c.Models, Model{
+			ID: v.id, Name: name, Tier: "1.7B", Revision: spark26SmallRev,
+			Quantization: v.quant, License: "Apache-2.0", Purpose: "public_execution_and_redaction_validation_only", RedactionTrial: true,
+			ContextTokens: 8192, NativeContextTokens: 1048576,
+			Artifact: Artifact{ID: name + "-" + spark26SmallRev,
+				URL:      "https://hf-mirror.com/XHToken/Spark-X2.6-1.7B-GGUF/resolve/" + spark26SmallRev + "/" + name + ".gguf",
+				FileName: name + ".gguf", SHA256: v.hash, Size: v.size, Format: "file"},
+			Template: Artifact{ID: "Spark-X2.6-1.7B-template-" + spark26SmallBase,
+				URL:      "https://hf-mirror.com/XHToken/Spark-X2.6-1.7B/resolve/" + spark26SmallBase + "/chat_template.jinja",
+				FileName: "chat_template.jinja", SHA256: "480576bd2ef80726a0dba6406d72ca37f4f4f9ca747c7f1c8d159dbdf40f6929", Size: 5717, Format: "file"},
+			TemplateRevision: spark26SmallBase, InstallationBytes: 2*v.size + (576 << 20),
+		})
+	}
 	for _, v := range []struct {
 		id, platform, arch, backend, asset, hash, exe string
 		size                                          int64

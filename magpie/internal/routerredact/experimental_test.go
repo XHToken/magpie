@@ -18,7 +18,7 @@ import (
 )
 
 func TestExperimentalPrivacyVersionsPreserveFormalMaterialAndSeparateCache(t *testing.T) {
-	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0"} {
+	for _, modelID := range []string{"spark-x2.6-4B", "spark-x2.6-4B-Q8_0", "spark-x2.6-1.7B", "spark-x2.6-1.7B-Q8_0"} {
 		t.Run(modelID, func(t *testing.T) {
 			binding := ModelBinding{ModelID: modelID, RuntimeID: "windows-amd64-cpu"}
 			formal, err := NewPrivacySpecification(binding)

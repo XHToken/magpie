@@ -3,10 +3,6 @@
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const isWeftoService = value => value === 'wefto' || value === 'api-router';
-const routerIntlLang = () => {
-  try { return Intl.getCanonicalLocales(intlLang())[0] || 'en'; }
-  catch { return 'en'; }
-};
 const params = new URLSearchParams(location.search);
 let preferences = {};
 try { preferences = JSON.parse(localStorage.getItem('wefto.ui') ?? localStorage.getItem('api-router.ui') ?? '{}') || {}; } catch {}
@@ -39,7 +35,7 @@ for (const [key, zh, tw, ja, de] of [
   ['Ready', '可用', '可用', '利用可能', 'Verfügbar'],
   ['Not connected yet', '尚未接入', '尚未接入', '未接続', 'Noch nicht angebunden'],
   ['Local model', '本地模型', '本機模型', 'ローカルモデル', 'Lokales Modell'],
-  ['Cloud requests are connected. Explicit 1.7B or 4B local routing and execution become available after enable, install and capability checks; redaction is separate.', '云端请求已接通。明确启用、安装并完成能力检查后，1.7B 或 4B 本地路由与执行可用；脱敏单独管理。', '雲端請求已接通。明確啟用、安裝並完成能力檢查後，1.7B 或 4B 本機路由與執行可用；去識別化獨立管理。', 'クラウドリクエストは利用できます。1.7Bまたは4Bを有効化・インストールし、機能確認を完了するとローカルルーティングと実行を使えます。匿名化は別管理です。'],
+  ['Cloud requests are connected. Explicit 1.7B or 4B local routing and execution become available after enable, install and capability checks; redaction is separate.', '云端请求已接通。明确启用、安装并完成能力检查后，1.7B 或 4B 本地路由与执行可用；脱敏单独管理。', '雲端請求已接通。明確啟用、安裝並完成能力檢查後，1.7B 或 4B 本機路由與執行可用；去識別化獨立管理。', 'クラウドリクエストは利用できます。1.7Bまたは4Bを有効化・インストールし、機能確認を完了するとローカルルーティングと実行を使えます。匿名化は別管理です。', 'Cloud-Anfragen sind angebunden. Lokales Routing und lokale Ausführung mit 1.7B oder 4B sind nach expliziter Aktivierung, Installation und Funktionsprüfung verfügbar; die Anonymisierung wird separat eingerichtet.'],
   ['Manual refresh', '手动刷新', '手動重新整理', '手動更新', 'Manuell aktualisieren'],
   ['Only requests passing through 端云协同 are counted. Host session files are not scanned.', '仅统计经过 端云协同 的请求，不扫描宿主会话文件。', '僅統計經過 端云协同 的請求，不掃描宿主工作階段檔案。', '端云协同を通るリクエストのみを集計します。ホストのセッションファイルはスキャンしません。', 'Es werden nur Anfragen über 端云协同 gezählt. Sitzungsdateien anderer Anwendungen werden nicht durchsucht.'],
   ['Estimated cost', '估算成本', '估算成本', '推定コスト', 'Geschätzte Kosten'],
@@ -195,6 +191,14 @@ function show(next) {
   if (view === 'agents') window.routerAppsOpen?.();
   window.routerObservationsOpen?.();
   window.routerLocalOpen?.();
+}
+
+// Formatting must not mark a healthy service disconnected when a browser
+// inherits a POSIX locale suffix instead of a valid language tag.
+function routerIntlLang() {
+  const language = String(intlLang()).replace(/@.*$/, '').replace(/_/g, '-');
+  try { return Intl.getCanonicalLocales(language)[0] || 'en'; }
+  catch { return 'en'; }
 }
 
 function renderService() {

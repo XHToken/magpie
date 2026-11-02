@@ -12,7 +12,11 @@ func (a Artifact) DownloadURLs() []string {
 	}
 	const hfGGUF = "https://hf-mirror.com/XHToken/Spark-X2.6-4B-GGUF/resolve/" + spark26Rev + "/"
 	const msGGUF = "https://modelscope.cn/models/XHToken/Spark-X2.6-4B-GGUF/resolve/8500d75a53f1e6592cfbb36fcb67c3e7380e6aab/"
+	const hfSmallGGUF = "https://hf-mirror.com/XHToken/Spark-X2.6-1.7B-GGUF/resolve/" + spark26SmallRev + "/"
+	const hfSmallTemplate = "https://hf-mirror.com/XHToken/Spark-X2.6-1.7B/resolve/" + spark26SmallBase + "/chat_template.jinja"
 	switch a.URL {
+	case hfSmallGGUF + "Spark-X2.6-1.7B-Q4_K_M.gguf", hfSmallGGUF + "Spark-X2.6-1.7B-Q8_0.gguf", hfSmallTemplate:
+		return []string{a.URL, strings.Replace(a.URL, "https://hf-mirror.com/", "https://huggingface.co/", 1)}
 	case hfGGUF + "Spark-X2.6-4B-Q4_K_M.gguf", hfGGUF + "Spark-X2.6-4B-Q8_0.gguf":
 		return []string{a.URL, msGGUF + strings.TrimPrefix(a.URL, hfGGUF)}
 	case "https://hf-mirror.com/XHToken/Spark-X2.6-4B/resolve/" + spark26Base + "/chat_template.jinja":
