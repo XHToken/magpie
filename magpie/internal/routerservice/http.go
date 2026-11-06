@@ -58,6 +58,7 @@ var visualAssets = map[string]string{
 	"/icons/codex-color.svg":       "image/svg+xml",
 	"/icons/claudecode-color.svg":  "image/svg+xml",
 	"/icons/loomy.png":             "image/png",
+	"/icons/astudio.png":           "image/png",
 	"/icons/workbuddy-color.svg":   "image/svg+xml",
 	"/icons/spark-color.svg":       "image/svg+xml",
 }

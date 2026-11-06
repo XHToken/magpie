@@ -14,9 +14,17 @@ func (a Artifact) DownloadURLs() []string {
 	const msGGUF = "https://modelscope.cn/models/XHToken/Spark-X2.6-4B-GGUF/resolve/8500d75a53f1e6592cfbb36fcb67c3e7380e6aab/"
 	const hfSmallGGUF = "https://hf-mirror.com/XHToken/Spark-X2.6-1.7B-GGUF/resolve/" + spark26SmallRev + "/"
 	const hfSmallTemplate = "https://hf-mirror.com/XHToken/Spark-X2.6-1.7B/resolve/" + spark26SmallBase + "/chat_template.jinja"
+	// ModelScope commits holding byte-identical 1.7B files (same size and
+	// SHA256 as the pinned Hugging Face revisions, checked 2026-11-06). It is
+	// reachable from mainland China, where huggingface.co often is not.
+	const msSmallGGUF = "https://modelscope.cn/models/XHToken/Spark-X2.6-1.7B-GGUF/resolve/8aebdd1184370b5ebb93d42876faf75304f23346/"
+	const msSmallTemplate = "https://modelscope.cn/models/XHToken/Spark-X2.6-1.7B/resolve/ab6acab5eca04380414ab2be415bc98a368b92f1/chat_template.jinja"
+	official := strings.Replace(a.URL, "https://hf-mirror.com/", "https://huggingface.co/", 1)
 	switch a.URL {
-	case hfSmallGGUF + "Spark-X2.6-1.7B-Q4_K_M.gguf", hfSmallGGUF + "Spark-X2.6-1.7B-Q8_0.gguf", hfSmallTemplate:
-		return []string{a.URL, strings.Replace(a.URL, "https://hf-mirror.com/", "https://huggingface.co/", 1)}
+	case hfSmallGGUF + "Spark-X2.6-1.7B-Q4_K_M.gguf", hfSmallGGUF + "Spark-X2.6-1.7B-Q8_0.gguf":
+		return []string{a.URL, msSmallGGUF + strings.TrimPrefix(a.URL, hfSmallGGUF), official}
+	case hfSmallTemplate:
+		return []string{a.URL, msSmallTemplate, official}
 	case hfGGUF + "Spark-X2.6-4B-Q4_K_M.gguf", hfGGUF + "Spark-X2.6-4B-Q8_0.gguf":
 		return []string{a.URL, msGGUF + strings.TrimPrefix(a.URL, hfGGUF)}
 	case "https://hf-mirror.com/XHToken/Spark-X2.6-4B/resolve/" + spark26Base + "/chat_template.jinja":

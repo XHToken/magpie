@@ -111,14 +111,50 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
 
     await skipTutorial(page);
     await page.goto(`http://${address}/?locale=zh&view=agents`);
-    await page.waitForFunction(() => !!managementToken && !!serviceInfo && document.querySelectorAll('#agents .row.agent.conn').length === 2);
+    await page.waitForFunction(() => !!managementToken && !!serviceInfo && document.querySelectorAll('#agents .row.agent.conn').length === 3);
     await page.evaluate(() => window.routerAppsOpen());
 
     // 1. Page purification assertions
-    assert.equal(await page.locator('#agents .row.agent.conn').count(), 2);
-    assert.deepEqual(await page.locator('#agents .row.agent.conn').evaluateAll(nodes => nodes.map(n => n.dataset.app)), ['loomy', 'workbuddy']);
-    assert.equal(await page.locator('#agents [data-app="codex"], #agents [data-app="claude-code"], #agents [data-app="astudio"], #agents [data-app="dsh"], #addApp, #profileModal').count(), 0);
-    for (const id of ['loomy', 'workbuddy']) {
+    assert.equal(await page.locator('#agents .row.agent.conn').count(), 3);
+    assert.deepEqual(await page.locator('#agents .row.agent.conn').evaluateAll(nodes => nodes.map(n => n.dataset.app)), ['loomy', 'workbuddy', 'astudio']);
+    assert.equal(await page.locator('#agents [data-app="codex"], #agents [data-app="claude-code"], #agents [data-app="dsh"], #addApp, #profileModal').count(), 0);
+
+    // AStudio keeps its own model settings: its switch saves only the Profile,
+    // Details shows what to enter in AStudio, and switching off refuses requests.
+    {
+      const row = page.locator('#agents [data-app="astudio"]');
+      const loomyBefore = await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8');
+      const wbBefore = await fs.readFile(path.join(workBuddyRoot, 'settings.json'), 'utf8');
+      await row.locator('.field.ag-menu').click();
+      await page.locator('.pop.am-pop[data-app="astudio"] .am-mr[data-model="group/coding-hybrid"]').click();
+      await page.keyboard.press('Escape');
+      await row.locator('.lib-switch.ag-conn').click();
+      await page.waitForFunction(() => document.querySelector('#agents [data-app="astudio"] .lib-switch.ag-conn').getAttribute('aria-checked') === 'true');
+      const profile = await page.evaluate(async () => (await (await managementFetch('/api/apps')).json()).apps.find(a => a.id === 'astudio'));
+      assert.equal(profile.enabled, true);
+      assert.deepEqual(profile.models, ['group/coding-hybrid']);
+      assert.equal(await fs.readFile(path.join(loomyRoot, 'opencode.json'), 'utf8'), loomyBefore, 'AStudio connection writes no Loomy file');
+      assert.equal(await fs.readFile(path.join(workBuddyRoot, 'settings.json'), 'utf8'), wbBefore, 'AStudio connection writes no WorkBuddy file');
+      await row.locator('.ag-link').click();
+      assert.equal(await row.locator('code[data-field="endpoint"]').textContent(), `http://${address}/app/astudio/v1/chat/completions`);
+      assert.equal(await row.locator('code[data-field="model"]').textContent(), 'group/coding-hybrid');
+      assert.equal(await row.locator('code[data-field="apiKey"]').textContent(), 'wefto-local-placeholder');
+      const refusal = async () => { const res = await fetch(`http://${address}/app/astudio/v1/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer wefto-local-placeholder' }, body: JSON.stringify({ model: 'group/coding-hybrid', messages: [{ role: 'user', content: 'hi' }] }) }); return { status: res.status, body: await res.text() }; };
+      // This request really runs through the group; keep it out of the later
+      // "connecting must not probe upstream" counts.
+      const generationBefore = generationRequests;
+      assert.notEqual((await refusal()).status, 403, 'switched-on AStudio is not refused');
+      generationRequests = generationBefore;
+      await row.locator('.ag-quiet.red').click();
+      await page.waitForFunction(() => document.querySelector('#agents [data-app="astudio"] .lib-switch.ag-conn').getAttribute('aria-checked') === 'false');
+      const off = await refusal();
+      assert.equal(off.status, 403);
+      assert.match(off.body, /app_disabled/);
+      const offProfile = await page.evaluate(async () => (await (await managementFetch('/api/apps')).json()).apps.find(a => a.id === 'astudio'));
+      assert.deepEqual(offProfile.models, ['group/coding-hybrid'], 'switching off keeps the selection');
+      if (await row.locator('.ag-exp').count()) await row.locator('.ag-link').click();
+    }
+    for (const id of ['loomy', 'workbuddy', 'astudio']) {
       const row = page.locator(`#agents [data-app="${id}"]`);
       await row.locator('.ag-link').click();
       assert.equal(await row.locator('.ag-exp').isVisible(), true);

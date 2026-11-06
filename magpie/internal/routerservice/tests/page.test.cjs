@@ -138,9 +138,9 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
           assert.equal(await page.locator('#manage, #manageSettings, #modal, #token, #connect').count(), 0);
         }
         await page.locator('#nav [data-view=agents]').click();
-        await page.waitForFunction(() => document.querySelectorAll('#agents .row.agent.conn').length === 2);
-        assert.deepEqual(await page.locator('#agents .row.agent.conn').evaluateAll(nodes => nodes.map(n => n.dataset.app)), ['loomy', 'workbuddy']);
-        assert.equal(await page.locator('#agents [data-app="codex"], #agents [data-app="claude-code"], #agents [data-app="astudio"], #agents [data-app="dsh"], #addApp, #profileModal').count(), 0);
+        await page.waitForFunction(() => document.querySelectorAll('#agents .row.agent.conn').length === 3);
+        assert.deepEqual(await page.locator('#agents .row.agent.conn').evaluateAll(nodes => nodes.map(n => n.dataset.app)), ['loomy', 'workbuddy', 'astudio']);
+        assert.equal(await page.locator('#agents [data-app="codex"], #agents [data-app="claude-code"], #agents [data-app="dsh"], #addApp, #profileModal').count(), 0);
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
         await page.locator('#nav [data-view=providers]').click();
         assert.equal(await page.locator('#addProvider').isDisabled(), false);

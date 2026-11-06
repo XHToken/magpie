@@ -60,8 +60,17 @@ func TestSmallModelSourcesRetainOfficialPinsAcrossFallback(t *testing.T) {
 		}
 		for _, a := range []Artifact{m.Artifact, m.Template} {
 			urls := a.DownloadURLs()
-			if len(urls) != 2 || urls[0] != a.URL || urls[1] != strings.Replace(a.URL, "https://hf-mirror.com/", "https://huggingface.co/", 1) || strings.Contains(urls[1], "/main/") {
+			if len(urls) != 3 || urls[0] != a.URL || urls[2] != strings.Replace(a.URL, "https://hf-mirror.com/", "https://huggingface.co/", 1) || strings.Contains(urls[2], "/main/") {
 				t.Fatalf("1.7B fallback lost pinned identity: %v", urls)
+			}
+			// The domestic mirror sits between hf-mirror and the official host,
+			// pinned to a commit and serving the same file name.
+			wantRevision := "/resolve/8aebdd1184370b5ebb93d42876faf75304f23346/"
+			if a == m.Template {
+				wantRevision = "/resolve/ab6acab5eca04380414ab2be415bc98a368b92f1/"
+			}
+			if !strings.HasPrefix(urls[1], "https://modelscope.cn/models/XHToken/") || !strings.Contains(urls[1], wantRevision) || !strings.HasSuffix(urls[1], "/"+a.FileName) {
+				t.Fatalf("1.7B lacks a pinned ModelScope source: %v", urls)
 			}
 		}
 	}

@@ -117,7 +117,7 @@ function renderPreferences() {
 }
 function renderAgents() {
   if (window.routerAppsRender) { window.routerAppsRender(); return; }
-  $('#agents').replaceChildren(...[['Loomy', 'loomy.png', 'loomy'], ['WorkBuddy', 'workbuddy-color.svg', 'workbuddy']].map(([name, icon, id]) => {
+  $('#agents').replaceChildren(...[['Loomy', 'loomy.png', 'loomy'], ['WorkBuddy', 'workbuddy-color.svg', 'workbuddy'], ['AStudio', 'astudio.png', 'astudio']].map(([name, icon, id]) => {
     const row = el('div', 'row agent conn off'); row.dataset.app = id;
     const picture = el('span', 'ic'), image = el('img'); image.src = '/icons/' + icon; image.alt = ''; picture.append(image);
     const who = el('div', 'who'); who.append(el('div', 'name', name), el('div', 'sub', t('Not connected yet')));

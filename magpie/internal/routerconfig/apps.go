@@ -14,13 +14,23 @@ var (
 	ErrAppUnconfigured   = errors.New("application cloud target is not configured")
 	ErrMissingCredential = errors.New("required business or cloud credential is missing")
 	ErrCredentialMisuse  = errors.New("management credentials cannot be used upstream")
+	ErrAppDisabled       = errors.New("application is switched off")
 )
 
 const StoredCredential = "stored"
 const ForwardAuthorization = "forward-authorization"
 
 var appID = regexp.MustCompile(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`)
-var builtinApps = map[string]string{"codex": "Codex", "claude-code": "Claude Code", "loomy": "Loomy", "astudio": "astudio", "workbuddy": "WorkBuddy", "dsh": "DSH"}
+var builtinApps = map[string]string{"codex": "Codex", "claude-code": "Claude Code", "loomy": "Loomy", "astudio": "AStudio", "workbuddy": "WorkBuddy", "dsh": "DSH"}
+
+// manualHostApps are applications whose own settings 端云协同 cannot write:
+// the user adds the endpoint in the application itself. Turning such an app off
+// cannot restore a host file, so its Profile switch is what stops requests.
+var manualHostApps = map[string]bool{"astudio": true}
+
+// ManualHostApp reports whether id is connected by hand in the application
+// rather than through a host transaction.
+func ManualHostApp(id string) bool { return manualHostApps[id] }
 
 func ValidAppID(id string) bool {
 	if len(id) > 48 || !appID.MatchString(id) {

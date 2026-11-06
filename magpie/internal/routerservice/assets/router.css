@@ -416,3 +416,8 @@ progress.local-progress-bar::-moz-progress-bar { background: var(--progress-bar-
  .redact-compare-grid { grid-template-columns: minmax(0, 1fr); }
  .redact-obs-meta { margin-left: 0; width: 100%; }
 }
+
+/* Applications connected by hand (AStudio): values to copy into the app. */
+.ag-copy { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; }
+.ag-copy code { overflow-wrap: anywhere; }
+.ag-copy .ag-note { grid-column: 1 / -1; color: var(--muted); }

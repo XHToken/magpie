@@ -1,9 +1,17 @@
 'use strict';
 (() => {
-  const icons = { loomy: 'loomy.png', workbuddy: 'workbuddy-color.svg' };
-  const defaultApps = () => [{ id: 'loomy', name: 'Loomy', supported: true, enabled: false, models: [], revision: 0, editSeq: 0 }, { id: 'workbuddy', name: 'WorkBuddy', supported: true, enabled: false, models: [], revision: 0, editSeq: 0 }];
-  const apps = defaultApps(), saveQueues = { loomy: Promise.resolve(), workbuddy: Promise.resolve() }, savingCount = { loomy: 0, workbuddy: 0 }, expandedApps = new Set();
-  let hosts = {}, routingGroups = [], cloudProviders = [], localModels = [], activePop = null;
+  const icons = { loomy: 'loomy.png', workbuddy: 'workbuddy-color.svg', astudio: 'astudio.png' };
+  // manual: 端云协同 cannot write this application's settings. Its switch only
+  // saves the Profile (the service refuses requests while it is off), and the
+  // user adds the endpoint shown in Details inside the application itself.
+  const defaultApps = () => [
+    { id: 'loomy', name: 'Loomy', supported: true, enabled: false, models: [], revision: 0, editSeq: 0 },
+    { id: 'workbuddy', name: 'WorkBuddy', supported: true, enabled: false, models: [], revision: 0, editSeq: 0 },
+    { id: 'astudio', name: 'AStudio', supported: true, manual: true, enabled: false, models: [], revision: 0, editSeq: 0 },
+  ];
+  const apps = defaultApps(), saveQueues = {}, savingCount = {}, expandedApps = new Set();
+  for (const app of apps) { saveQueues[app.id] = Promise.resolve(); savingCount[app.id] = 0; }
+  let hosts = {}, routingGroups = [], cloudProviders = [], localModels = [], activePop = null, placeholderKey = '';
   for (const [key, zh, tw, ja, de] of [
     ['Configured', '已配置', '已設定', '設定済み', 'Konfiguriert'], ['No models', '未选择模型', '未選擇模型', 'モデル未選択', 'Keine Modelle'],
     ['Reconnect required', '需要重新连接', '需要重新連線', '再接続が必要', 'Erneut verbinden'],
@@ -33,6 +41,12 @@
     ['Modified {path}', '改动了 {path}', '改動了 {path}', '{path} を変更', '{path} geändert'],
     ['local_first', '本地优先', '本機優先', 'ローカル優先', 'Lokal zuerst'], ['failover', '故障转移', '故障轉移', 'フェイルオーバー', 'Failover'],
     ['round_robin', '轮询', '輪詢', 'ラウンドロビン', 'Round-Robin'], ['weighted_round_robin', '加权轮询', '加權輪詢', '加重ラウンドロビン', 'Gewichtetes Round-Robin'],
+    ['{agent} keeps its own model settings; 端云协同 does not change its files. In {agent}, open Settings → Models → Add model and enter the values below.', '{agent} 自己管理模型设置，端云协同不会改动它的文件。请在 {agent} 的 设置 → 模型 → 添加模型 中填写下面的内容。', '{agent} 自行管理模型設定，端云协同不會改動它的檔案。請在 {agent} 的 設定 → 模型 → 新增模型 中填寫下面的內容。', '{agent} はモデル設定を自身で管理し、端云协同はそのファイルを変更しません。{agent} の 設定 → モデル → モデルを追加 で以下の値を入力してください。', '{agent} verwaltet seine Modelleinstellungen selbst; 端云协同 ändert seine Dateien nicht. Öffnen Sie in {agent} Einstellungen → Modelle → Modell hinzufügen und tragen Sie die Werte unten ein.'],
+    ['Endpoint', '接口地址', '介面位址', 'エンドポイント', 'Endpunkt'], ['Model name', '模型名称', '模型名稱', 'モデル名', 'Modellname'],
+    ['API Key', 'API Key', 'API Key', 'API Key', 'API-Schlüssel'], ['Copy', '复制', '複製', 'コピー', 'Kopieren'], ['Copied', '已复制', '已複製', 'コピーしました', 'Kopiert'],
+    ['Public placeholder; cloud keys stay in 端云协同.', '公开占位值；云端密钥只保存在端云协同。', '公開佔位值；雲端金鑰只保存在端云协同。', '公開のプレースホルダーです。クラウドのキーは端云协同にのみ保存されます。', 'Öffentlicher Platzhalter; Cloud-Schlüssel bleiben in 端云协同.'],
+    ['Switch off', '关闭', '關閉', 'オフにする', 'Ausschalten'],
+    ['Switched off. {agent} requests are refused until it is switched on again.', '已关闭。重新开启前，{agent} 的请求会被拒绝。', '已關閉。重新開啟前，{agent} 的請求會被拒絕。', 'オフにしました。再びオンにするまで {agent} のリクエストは拒否されます。', 'Ausgeschaltet. Anfragen von {agent} werden abgelehnt, bis wieder eingeschaltet wird.'],
   ]) for (const [lang, text] of [['zh', zh], ['zh-TW', tw], ['ja', ja], ['de', de]]) (I18N[lang] ||= {})[key] = text;
 
   const dedup = (list) => { const out = [], seen = new Set(); for (const raw of list || []) { const m = String(raw || '').trim(); if (m && !seen.has(m)) { seen.add(m); out.push(m); } } return out; };
@@ -75,12 +89,28 @@
   async function syncRevisions() {
     try { const res = await managementFetch('/api/apps'); if (!res?.ok) return; const data = await res.json(); for (const item of data.apps || []) { const target = apps.find((a) => a.id === item.id); if (target && typeof item.revision === 'number') target.revision = item.revision; } } catch {}
   }
+  async function saveProfile(app, enabled, models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const body = { id: app.id, revision: Number(app.revision) || 0, name: app.name, enabled, models, cloud: { providerId: '', model: '' }, credentialMode: app.credentialMode || 'stored', redactionEnabled: Boolean(app.redactionEnabled), referencePrice: app.referencePrice || null };
+      const res = await managementFetch('/api/apps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.app) { app.revision = data.app.revision; return { ok: true, data }; }
+      if (res.status === 409 && attempt === 0) { await syncRevisions(); continue; }
+      return { ok: false, data };
+    }
+    return { ok: false, data: {} };
+  }
   function enqueueSave(app) {
     const id = app.id, snapshot = [...appModels(app)], seq = app.editSeq;
     savingCount[id] = (savingCount[id] || 0) + 1;
     saveQueues[id] = (saveQueues[id] || Promise.resolve()).catch(() => {}).then(async () => {
       const previous = [...(app.savedModels || [])];
       const failed = (data) => { if (app.editSeq === seq) app.models = previous; setStatus(`${app.name}: ${hostErrText(data)}`); updateRowState(app); activePop?.paint(); };
+      if (app.manual) {
+        const enabled = Boolean(app.enabled) && snapshot.length > 0, saved = await saveProfile(app, enabled, snapshot);
+        if (!saved.ok) { failed(saved.data); return; }
+        app.enabled = enabled; app.savedModels = snapshot; updateRowState(app); return;
+      }
       if (app.enabled) {
         if (!snapshot.length) {
           const res = await managementFetch('/api/hosts/auto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ host: id, enabled: false, action: 'disconnect', models: [] }) });
@@ -235,6 +265,13 @@
     app.editSeq = (app.editSeq || 0) + 1; if (sw) sw.disabled = true;
     try {
       await (saveQueues[app.id] || Promise.resolve()).catch(() => {});
+      if (app.manual) {
+        const saved = await saveProfile(app, wantOn, models);
+        if (!saved.ok) { app.enabled = !wantOn; setStatus(`${app.name}: ${hostErrText(saved.data)}`); updateRowState(app); return; }
+        app.enabled = wantOn; app.needsReconnect = false; app.savedModels = [...models];
+        setStatus(wantOn ? `${app.name}: ${t('Connected')} · ${selectionLabel(models[0] || '')}` : `${app.name}: ${t('Switched off. {agent} requests are refused until it is switched on again.').replace('{agent}', app.name)}`);
+        updateRowState(app); return;
+      }
       const payload = wantOn ? { host: app.id, enabled: true, models } : { host: app.id, enabled: false, action: 'disconnect' };
       const res = await managementFetch('/api/hosts/auto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json().catch(() => ({}));
@@ -258,8 +295,21 @@
     exp.onclick = (e) => e.stopPropagation();
     grid.append(
       el('span', 'ag-k', t('In {agent}').replace('{agent}', app.name)),
-      el('div', 'ag-v ag-note', t('{agent} model menu only lists models selected here; you can switch them there. The list is read at startup; quit and reopen after changes.').replace('{agent}', app.name))
+      el('div', 'ag-v ag-note', (app.manual ? t('{agent} keeps its own model settings; 端云协同 does not change its files. In {agent}, open Settings → Models → Add model and enter the values below.') : t('{agent} model menu only lists models selected here; you can switch them there. The list is read at startup; quit and reopen after changes.')).replace(/\{agent\}/g, app.name))
     );
+    if (app.manual) {
+      const copyRow = (key, value, note) => {
+        const v = el('div', 'ag-v ag-copy'), code = el('code', 'mono', value || '—'), btn = el('button', 'ag-quiet', t('Copy'));
+        code.dataset.field = key; btn.type = 'button'; btn.disabled = !value;
+        btn.onclick = async (e) => { e.stopPropagation(); try { await navigator.clipboard.writeText(value); btn.textContent = t('Copied'); } catch { const r = document.createRange(); r.selectNodeContents(code); getSelection().removeAllRanges(); getSelection().addRange(r); } };
+        v.append(code, btn); if (note) v.append(el('span', 'ag-note', note));
+        return v;
+      };
+      const base = location.origin + (app.path || `/app/${app.id}/v1`);
+      grid.append(el('span', 'ag-k', t('Endpoint')), copyRow('endpoint', base + '/chat/completions'));
+      grid.append(el('span', 'ag-k', t('Model name')), copyRow('model', models[0] || ''));
+      grid.append(el('span', 'ag-k', t('API Key')), copyRow('apiKey', placeholderKey, t('Public placeholder; cloud keys stay in 端云协同.')));
+    }
     const listVal = el('div', 'ag-v'), chips = el('div', 'ag-chips');
     for (const sec of buildCandidateSections(models)) {
       const n = sec.items.filter((it) => selSet.has(it.id)).length;
@@ -283,7 +333,7 @@
     const footText = app.enabled && cfgPath ? t('Modified {path}').replace('{path}', cfgPath) : (cfgPath || stateLabel(Boolean(app.enabled), models, app.needsReconnect));
     foot.append(el('span', 'mono', footText));
     if (app.enabled) {
-      const disc = el('button', 'ag-quiet red', t('Disconnect & restore')); disc.type = 'button';
+      const disc = el('button', 'ag-quiet red', app.manual ? t('Switch off') : t('Disconnect & restore')); disc.type = 'button';
       disc.onclick = (e) => { e.stopPropagation(); toggleHostSwitch(app, sw, menuBtn); };
       foot.append(disc);
     }
@@ -344,9 +394,10 @@
 
   async function load() {
     if (view !== 'agents') return;
-    const seqBefore = { loomy: apps[0].editSeq || 0, workbuddy: apps[1].editSeq || 0 };
+    const seqBefore = Object.fromEntries(apps.map((app) => [app.id, app.editSeq || 0]));
     const [appRes, hostRes] = await Promise.all([managementFetch('/api/apps').catch(() => null), managementFetch('/api/hosts/auto').catch(() => null), refreshCandidates()]);
     const appData = appRes?.ok ? await appRes.json().catch(() => ({})) : {}, hostData = hostRes?.ok ? await hostRes.json().catch(() => ({})) : {};
+    if (typeof appData.placeholderKey === 'string') placeholderKey = appData.placeholderKey;
     hosts = {}; for (const h of (hostData.items || hostData.hosts || [])) if (h?.host) hosts[h.host] = h;
     const byId = new Map((appData.apps || []).map((a) => [a.id, a]));
     for (const target of apps) {

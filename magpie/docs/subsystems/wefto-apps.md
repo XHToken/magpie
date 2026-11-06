@@ -11,7 +11,8 @@ statistics are independent of the source of a requirement.
 Manage per-application routing profiles (`AppProfile`), multi-model and
 routing-group bindings (`Models []string`), runtime group scheduling
 (`smart_split`, `ordered`, `weighted`, `manual`, and rule matching), and the
-streamlined `#view-agents` UI for one-click Loomy and WorkBuddy integration.
+streamlined `#view-agents` UI for one-click Loomy and WorkBuddy integration
+plus the manually connected AStudio entry.
 
 ## Entry Points
 
@@ -32,8 +33,8 @@ streamlined `#view-agents` UI for one-click Loomy and WorkBuddy integration.
   - `host_auto.go`: `hostAutoAPI`, `inspectAutoHosts`, `syncAutoHostStore`
   - `loomy.go`: `loomyHostAPI`, `autoHostConfigRoot`
 - Frontend UI (`internal/routerservice/assets/`):
-  - `profiles.js`: `#view-agents` two-row agent connection list (`loomy` and
-    `workbuddy`), multi-select model/group picker (`.field.solo.ag-menu` +
+  - `profiles.js`: `#view-agents` agent connection list (`loomy`,
+    `workbuddy` and the manual `astudio` row), multi-select model/group picker (`.field.solo.ag-menu` +
     `.pop.am-pop`), and connection switch (`.lib-switch.ag-conn`)
   - `routing-groups.js` & `routing-groups-editor.js`: `#view-routing` routing
     group list, strategy switcher, and drawer editor
@@ -120,8 +121,8 @@ parameter matching `group/<id>` or a group name), `resolveRuntimeGroupRoute` and
 
 ### `#view-agents` Frontend (`profiles.js`)
 
-The `#view-agents` view is dedicated to connecting the two supported desktop
-coding agents (`loomy` and `workbuddy`):
+The `#view-agents` view connects the supported desktop agents: `loomy` and
+`workbuddy` through host transactions, and `astudio` by hand (below):
 
 The model picker labels provider sections by catalogue provenance: discovered
 models, cached models after a failed refresh, or unverified preset models.
@@ -153,8 +154,8 @@ selectors. Cloud/group status and tooltips retain their full selectors.
 The routing header does not shrink beneath its controls as groups
 accumulate, keeping creation reachable on narrow screens.
 
-- Renders two `.row.agent.conn` rows (`data-agent-id="loomy"` and
-  `data-agent-id="workbuddy"`).
+- Renders three `.row.agent.conn` rows (`data-app="loomy"`, `"workbuddy"`
+  and `"astudio"`).
 - Each row provides a multi-select dropdown (`.field.solo.ag-menu` +
   `.pop.am-pop`) with `Routing Groups` (`group/<id>`) pinned at the top,
   followed by cloud provider models (`<providerId>/<model>`) and local models
@@ -163,6 +164,29 @@ accumulate, keeping creation reachable on narrow screens.
   connected) persists the `AppProfile` (`POST /api/apps`) and invokes
   `POST /api/hosts/auto` (`action: "connect"` or `"disconnect"`) to synchronize
   or restore the host configuration files without blocking upstream probes.
+
+### Manually connected applications (AStudio)
+
+AStudio stores custom models in its own account-scoped database and desktop
+credential service, so 端云协同 has no host transaction for it and writes none
+of its files. `routerconfig.ManualHostApp` lists such applications (currently
+`astudio`). For them:
+
+- The row's switch and model picker save only the Profile (`POST /api/apps`);
+  `/api/hosts/auto` is never called.
+- Details shows what the user enters in AStudio → Settings → Models → Add
+  model: the Chat Completions endpoint `<origin>/app/astudio/v1/chat/completions`,
+  the primary selection (`Models[0]`, e.g. `group/<id>`) as the model name, and
+  the public placeholder key returned by `GET /api/apps` as `placeholderKey`
+  (stored-mode Profiles ignore inbound credentials).
+- Because switching off cannot remove the entry inside AStudio, the switch
+  gates requests: `Store.ResolveAppContext` returns `ErrAppDisabled` for a
+  switched-off manual application, answered as HTTP 403 `app_disabled`. The
+  selection is kept for the next connection. Host-managed applications are
+  unchanged: their host files, not the switch, decide whether requests arrive.
+
+Verification: `go test ./internal/routerconfig -run 'TestManualHostApp|TestBuiltinAStudio'`
+and the AStudio block in `internal/routerservice/tests/agents.test.cjs`.
 
 User input redaction is configured in the routing-group editor. Application
 Details does not expose a redaction switch; the application flag defaults to

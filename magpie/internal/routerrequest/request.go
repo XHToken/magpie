@@ -41,6 +41,8 @@ func ClassifyError(err error) *Error {
 		return &Error{"provider_conflict", "provider changed; reload before checking or saving", 409}
 	case errors.Is(err, routerconfig.ErrAppConflict):
 		return &Error{"profile_conflict", "application changed; reload before saving", 409}
+	case errors.Is(err, routerconfig.ErrAppDisabled):
+		return &Error{"app_disabled", "application is switched off in 端云协同", 403}
 	case errors.Is(err, routerconfig.ErrAppUnconfigured):
 		return &Error{"profile_unconfigured", "select an application cloud provider and model", 409}
 	case errors.Is(err, routerconfig.ErrMissingCredential):
