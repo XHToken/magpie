@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/yetone/magpie/internal/product"
 	"github.com/yetone/magpie/internal/routerconfig"
 	"github.com/yetone/magpie/internal/routerrequest"
 )
@@ -62,7 +63,10 @@ func appsAPI(w http.ResponseWriter, r *http.Request, store *routerconfig.Store, 
 		if len(redactionCapability) > 0 {
 			capability = redactionCapability[0]
 		}
-		providerJSON(w, 200, map[string]any{"schemaVersion": 1, "apps": apps, "capabilities": map[string]any{"inference": true, "connectionTest": true, "redaction": capability == routerconfig.RedactionAvailable || capability == routerconfig.RedactionExperimental, "redactionState": capability}})
+		// placeholderKey is the public, non-secret value an application without a
+		// host transaction (AStudio) enters as its API Key; stored-mode Profiles
+		// ignore inbound credentials.
+		providerJSON(w, 200, map[string]any{"schemaVersion": 1, "apps": apps, "placeholderKey": product.PlaceholderKey, "capabilities": map[string]any{"inference": true, "connectionTest": true, "redaction": capability == routerconfig.RedactionAvailable || capability == routerconfig.RedactionExperimental, "redactionState": capability}})
 	case "POST", "PUT":
 		var in routerconfig.AppEdit
 		if !providerInput(w, r, &in) {

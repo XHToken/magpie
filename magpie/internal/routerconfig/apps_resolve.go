@@ -36,6 +36,9 @@ func (s *Store) ResolveAppContext(ctx context.Context, id, authorization, apiKey
 	if !ok {
 		return AppTarget{}, ErrAppNotFound
 	}
+	if ManualHostApp(id) && !p.Enabled {
+		return AppTarget{}, ErrAppDisabled
+	}
 	target, err := resolveAppTarget(f, p, authorization, apiKey, forbidden...)
 	if err == nil {
 		err = ctx.Err()
