@@ -140,7 +140,11 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ['chromium',
       assert.equal(await row.locator('code[data-field="model"]').textContent(), 'group/coding-hybrid');
       assert.equal(await row.locator('code[data-field="apiKey"]').textContent(), 'wefto-local-placeholder');
       const refusal = async () => { const res = await fetch(`http://${address}/app/astudio/v1/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer wefto-local-placeholder' }, body: JSON.stringify({ model: 'group/coding-hybrid', messages: [{ role: 'user', content: 'hi' }] }) }); return { status: res.status, body: await res.text() }; };
+      // This request really runs through the group; keep it out of the later
+      // "connecting must not probe upstream" counts.
+      const generationBefore = generationRequests;
       assert.notEqual((await refusal()).status, 403, 'switched-on AStudio is not refused');
+      generationRequests = generationBefore;
       await row.locator('.ag-quiet.red').click();
       await page.waitForFunction(() => document.querySelector('#agents [data-app="astudio"] .lib-switch.ag-conn').getAttribute('aria-checked') === 'false');
       const off = await refusal();
