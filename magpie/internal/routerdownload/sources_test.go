@@ -306,8 +306,10 @@ func TestDownloadFailedMirrorPreservesResumablePrimary(t *testing.T) {
 					}
 					return transport.RoundTrip(r)
 				})
-				if err := (&Downloader{Client: client}).Download(context.Background(), a, dest, nil); err == nil || backupCalls.Load() != 1 {
-					t.Fatalf("expected one failed backup attempt: calls=%d err=%v", backupCalls.Load(), err)
+				// Each backup source is tried once and fails; none may touch the primary partial.
+				wantBackups := int32(len(a.DownloadURLs()) - 1)
+				if err := (&Downloader{Client: client}).Download(context.Background(), a, dest, nil); err == nil || backupCalls.Load() != wantBackups {
+					t.Fatalf("expected %d failed backup attempts: calls=%d err=%v", wantBackups, backupCalls.Load(), err)
 				}
 				prefix, err := os.ReadFile(dest + ".part")
 				if err != nil || !bytes.Equal(prefix, data[:8]) {
