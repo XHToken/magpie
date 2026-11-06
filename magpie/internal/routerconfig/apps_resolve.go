@@ -36,10 +36,12 @@ func (s *Store) ResolveAppContext(ctx context.Context, id, authorization, apiKey
 	if !ok {
 		return AppTarget{}, ErrAppNotFound
 	}
-	if ManualHostApp(id) && !p.Enabled {
+	target, err := resolveAppTarget(f, p, authorization, apiKey, forbidden...)
+	// Credential and configuration errors keep their priority; only a request
+	// that would otherwise run is refused for a switched-off manual application.
+	if err == nil && ManualHostApp(id) && !p.Enabled {
 		return AppTarget{}, ErrAppDisabled
 	}
-	target, err := resolveAppTarget(f, p, authorization, apiKey, forbidden...)
 	if err == nil {
 		err = ctx.Err()
 	}

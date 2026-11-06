@@ -235,6 +235,10 @@ func TestPrepareEveryPresetAndCustomApplication(t *testing.T) {
 		key := "placeholder-for-" + id
 		mode := routerconfig.StoredCredential
 		in := routerconfig.AppEdit{ID: id, Name: id, Cloud: routerconfig.AppCloud{ProviderID: provider.ID, Model: "fixed-" + id}, CredentialMode: mode}
+		if routerconfig.ManualHostApp(id) {
+			on := true // a manual application serves only while switched on
+			in.Enabled = &on
+		}
 		if id == "loomy" {
 			in.CredentialMode = routerconfig.ForwardAuthorization
 			key = "dynamic-loomy-authorization"
